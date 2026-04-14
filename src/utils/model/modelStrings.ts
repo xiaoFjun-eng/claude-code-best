@@ -143,7 +143,13 @@ export function getModelStrings(): ModelStrings {
   }
   return applyModelOverrides(ms)
 }
-
+/**
+ * Reset the modelStrings cache so it re-initializes with the current provider on next access.
+ * Call this after switching providers (e.g. after /login).
+ */
+export function resetModelStrings(): void {
+  setModelStringsState(null as unknown as ModelStrings)
+}
 /**
  * Ensure model strings are fully initialized.
  * For Bedrock users, this waits for the profile fetch to complete.

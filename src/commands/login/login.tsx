@@ -22,6 +22,9 @@ import {
   resetAutoModeGateCheck,
   resetBypassPermissionsCheck,
 } from '../../utils/permissions/bypassPermissionsKillswitch.js'
+import { applyConfigEnvironmentVariables } from '../../utils/managedEnv.js'
+import { resetModelStrings } from '../../utils/model/modelStrings.js'
+import { resetSettingsCache } from '../../utils/settings/settingsCache.js'
 import { resetUserCache } from '../../utils/user.js'
 
 export async function call(
@@ -40,6 +43,9 @@ export async function call(
           // Reset cost state when switching accounts
           resetCostState()
           // Refresh remotely managed settings after login (non-blocking)
+          resetSettingsCache()
+          applyConfigEnvironmentVariables()
+          resetModelStrings()
           void refreshRemoteManagedSettings()
           // Refresh policy limits after login (non-blocking)
           void refreshPolicyLimits()

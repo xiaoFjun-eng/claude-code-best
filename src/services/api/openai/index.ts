@@ -290,7 +290,7 @@ export async function* queryModelOpenAI(
     const maxTokens = options.maxOutputTokensOverride ?? upperLimit
 
     // 11. Get client
-    const client = getOpenAIClient({
+    const client = await getOpenAIClient({
       maxRetries: 0,
       fetchOverride: options.fetchOverride as unknown as typeof fetch,
       source: options.querySource,
@@ -432,7 +432,8 @@ export async function* queryModelOpenAI(
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
-    logForDebugging(`[OpenAI] Error: ${errorMessage}`, { level: 'error' })
+    const stack = error instanceof Error ? `\n${error.stack}` : ''
+    logForDebugging(`[OpenAI] Error: ${errorMessage}${stack}`, { level: 'error' })
     yield createAssistantAPIErrorMessage({
       content: `API Error: ${errorMessage}`,
       apiError: 'api_error',

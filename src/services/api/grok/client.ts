@@ -1,4 +1,4 @@
-import OpenAI from 'openai'
+import type OpenAI from 'openai'
 import { getProxyFetchOptions } from 'src/utils/proxy.js'
 
 /**
@@ -12,17 +12,18 @@ const DEFAULT_BASE_URL = 'https://api.x.ai/v1'
 
 let cachedClient: OpenAI | null = null
 
-export function getGrokClient(options?: {
+export async function getGrokClient(options?: {
   maxRetries?: number
   fetchOverride?: typeof fetch
   source?: string
-}): OpenAI {
+}): Promise<OpenAI> {
   if (cachedClient) return cachedClient
 
+  const { default: OpenAIClass } = await import('openai')
   const apiKey = process.env.GROK_API_KEY || process.env.XAI_API_KEY || ''
   const baseURL = process.env.GROK_BASE_URL || DEFAULT_BASE_URL
 
-  const client = new OpenAI({
+  const client = new OpenAIClass({
     apiKey,
     baseURL,
     maxRetries: options?.maxRetries ?? 0,

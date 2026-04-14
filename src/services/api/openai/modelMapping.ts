@@ -2,18 +2,20 @@
  * Default mapping from Anthropic model names to OpenAI model names.
  * Used only when ANTHROPIC_DEFAULT_*_MODEL env vars are not set.
  */
-const DEFAULT_MODEL_MAP: Record<string, string> = {
-  'claude-sonnet-4-20250514': 'gpt-4o',
-  'claude-sonnet-4-5-20250929': 'gpt-4o',
-  'claude-sonnet-4-6': 'gpt-4o',
-  'claude-opus-4-20250514': 'o3',
-  'claude-opus-4-1-20250805': 'o3',
-  'claude-opus-4-5-20251101': 'o3',
-  'claude-opus-4-6': 'o3',
-  'claude-haiku-4-5-20251001': 'gpt-4o-mini',
-  'claude-3-5-haiku-20241022': 'gpt-4o-mini',
-  'claude-3-7-sonnet-20250219': 'gpt-4o',
-  'claude-3-5-sonnet-20241022': 'gpt-4o',
+function getDefaultModelMap(): Record<string, string> {
+  return {
+    'claude-sonnet-4-20250514': 'gpt-4o',
+    'claude-sonnet-4-5-20250929': 'gpt-4o',
+    'claude-sonnet-4-6': 'gpt-4o',
+    'claude-opus-4-20250514': 'o3',
+    'claude-opus-4-1-20250805': 'o3',
+    'claude-opus-4-5-20251101': 'o3',
+    'claude-opus-4-6': 'o3',
+    'claude-haiku-4-5-20251001': 'gpt-4o-mini',
+    'claude-3-5-haiku-20241022': 'gpt-4o-mini',
+    'claude-3-7-sonnet-20250219': 'gpt-4o',
+    'claude-3-5-sonnet-20241022': 'gpt-4o',
+  }
 }
 
 /**
@@ -59,5 +61,5 @@ export function resolveOpenAIModel(anthropicModel: string): string {
     if (anthropicOverride) return anthropicOverride
   }
 
-  return DEFAULT_MODEL_MAP[cleanModel] ?? cleanModel
+  return getDefaultModelMap()?.[cleanModel] ?? cleanModel
 }

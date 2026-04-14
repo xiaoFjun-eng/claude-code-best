@@ -5,27 +5,31 @@
  * or override the entire mapping via GROK_MODEL_MAP env var (JSON string):
  *   GROK_MODEL_MAP='{"opus":"grok-4","sonnet":"grok-3","haiku":"grok-3-mini-fast"}'
  */
-const DEFAULT_MODEL_MAP: Record<string, string> = {
-  'claude-sonnet-4-20250514': 'grok-3-mini-fast',
-  'claude-sonnet-4-5-20250929': 'grok-3-mini-fast',
-  'claude-sonnet-4-6': 'grok-3-mini-fast',
-  'claude-opus-4-20250514': 'grok-4.20-reasoning',
-  'claude-opus-4-1-20250805': 'grok-4.20-reasoning',
-  'claude-opus-4-5-20251101': 'grok-4.20-reasoning',
-  'claude-opus-4-6': 'grok-4.20-reasoning',
-  'claude-haiku-4-5-20251001': 'grok-3-mini-fast',
-  'claude-3-5-haiku-20241022': 'grok-3-mini-fast',
-  'claude-3-7-sonnet-20250219': 'grok-3-mini-fast',
-  'claude-3-5-sonnet-20241022': 'grok-3-mini-fast',
+function getDefaultModelMap(): Record<string, string> {
+  return {
+    'claude-sonnet-4-20250514': 'grok-3-mini-fast',
+    'claude-sonnet-4-5-20250929': 'grok-3-mini-fast',
+    'claude-sonnet-4-6': 'grok-3-mini-fast',
+    'claude-opus-4-20250514': 'grok-4.20-reasoning',
+    'claude-opus-4-1-20250805': 'grok-4.20-reasoning',
+    'claude-opus-4-5-20251101': 'grok-4.20-reasoning',
+    'claude-opus-4-6': 'grok-4.20-reasoning',
+    'claude-haiku-4-5-20251001': 'grok-3-mini-fast',
+    'claude-3-5-haiku-20241022': 'grok-3-mini-fast',
+    'claude-3-7-sonnet-20250219': 'grok-3-mini-fast',
+    'claude-3-5-sonnet-20241022': 'grok-3-mini-fast',
+  }
 }
 
 /**
  * Family-level mapping defaults (used by GROK_MODEL_MAP).
  */
-const DEFAULT_FAMILY_MAP: Record<string, string> = {
-  opus: 'grok-4.20-reasoning',
-  sonnet: 'grok-3-mini-fast',
-  haiku: 'grok-3-mini-fast',
+function getDefaultFamilyMap(): Record<string, string> {
+  return {
+    opus: 'grok-4.20-reasoning',
+    sonnet: 'grok-3-mini-fast',
+    haiku: 'grok-3-mini-fast',
+  }
 }
 
 function getModelFamily(model: string): 'haiku' | 'sonnet' | 'opus' | null {
@@ -93,13 +97,13 @@ export function resolveGrokModel(anthropicModel: string): string {
   }
 
   // 5. Exact model name lookup
-  if (DEFAULT_MODEL_MAP[cleanModel]) {
-    return DEFAULT_MODEL_MAP[cleanModel]
+  if (getDefaultModelMap()[cleanModel]) {
+    return getDefaultModelMap()[cleanModel]
   }
 
   // 6. Family-level default
-  if (family && DEFAULT_FAMILY_MAP[family]) {
-    return DEFAULT_FAMILY_MAP[family]
+  if (family && getDefaultFamilyMap()[family]) {
+    return getDefaultFamilyMap()[family]
   }
 
   // 7. Pass through

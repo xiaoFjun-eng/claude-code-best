@@ -65,7 +65,7 @@ export async function* queryModelGrok(
     const openaiTools = anthropicToolsToOpenAI(standardTools)
     const openaiToolChoice = anthropicToolChoiceToOpenAI(options.toolChoice)
 
-    const client = getGrokClient({
+    const client = await getGrokClient({
       maxRetries: 0,
       fetchOverride: options.fetchOverride as typeof fetch | undefined,
       source: options.querySource,
@@ -187,7 +187,8 @@ export async function* queryModelGrok(
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
-    logForDebugging(`[Grok] Error: ${errorMessage}`, { level: 'error' })
+    const stack = error instanceof Error ? `\n${error.stack}` : ''
+    logForDebugging(`[Grok] Error: ${errorMessage}${stack}`, { level: 'error' })
     yield createAssistantAPIErrorMessage({
       content: `API Error: ${errorMessage}`,
       apiError: 'api_error',

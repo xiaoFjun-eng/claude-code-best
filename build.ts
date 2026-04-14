@@ -59,6 +59,7 @@ const result = await Bun.build({
   splitting: true,
   define: getMacroDefines(),
   features,
+  external: ['openai'],
 })
 
 if (!result.success) {

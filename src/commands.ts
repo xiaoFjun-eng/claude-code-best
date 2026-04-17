@@ -674,6 +674,7 @@ export const REMOTE_SAFE_COMMANDS: Set<Command> = new Set([
   btw, // Quick note
   feedback, // Send feedback
   plan, // Plan mode toggle
+  proactive, // Toggle proactive mode
   keybindings, // Keybinding management
   statusline, // Status line toggle
   stickers, // Stickers
@@ -706,9 +707,18 @@ export const BRIDGE_SAFE_COMMANDS: Set<Command> = new Set(
  * 该限制：'prompt' 命令（技能）扩展为文本，在构造上是安全的；'local' 命令需要通过
  * BRIDGE_SAFE_COMMANDS 显式选择加入；'local-jsx' 命令渲染 Ink UI 并保持被阻止。 */
 export function isBridgeSafeCommand(cmd: Command): boolean {
-  if (cmd.type === 'local-jsx') return false
+  if (cmd.type === 'local-jsx') return cmd.bridgeSafe === true
   if (cmd.type === 'prompt') return true
-  return BRIDGE_SAFE_COMMANDS.has(cmd)
+  return cmd.bridgeSafe === true || BRIDGE_SAFE_COMMANDS.has(cmd)
+}
+
+export function getBridgeCommandSafety(
+  cmd: Command,
+  args: string,
+): { ok: true } | { ok: false; reason?: string } {
+  if (!isBridgeSafeCommand(cmd)) return { ok: false }
+  const reason = cmd.getBridgeInvocationError?.(args)
+  return reason ? { ok: false, reason } : { ok: true }
 }
 
 /** * 过滤命令，仅包含对远程模式安全的命令。

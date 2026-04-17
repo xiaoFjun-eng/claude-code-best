@@ -21,15 +21,15 @@ export const call: LocalCommandCall = async (args, context) => {
 
   const currentState = context.getAppState()
 
-  // Check if already attached to this slave
+  // 检查是否已连接到此从属会话
   if (getPipeIpc(currentState).slaves[targetName]) {
     return {
       type: 'text',
-      value: `Already attached to "${targetName}".`,
+      value: `已连接到 "${targetName}"。`,
     }
   }
 
-  // Controlled sub sessions cannot attach to other sub sessions.
+  // 受控的子会话无法附加到其他子会话。
   if (isPipeControlled(getPipeIpc(currentState))) {
     return {
       type: 'text',
@@ -38,7 +38,7 @@ export const call: LocalCommandCall = async (args, context) => {
     }
   }
 
-  // Resolve TCP endpoint for LAN peers
+  // 为局域网对等节点解析 TCP 端点
   let tcpEndpoint: TcpEndpoint | undefined
   if (feature('LAN_PIPES')) {
     const pipeState = getPipeIpc(currentState)
@@ -46,7 +46,7 @@ export const call: LocalCommandCall = async (args, context) => {
       (p: { pipeName: string }) => p.pipeName === targetName,
     )
     if (discoveredPeer) {
-      // Check if this is a LAN peer by looking up beacon data
+      // 通过查找信标数据检查是否为局域网对等节点
       const { getLanBeacon } =
         require('../../utils/lanBeacon.js') as typeof import('../../utils/lanBeacon.js')
       const beaconRef = getLanBeacon()
@@ -60,7 +60,7 @@ export const call: LocalCommandCall = async (args, context) => {
     }
   }
 
-  // Connect to the target pipe server (UDS or TCP)
+  // 连接到目标管道服务器（UDS 或 TCP）
   let client: PipeClient
   try {
     const myName =
@@ -69,17 +69,17 @@ export const call: LocalCommandCall = async (args, context) => {
   } catch (err) {
     return {
       type: 'text',
-      value: `Failed to connect to "${targetName}"${tcpEndpoint ? ` (TCP ${tcpEndpoint.host}:${tcpEndpoint.port})` : ''}: ${err instanceof Error ? err.message : String(err)}`,
+      value: `连接到 "${targetName}"${tcpEndpoint ? ` (TCP ${tcpEndpoint.host}:${tcpEndpoint.port})` : ''} 失败：${err instanceof Error ? err.message : String(err)}`
     }
   }
 
-  // Send attach request and wait for response
+  // 发送附加请求并等待响应
   return new Promise(resolve => {
     const timeout = setTimeout(() => {
       client.disconnect()
       resolve({
         type: 'text',
-        value: `Attach to "${targetName}" timed out (no response within 5s).`,
+        value: `附加到 "${targetName}" 超时（5 秒内无响应）。`,
       })
     }, 5000)
 
@@ -87,10 +87,10 @@ export const call: LocalCommandCall = async (args, context) => {
       if (msg.type === 'attach_accept') {
         clearTimeout(timeout)
 
-        // Register the slave client in the module-level registry
+        // 在模块级注册表中注册从属客户端
         addSlaveClient(targetName, client)
 
-        // Update AppState: add slave and switch to master role
+        // 更新 AppState：添加从属会话并切换为主控角色
         context.setAppState(prev => ({
           ...prev,
           pipeIpc: {
@@ -114,7 +114,10 @@ export const call: LocalCommandCall = async (args, context) => {
           Object.keys(getPipeIpc(currentState).slaves).length + 1
         resolve({
           type: 'text',
-          value: `Attached to "${targetName}" as master. Now monitoring ${slaveCount} sub session(s).\nUse /send ${targetName} <message> to send tasks.\nUse /status to see all connected subs.\nUse /detach ${targetName} to disconnect.`,
+          value: `已作为主控角色附加到 "${targetName}"。当前监控 ${slaveCount} 个子会话。
+使用 /send ${targetName} <消息> 发送任务。
+使用 /status 查看所有连接的子会话。
+使用 /detach ${targetName} 断开连接。`,
         })
       } else if (msg.type === 'attach_reject') {
         clearTimeout(timeout)
@@ -122,12 +125,11 @@ export const call: LocalCommandCall = async (args, context) => {
 
         resolve({
           type: 'text',
-          value: `Attach rejected by "${targetName}": ${msg.data ?? 'unknown reason'}`,
-        })
+          value: `附加请求被 "${targetName}" 拒绝：${msg.data ?? 'unknown reason'}`})
       }
     })
 
-    // Include machineId so remote can distinguish LAN peers from local peers
+    // 包含 machineId，以便远程端区分局域网对等节点与本地对等节点
     const pipeState = getPipeIpc(currentState)
     client.send({
       type: 'attach_request',

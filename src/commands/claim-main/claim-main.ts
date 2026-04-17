@@ -16,18 +16,18 @@ export const call: LocalCommandCall = async (_args, context) => {
   if (!myName) {
     return {
       type: 'text',
-      value: 'Pipe server not started. Cannot claim main.',
+      value: '管道服务器未启动。无法声明主节点。',
     }
   }
 
   const machineId = await getMachineId()
   const registry = await readRegistry()
 
-  // Already main machine?
+  // 已经是主节点？
   if (registry.mainMachineId === machineId && registry.main?.id === myName) {
     return {
       type: 'text',
-      value: 'This instance is already the main. No change needed.',
+      value: '此实例已是主节点。无需更改。',
     }
   }
 
@@ -46,7 +46,7 @@ export const call: LocalCommandCall = async (_args, context) => {
 
   await claimMain(machineId, entry)
 
-  // Update local state
+  // 更新本地状态
   context.setAppState(prev => ({
     ...prev,
     pipeIpc: {
@@ -60,16 +60,16 @@ export const call: LocalCommandCall = async (_args, context) => {
   }))
 
   const lines: string[] = []
-  lines.push('Main role claimed successfully.')
-  lines.push(`Machine ID: ${machineId.slice(0, 8)}...`)
-  lines.push(`Pipe:       ${myName}`)
+  lines.push('主角色声明成功。')
+  lines.push(`机器 ID: ${machineId.slice(0, 8)}...`)
+  lines.push(`管道:       ${myName}`)
   if (registry.mainMachineId && registry.mainMachineId !== machineId) {
     lines.push(
-      `Previous main machine: ${registry.mainMachineId.slice(0, 8)}...`,
+      `先前的主节点: ${registry.mainMachineId.slice(0, 8)}...`,
     )
   }
   lines.push('')
-  lines.push('All existing subs are now bound to this instance.')
+  lines.push('所有现有子节点现已绑定到此实例。')
   lines.push('Use /pipes to verify.')
 
   return { type: 'text', value: lines.join('\n') }

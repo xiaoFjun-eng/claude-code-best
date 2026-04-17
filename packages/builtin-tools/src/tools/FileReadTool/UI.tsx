@@ -12,16 +12,14 @@ import { getPlansDirectory } from 'src/utils/plans.js'
 import { getTaskOutputDir } from 'src/utils/task/diskOutput.js'
 import type { Input, Output } from './FileReadTool.js'
 
-/**
- * Check if a file path is an agent output file and extract the task ID.
- * Agent output files follow the pattern: {projectTempDir}/tasks/{taskId}.output
- */
+/** * 检查文件路径是否为智能体输出文件并提取任务 ID。
+ * 智能体输出文件遵循模式：{projectTempDir}/tasks/{taskId}.output */
 function getAgentOutputTaskId(filePath: string): string | null {
   const prefix = `${getTaskOutputDir()}/`
   const suffix = '.output'
   if (filePath.startsWith(prefix) && filePath.endsWith(suffix)) {
     const taskId = filePath.slice(prefix.length, -suffix.length)
-    // Validate it looks like a task ID (alphanumeric, reasonable length)
+    // 验证其是否符合任务 ID 格式（字母数字，长度合理）
     if (
       taskId.length > 0 &&
       taskId.length <= 20 &&
@@ -41,8 +39,8 @@ export function renderToolUseMessage(
     return null
   }
 
-  // For agent output files, return empty string so no parentheses are shown
-  // The task ID is displayed separately by AssistantToolUseMessage
+  // 对于智能体输出文件，返回空字符串，以便不显示括号
+  // 任务 ID 由 AssistantToolUseMessage 单独显示
   if (getAgentOutputTaskId(file_path)) {
     return ''
   }
@@ -52,15 +50,15 @@ export function renderToolUseMessage(
     return (
       <>
         <FilePathLink filePath={file_path}>{displayPath}</FilePathLink>
-        {` · pages ${pages}`}
+        {` · 第 ${pages} 页`}
       </>
     )
   }
   if (verbose && (offset || limit)) {
     const startLine = offset ?? 1
     const lineRange = limit
-      ? `lines ${startLine}-${startLine + limit - 1}`
-      : `from line ${startLine}`
+      ? `第 ${startLine}-${startLine + limit - 1} 行`
+      : `从第 ${startLine} 行开始`
     return (
       <>
         <FilePathLink filePath={file_path}>{displayPath}</FilePathLink>
@@ -76,7 +74,7 @@ export function renderToolUseTag({
 }: Partial<Input>): React.ReactNode {
   const agentTaskId = file_path ? getAgentOutputTaskId(file_path) : null
 
-  // Show agent task ID for Read tool when reading agent output
+  // 读取智能体输出时，为 Read 工具显示智能体任务 ID
   if (!agentTaskId) {
     return null
   }
@@ -84,7 +82,7 @@ export function renderToolUseTag({
 }
 
 export function renderToolResultMessage(output: Output): React.ReactNode {
-  // TODO: Render recursively
+  // 待办：递归渲染
   switch (output.type) {
     case 'image': {
       const { originalSize } = output.file
@@ -157,8 +155,8 @@ export function renderToolUseErrorMessage(
   { verbose }: { verbose: boolean },
 ): React.ReactNode {
   if (!verbose && typeof result === 'string') {
-    // FileReadTool throws from call() so errors lack <tool_use_error> wrapping —
-    // check the raw string directly for the cwd note marker.
+    // FileReadTool 在 call() 中抛出异常，因此错误缺少 <tool_use_error> 包装 —
+    // 直接检查原始字符串中的当前工作目录注释标记。
     if (result.includes(FILE_NOT_FOUND_CWD_NOTE)) {
       return (
         <MessageResponse>
@@ -179,10 +177,10 @@ export function renderToolUseErrorMessage(
 
 export function userFacingName(input: Partial<Input> | undefined): string {
   if (input?.file_path?.startsWith(getPlansDirectory())) {
-    return 'Reading Plan'
+    return '阅读计划'
   }
   if (input?.file_path && getAgentOutputTaskId(input.file_path)) {
-    return 'Read agent output'
+    return '读取智能体输出'
   }
   return 'Read'
 }
@@ -193,7 +191,7 @@ export function getToolUseSummary(
   if (!input?.file_path) {
     return null
   }
-  // For agent output files, just show the task ID
+  // 对于智能体输出文件，仅显示任务 ID
   const agentTaskId = getAgentOutputTaskId(input.file_path)
   if (agentTaskId) {
     return agentTaskId

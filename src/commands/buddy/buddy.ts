@@ -15,7 +15,7 @@ import type {
   LocalJSXCommandOnDone,
 } from '../../types/command.js'
 
-// Species → default name fragments for hatch (no API needed)
+// 物种 → 孵化时的默认名称片段（无需 API）
 const SPECIES_NAMES: Record<string, string> = {
   duck: 'Waddles',
   goose: 'Goosberry',
@@ -38,29 +38,29 @@ const SPECIES_NAMES: Record<string, string> = {
 }
 
 const SPECIES_PERSONALITY: Record<string, string> = {
-  duck: 'Quirky and easily amused. Leaves rubber duck debugging tips everywhere.',
-  goose: 'Assertive and honks at bad code. Takes no prisoners in code reviews.',
-  blob: 'Adaptable and goes with the flow. Sometimes splits into two when confused.',
-  cat: 'Independent and judgmental. Watches you type with mild disdain.',
+  duck: '古怪且容易开心。到处留下橡皮鸭调试技巧。',
+  goose: '自信，对糟糕的代码发出警告。在代码审查中毫不留情。',
+  blob: '适应性强，随波逐流。困惑时有时会分裂成两个。',
+  cat: '独立且挑剔。带着些许轻蔑看着你打字。',
   dragon:
-    'Fiery and passionate about architecture. Hoards good variable names.',
+    '热情如火，对架构充满激情。囤积好的变量名。',
   octopus:
-    'Multitasker extraordinaire. Wraps tentacles around every problem at once.',
+    '非凡的多任务处理者。用触手同时缠绕每个问题。',
   owl: 'Wise but verbose. Always says "let me think about that" for exactly 3 seconds.',
-  penguin: 'Cool under pressure. Slides gracefully through merge conflicts.',
-  turtle: 'Patient and thorough. Believes slow and steady wins the deploy.',
-  snail: 'Methodical and leaves a trail of useful comments. Never rushes.',
+  penguin: '压力下保持冷静。优雅地滑过合并冲突。',
+  turtle: '耐心且细致。相信慢而稳才能赢得部署。',
+  snail: '有条不紊，留下一串有用的注释。从不匆忙。',
   ghost:
-    'Ethereal and appears at the worst possible moments with spooky insights.',
-  axolotl: 'Regenerative and cheerful. Recovers from any bug with a smile.',
-  capybara: 'Zen master. Remains calm while everything around is on fire.',
+    '空灵，在最糟糕的时刻出现，带着令人毛骨悚然的见解。',
+  axolotl: '再生能力强且开朗。微笑着从任何 bug 中恢复。',
+  capybara: '禅宗大师。周围一切着火时仍保持冷静。',
   cactus:
-    'Prickly on the outside but full of good intentions. Thrives on neglect.',
-  robot: 'Efficient and literal. Processes feedback in binary.',
-  rabbit: 'Energetic and hops between tasks. Finishes before you start.',
-  mushroom: 'Quietly insightful. Grows on you over time.',
+    '外表带刺但内心充满善意。在忽视中茁壮成长。',
+  robot: '高效且字面化。以二进制方式处理反馈。',
+  rabbit: '精力充沛，在任务间跳跃。在你开始之前就完成了。',
+  mushroom: '安静而有洞察力。随着时间的推移，你会越来越喜欢它。',
   chonk:
-    'Big, warm, and takes up the whole couch. Prioritizes comfort over elegance.',
+    '庞大、温暖，占据了整个沙发。优先考虑舒适而非优雅。',
 }
 
 function speciesLabel(species: string): string {
@@ -75,21 +75,21 @@ export async function call(
   const sub = args?.trim().toLowerCase() ?? ''
   const setState = context.setAppState
 
-  // ── /buddy off — mute companion ──
+  // ── /buddy off — 静音伙伴 ──
   if (sub === 'off') {
     saveGlobalConfig(cfg => ({ ...cfg, companionMuted: true }))
-    onDone('companion muted', { display: 'system' })
+    onDone('伙伴已静音', { display: 'system' })
     return null
   }
 
-  // ── /buddy on — unmute companion ──
+  // ── /buddy on — 取消静音伙伴 ──
   if (sub === 'on') {
     saveGlobalConfig(cfg => ({ ...cfg, companionMuted: false }))
-    onDone('companion unmuted', { display: 'system' })
+    onDone('伙伴已取消静音', { display: 'system' })
     return null
   }
 
-  // ── /buddy pet — trigger heart animation + auto unmute ──
+  // ── /buddy pet — 触发爱心动画 + 自动取消静音 ──
   if (sub === 'pet') {
     const companion = getCompanion()
     if (!companion) {
@@ -97,11 +97,11 @@ export async function call(
       return null
     }
 
-    // Auto-unmute on pet + trigger heart animation
+    // 抚摸时自动取消静音 + 触发爱心动画
     saveGlobalConfig(cfg => ({ ...cfg, companionMuted: false }))
     setState?.(prev => ({ ...prev, companionPetAt: Date.now() }))
 
-    // Trigger a post-pet reaction
+    // 触发抚摸后的反应
     triggerCompanionReaction(context.messages ?? [], reaction =>
       setState?.(prev =>
         prev.companionReaction === reaction
@@ -110,20 +110,20 @@ export async function call(
       ),
     )
 
-    onDone(`petted ${companion.name}`, { display: 'system' })
+    onDone(`抚摸 ${companion.name}`, { display: 'system' })
     return null
   }
 
-  // ── /buddy (no args) — show existing or hatch ──
+  // ── /buddy（无参数）— 显示现有伙伴或孵化 ──
   const companion = getCompanion()
 
-  // Auto-unmute when viewing
+  // 查看时自动取消静音
   if (companion && getGlobalConfig().companionMuted) {
     saveGlobalConfig(cfg => ({ ...cfg, companionMuted: false }))
   }
 
   if (companion) {
-    // Return JSX card — matches official vc8 component
+    // 返回 JSX 卡片 — 匹配官方 vc8 组件
     const lastReaction = context.getAppState?.()?.companionReaction
     return React.createElement(CompanionCard, {
       companion,
@@ -132,12 +132,12 @@ export async function call(
     })
   }
 
-  // ── No companion → hatch ──
+  // ── 无伙伴 → 孵化 ──
   const seed = generateSeed()
   const r = rollWithSeed(seed)
   const name = SPECIES_NAMES[r.bones.species] ?? 'Buddy'
   const personality =
-    SPECIES_PERSONALITY[r.bones.species] ?? 'Mysterious and code-savvy.'
+    SPECIES_PERSONALITY[r.bones.species] ?? '神秘且精通代码。'
 
   const stored: StoredCompanion = {
     name,
@@ -153,15 +153,15 @@ export async function call(
   const shiny = r.bones.shiny ? ' \u2728 Shiny!' : ''
 
   const lines = [
-    'A wild companion appeared!',
+    '一位狂野的伙伴出现了！',
     '',
     ...sprite,
     '',
     `${name} the ${speciesLabel(r.bones.species)}${shiny}`,
-    `Rarity: ${stars} (${r.bones.rarity})`,
+    `稀有度：${stars} (${r.bones.rarity})`,
     `"${personality}"`,
     '',
-    'Your companion will now appear beside your input box!',
+    '你的伙伴现在将出现在你的输入框旁边！',
     'Say its name to get its take \u00b7 /buddy pet \u00b7 /buddy off',
   ]
   onDone(lines.join('\n'), { display: 'system' })

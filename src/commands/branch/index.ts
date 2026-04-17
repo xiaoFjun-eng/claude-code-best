@@ -4,9 +4,9 @@ import type { Command } from '../../commands.js'
 const branch = {
   type: 'local-jsx',
   name: 'branch',
-  // 'fork' alias only when /fork doesn't exist as its own command
+  // 仅当 /fork 不作为独立命令存在时，才使用 'fork' 别名
   aliases: feature('FORK_SUBAGENT') ? [] : ['fork'],
-  description: 'Create a branch of the current conversation at this point',
+  description: '在此处创建当前对话的分支',
   argumentHint: '[name]',
   load: () => import('./branch.js'),
 } satisfies Command

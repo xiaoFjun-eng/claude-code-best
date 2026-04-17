@@ -76,20 +76,20 @@ import {
   preserveQuoteStyle,
 } from './utils.js'
 
-// V8/Bun string length limit is ~2^30 characters (~1 billion). For typical
-// ASCII/Latin-1 files, 1 byte on disk = 1 character, so 1 GiB in stat bytes
-// ≈ 1 billion characters ≈ the runtime string limit. Multi-byte UTF-8 files
-// can be larger on disk per character, but 1 GiB is a safe byte-level guard
-// that prevents OOM without being unnecessarily restrictive.
+// V8/Bun 的字符串长度限制约为 2^30 个字符（约 10 亿）。对于典型的
+// ASCII/Latin-1 文件，磁盘上的 1 字节 = 1 个字符，因此 stat 字节中的 1 GiB
+// ≈ 10 亿个字符 ≈ 运行时字符串限制。多字节 UTF-8 文件
+// 每个字符在磁盘上可能更大，但 1 GiB 是一个安全的字节级防护
+// 可以在不造成不必要限制的情况下防止内存不足（OOM）。
 const MAX_EDIT_FILE_SIZE = 1024 * 1024 * 1024 // 1 GiB (stat bytes)
 
 export const FileEditTool = buildTool({
   name: FILE_EDIT_TOOL_NAME,
-  searchHint: 'modify file contents in place',
+  searchHint: '就地修改文件内容',
   maxResultSizeChars: 100_000,
   strict: true,
   async description() {
-    return 'A tool for editing files'
+    return '一个用于编辑文件的工具'
   },
   async prompt() {
     return getEditToolDescription()
@@ -98,7 +98,7 @@ export const FileEditTool = buildTool({
   getToolUseSummary,
   getActivityDescription(input) {
     const summary = getToolUseSummary(input)
-    return summary ? `Editing ${summary}` : 'Editing file'
+    return summary ? `正在编辑 ${summary}` : '正在编辑文件'
   },
   get inputSchema() {
     return inputSchema()
@@ -113,8 +113,8 @@ export const FileEditTool = buildTool({
     return input.file_path
   },
   backfillObservableInput(input) {
-    // hooks.mdx documents file_path as absolute; expand so hook allowlists
-    // can't be bypassed via ~ or relative paths.
+    // hooks.mdx 将 file_path 记录为绝对路径；进行扩展，以便钩子允许列表
+    // 无法通过 ~ 或相对路径绕过。
     if (typeof input.file_path === 'string') {
       input.file_path = expandPath(input.file_path)
     }
@@ -136,11 +136,11 @@ export const FileEditTool = buildTool({
   renderToolUseErrorMessage,
   async validateInput(input: FileEditInput, toolUseContext: ToolUseContext) {
     const { file_path, old_string, new_string, replace_all = false } = input
-    // Use expandPath for consistent path normalization (especially on Windows
-    // where "/" vs "\" can cause readFileState lookup mismatches)
+    // 使用 expandPath 实现一致的路径规范化（尤其是在 Windows 上
+    // 其中 "/" 与 "\" 可能导致 readFileState 查找不匹配）
     const fullFilePath = expandPath(file_path)
 
-    // Reject edits to team memory files that introduce secrets
+    // 拒绝编辑会引入机密的团队记忆文件
     const secretError = checkTeamMemSecrets(fullFilePath, new_string)
     if (secretError) {
       return { result: false, message: secretError, errorCode: 0 }
@@ -155,7 +155,7 @@ export const FileEditTool = buildTool({
       }
     }
 
-    // Check if path should be ignored based on permission settings
+    // 根据权限设置检查路径是否应被忽略
     const appState = toolUseContext.getAppState()
     const denyRule = matchingRuleForInput(
       fullFilePath,
@@ -168,28 +168,28 @@ export const FileEditTool = buildTool({
         result: false,
         behavior: 'ask',
         message:
-          'File is in a directory that is denied by your permission settings.',
+          '文件位于您的权限设置禁止的目录中。',
         errorCode: 2,
       }
     }
 
-    // SECURITY: Skip filesystem operations for UNC paths to prevent NTLM credential leaks.
-    // On Windows, fs.existsSync() on UNC paths triggers SMB authentication which could
-    // leak credentials to malicious servers. Let the permission check handle UNC paths.
+    // 安全：跳过 UNC 路径的文件系统操作，以防止 NTLM 凭据泄露。
+    // 在 Windows 上，对 UNC 路径执行 fs.existsSync() 会触发 SMB 身份验证，这可能
+    // 将凭据泄露给恶意服务器。让权限检查来处理 UNC 路径。
     if (fullFilePath.startsWith('\\\\') || fullFilePath.startsWith('//')) {
       return { result: true }
     }
 
     const fs = getFsImplementation()
 
-    // Prevent OOM on multi-GB files.
+    // 防止多 GB 文件导致内存不足（OOM）。
     try {
       const { size } = await fs.stat(fullFilePath)
       if (size > MAX_EDIT_FILE_SIZE) {
         return {
           result: false,
           behavior: 'ask',
-          message: `File is too large to edit (${formatFileSize(size)}). Maximum editable file size is ${formatFileSize(MAX_EDIT_FILE_SIZE)}.`,
+          message: `文件过大，无法编辑（${formatFileSize(size)}）。最大可编辑文件大小为 ${formatFileSize(MAX_EDIT_FILE_SIZE)}。`,
           errorCode: 10,
         }
       }
@@ -199,9 +199,9 @@ export const FileEditTool = buildTool({
       }
     }
 
-    // Read the file as bytes first so we can detect encoding from the buffer
-    // instead of calling detectFileEncoding (which does its own sync readSync
-    // and would fail with a wasted ENOENT when the file doesn't exist).
+    // 首先将文件作为字节读取，以便我们可以从缓冲区检测编码
+    // 而不是调用 detectFileEncoding（它会执行自己的同步 readSync 操作
+    // 并且在文件不存在时会浪费一次 ENOENT 错误而失败）。
     let fileContent: string | null
     try {
       const fileBuffer = await fs.readFileBytes(fullFilePath)
@@ -220,21 +220,21 @@ export const FileEditTool = buildTool({
       }
     }
 
-    // File doesn't exist
+    // 文件不存在
     if (fileContent === null) {
-      // Empty old_string on nonexistent file means new file creation — valid
+      // 不存在的文件上 old_string 为空意味着创建新文件 —— 这是有效的
       if (old_string === '') {
         return { result: true }
       }
-      // Try to find a similar file with a different extension
+      // 尝试查找具有不同扩展名的类似文件
       const similarFilename = findSimilarFile(fullFilePath)
       const cwdSuggestion = await suggestPathUnderCwd(fullFilePath)
-      let message = `File does not exist. ${FILE_NOT_FOUND_CWD_NOTE} ${getCwd()}.`
+      let message = `文件不存在。${FILE_NOT_FOUND_CWD_NOTE} ${getCwd()}。`
 
       if (cwdSuggestion) {
-        message += ` Did you mean ${cwdSuggestion}?`
+        message += ` 您是指 ${cwdSuggestion} 吗？`
       } else if (similarFilename) {
-        message += ` Did you mean ${similarFilename}?`
+        message += ` 您是指 ${similarFilename} 吗？`
       }
 
       return {
@@ -245,19 +245,19 @@ export const FileEditTool = buildTool({
       }
     }
 
-    // File exists with empty old_string — only valid if file is empty
+    // 文件存在但 old_string 为空 — 仅当文件为空时有效
     if (old_string === '') {
-      // Only reject if the file has content (for file creation attempt)
+      // 仅当文件有内容时才拒绝（针对文件创建尝试）
       if (fileContent.trim() !== '') {
         return {
           result: false,
           behavior: 'ask',
-          message: 'Cannot create new file - file already exists.',
+          message: '无法创建新文件 - 文件已存在。',
           errorCode: 3,
         }
       }
 
-      // Empty file with empty old_string is valid - we're replacing empty with content
+      // 空文件且 old_string 为空是有效的 - 我们正在用内容替换空内容
       return {
         result: true,
       }
@@ -267,7 +267,7 @@ export const FileEditTool = buildTool({
       return {
         result: false,
         behavior: 'ask',
-        message: `File is a Jupyter Notebook. Use the ${NOTEBOOK_EDIT_TOOL_NAME} to edit this file.`,
+        message: `文件是 Jupyter Notebook。请使用 ${NOTEBOOK_EDIT_TOOL_NAME} 来编辑此文件。`,
         errorCode: 5,
       }
     }
@@ -278,7 +278,7 @@ export const FileEditTool = buildTool({
         result: false,
         behavior: 'ask',
         message:
-          'File has not been read yet. Read it first before writing to it.',
+          '文件尚未读取。在写入前请先读取。',
         meta: {
           isFilePathAbsolute: String(isAbsolute(file_path)),
         },
@@ -286,24 +286,24 @@ export const FileEditTool = buildTool({
       }
     }
 
-    // Check if file exists and get its last modified time
+    // 检查文件是否存在并获取其最后修改时间
     if (readTimestamp) {
       const lastWriteTime = getFileModificationTime(fullFilePath)
       if (lastWriteTime > readTimestamp.timestamp) {
-        // Timestamp indicates modification, but on Windows timestamps can change
-        // without content changes (cloud sync, antivirus, etc.). For full reads,
-        // compare content as a fallback to avoid false positives.
+        // 时间戳表明文件已修改，但在 Windows 上时间戳可能因云同步、杀毒软件等原因在内容未变时改变。
+        // 对于完整读取，作为后备方案比较内容以避免误报。
+        // 内容未变，可以安全继续
         const isFullRead =
           readTimestamp.offset === undefined &&
           readTimestamp.limit === undefined
         if (isFullRead && fileContent === readTimestamp.content) {
-          // Content unchanged, safe to proceed
+          // 文件自读取后已被用户或代码检查工具修改。在尝试写入前请重新读取。
         } else {
           return {
             result: false,
             behavior: 'ask',
             message:
-              'File has been modified since read, either by the user or by a linter. Read it again before attempting to write it.',
+              '使用 findActualString 处理引号规范化',
             errorCode: 7,
           }
         }
@@ -312,13 +312,14 @@ export const FileEditTool = buildTool({
 
     const file = fileContent
 
-    // Use findActualString to handle quote normalization
+    // 文件中未找到要替换的字符串。
+字符串：{0}
     const actualOldString = findActualString(file, old_string)
     if (!actualOldString) {
       return {
         result: false,
         behavior: 'ask',
-        message: `String to replace not found in file.\nString: ${old_string}`,
+        message: `检查是否有多个匹配项但 replace_all 为 false`,
         meta: {
           isFilePathAbsolute: String(isAbsolute(file_path)),
         },
@@ -328,12 +329,13 @@ export const FileEditTool = buildTool({
 
     const matches = file.split(actualOldString).length - 1
 
-    // Check if we have multiple matches but replace_all is false
+    // 找到 {0} 个要替换的字符串匹配项，但 replace_all 为 false。要替换所有出现项，请将 replace_all 设为 true。要仅替换一个出现项，请提供更多上下文以唯一标识该实例。
+字符串：{1}
     if (matches > 1 && !replace_all) {
       return {
         result: false,
         behavior: 'ask',
-        message: `Found ${matches} matches of the string to replace, but replace_all is false. To replace all occurrences, set replace_all to true. To replace only one occurrence, please provide more context to uniquely identify the instance.\nString: ${old_string}`,
+        message: `对 Claude 设置文件的额外验证`,
         meta: {
           isFilePathAbsolute: String(isAbsolute(file_path)),
           actualOldString,
@@ -342,12 +344,12 @@ export const FileEditTool = buildTool({
       }
     }
 
-    // Additional validation for Claude settings files
+    // 使用与工具完全相同的逻辑模拟编辑以获取最终内容
     const settingsValidationResult = validateInputForSettingsFileEdit(
       fullFilePath,
       file,
       () => {
-        // Simulate the edit to get the final content using the exact same logic as the tool
+        // 1. 获取当前状态
         return replace_all
           ? file.replaceAll(actualOldString, new_string)
           : file.replace(actualOldString, new_string)
@@ -397,12 +399,12 @@ export const FileEditTool = buildTool({
   ) {
     const { file_path, old_string, new_string, replace_all = false } = input
 
-    // 1. Get current state
+    // 从此文件路径发现技能（即发即弃，非阻塞）
     const fs = getFsImplementation()
     const absoluteFilePath = expandPath(file_path)
 
-    // Discover skills from this file's path (fire-and-forget, non-blocking)
-    // Skip in simple mode - no skills available
+    // 在简单模式下跳过 - 无可用技能
+    // 存储发现的目录以供附件显示
     const cwd = getCwd()
     if (!isEnvTruthy(process.env.CLAUDE_CODE_SIMPLE)) {
       const newSkillDirs = await discoverSkillDirsForPaths(
@@ -410,28 +412,28 @@ export const FileEditTool = buildTool({
         cwd,
       )
       if (newSkillDirs.length > 0) {
-        // Store discovered dirs for attachment display
+        // 不要等待 - 让技能加载在后台进行
         for (const dir of newSkillDirs) {
           dynamicSkillDirTriggers?.add(dir)
         }
-        // Don't await - let skill loading happen in the background
+        // 激活路径模式与此文件匹配的条件技能
         addSkillDirectories(newSkillDirs).catch(() => {})
       }
 
-      // Activate conditional skills whose path patterns match this file
+      // 在原子化读取-修改-写入部分之前确保父目录存在。
       activateConditionalSkillsForPaths([absoluteFilePath], cwd)
     }
 
     await diagnosticTracker.beforeFileEdited(absoluteFilePath)
 
-    // Ensure parent directory exists before the atomic read-modify-write section.
-    // These awaits must stay OUTSIDE the critical section below — a yield between
-    // the staleness check and writeTextContent lets concurrent edits interleave.
+    // 这些 await 必须保持在下方关键部分之外 — 在陈旧性检查和 writeTextContent 之间的一个 yield 允许并发编辑交错执行。
+    // 备份捕获编辑前的内容 — 在陈旧性检查前调用是安全的（基于内容哈希的幂等 v1 备份键；如果后续陈旧性检查失败，我们只是有一个未使用的备份，而不是损坏的状态）。
+    // 陈旧性检查和 writeTextContent 允许并发编辑交错进行。
     await fs.mkdir(dirname(absoluteFilePath))
     if (fileHistoryEnabled()) {
-      // Backup captures pre-edit content — safe to call before the staleness
-      // check (idempotent v1 backup keyed on content hash; if staleness fails
-      // later we just have an unused backup, not corrupt state).
+      // 备份捕获编辑前的内容 — 在陈旧性检查之前调用是安全的
+      // （基于内容哈希的幂等 v1 备份键；如果后续陈旧性检查失败
+      // 我们只会有一个未使用的备份，而不会破坏状态）。
       await fileHistoryTrackEdit(
         updateFileHistoryState,
         absoluteFilePath,
@@ -439,8 +441,8 @@ export const FileEditTool = buildTool({
       )
     }
 
-    // 2. Load current state and confirm no changes since last read
-    // Please avoid async operations between here and writing to disk to preserve atomicity
+    // 2. 加载当前状态，确认自上次读取后无更改
+    // 请避免在此处与写入磁盘之间进行异步操作，以保持原子性
     const {
       content: originalFileContents,
       fileExists,
@@ -452,9 +454,9 @@ export const FileEditTool = buildTool({
       const lastWriteTime = getFileModificationTime(absoluteFilePath)
       const lastRead = readFileState.get(absoluteFilePath)
       if (!lastRead || lastWriteTime > lastRead.timestamp) {
-        // Timestamp indicates modification, but on Windows timestamps can change
-        // without content changes (cloud sync, antivirus, etc.). For full reads,
-        // compare content as a fallback to avoid false positives.
+        // 时间戳指示修改，但在 Windows 上时间戳可能变化
+        // 而内容未变（云同步、杀毒软件等）。对于完整读取，
+        // 比较内容作为后备方案，避免误报。
         const isFullRead =
           lastRead &&
           lastRead.offset === undefined &&
@@ -467,18 +469,18 @@ export const FileEditTool = buildTool({
       }
     }
 
-    // 3. Use findActualString to handle quote normalization
+    // 3. 使用 findActualString 处理引号规范化
     const actualOldString =
       findActualString(originalFileContents, old_string) || old_string
 
-    // Preserve curly quotes in new_string when the file uses them
+    // 当文件使用花引号时，在 new_string 中保留花引号
     const actualNewString = preserveQuoteStyle(
       old_string,
       actualOldString,
       new_string,
     )
 
-    // 4. Generate patch
+    // 4. 生成补丁
     const { patch, updatedFile } = getPatchForEdit({
       filePath: absoluteFilePath,
       fileContents: originalFileContents,
@@ -487,36 +489,36 @@ export const FileEditTool = buildTool({
       replaceAll: replace_all,
     })
 
-    // 5. Write to disk
+    // 5. 写入磁盘
     writeTextContent(absoluteFilePath, updatedFile, encoding, endings)
 
-    // Notify LSP servers about file modification (didChange) and save (didSave)
+    // 通知 LSP 服务器文件修改 (didChange) 和保存 (didSave)
     const lspManager = getLspServerManager()
     if (lspManager) {
-      // Clear previously delivered diagnostics so new ones will be shown
+      // 清除先前已发送的诊断信息，以便显示新的诊断
       clearDeliveredDiagnosticsForFile(`file://${absoluteFilePath}`)
-      // didChange: Content has been modified
+      // didChange: 内容已被修改
       lspManager
         .changeFile(absoluteFilePath, updatedFile)
         .catch((err: Error) => {
           logForDebugging(
-            `LSP: Failed to notify server of file change for ${absoluteFilePath}: ${err.message}`,
+            `LSP: 未能通知服务器文件 ${absoluteFilePath} 的更改: ${err.message}`,
           )
           logError(err)
         })
-      // didSave: File has been saved to disk (triggers diagnostics in TypeScript server)
+      // didSave: 文件已保存到磁盘（在 TypeScript 服务器中触发诊断）
       lspManager.saveFile(absoluteFilePath).catch((err: Error) => {
         logForDebugging(
-          `LSP: Failed to notify server of file save for ${absoluteFilePath}: ${err.message}`,
+          `LSP: 未能通知服务器文件 ${absoluteFilePath} 的保存: ${err.message}`,
         )
         logError(err)
       })
     }
 
-    // Notify VSCode about the file change for diff view
+    // 通知 VSCode 文件更改以显示差异视图
     notifyVscodeFileUpdated(absoluteFilePath, originalFileContents, updatedFile)
 
-    // 6. Update read timestamp, to invalidate stale writes
+    // 6. 更新读取时间戳，使过时写入失效
     readFileState.set(absoluteFilePath, {
       content: updatedFile,
       timestamp: getFileModificationTime(absoluteFilePath),
@@ -524,7 +526,7 @@ export const FileEditTool = buildTool({
       limit: undefined,
     })
 
-    // 7. Log events
+    // 7. 记录事件
     if (absoluteFilePath.endsWith(`${sep}CLAUDE.md`)) {
       logEvent('tengu_write_claudemd', {})
     }
@@ -557,7 +559,7 @@ export const FileEditTool = buildTool({
       })
     }
 
-    // 8. Yield result
+    // 8. 返回结果
     const data = {
       filePath: file_path,
       oldString: actualOldString,
@@ -582,14 +584,14 @@ export const FileEditTool = buildTool({
       return {
         tool_use_id: toolUseID,
         type: 'tool_result',
-        content: `The file ${filePath} has been updated${modifiedNote}. All occurrences were successfully replaced.`,
+        content: `文件 ${filePath} 已更新${modifiedNote}。所有匹配项均已成功替换。`,
       }
     }
 
     return {
       tool_use_id: toolUseID,
       type: 'tool_result',
-      content: `The file ${filePath} has been updated successfully${modifiedNote}.`,
+      content: `文件 ${filePath} 已成功更新${modifiedNote}。`,
     }
   },
 } satisfies ToolDef<ReturnType<typeof inputSchema>, FileEditOutput>)

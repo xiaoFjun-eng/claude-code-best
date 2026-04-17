@@ -1,16 +1,14 @@
-/**
- * Clear command - minimal metadata only.
- * Implementation is lazy-loaded from clear.ts to reduce startup time.
- * Utility functions:
- * - clearSessionCaches: import from './clear/caches.js'
- * - clearConversation: import from './clear/conversation.js'
- */
+/** * 清除命令 - 仅包含最小元数据。
+ * 实现从 clear.ts 延迟加载以减少启动时间。
+ * 实用函数：
+ * - clearSessionCaches：从 './clear/caches.js' 导入
+ * - clearConversation：从 './clear/conversation.js' 导入 */
 import type { Command } from '../../commands.js'
 
 const clear = {
   type: 'local',
   name: 'clear',
-  description: 'Clear conversation history and free up context',
+  description: '清除对话历史并释放上下文',
   aliases: ['reset', 'new'],
   supportsNonInteractive: false, // Should just create a new session
   load: () => import('./clear.js'),

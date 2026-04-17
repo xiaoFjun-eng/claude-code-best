@@ -4,7 +4,7 @@ import { isAssistantEnabled } from './gate.js'
 const assistant = {
   type: 'local-jsx',
   name: 'assistant',
-  description: 'Open the Kairos assistant panel',
+  description: '打开 Kairos 助手面板',
   isEnabled: isAssistantEnabled,
   get isHidden() {
     return !isAssistantEnabled()

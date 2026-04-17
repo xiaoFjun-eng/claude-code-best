@@ -1,6 +1,6 @@
 import { mock, describe, expect, test } from "bun:test";
 
-// Mock log.ts to cut the heavy dependency chain
+// 模拟 log.ts 以切断繁重的依赖链
 mock.module("src/utils/log.ts", () => ({
   logError: () => {},
   logToFile: () => {},
@@ -33,27 +33,27 @@ const {
 // ─── normalizeQuotes ────────────────────────────────────────────────────
 
 describe("normalizeQuotes", () => {
-  test("converts left single curly to straight", () => {
+  test("将左单花引号转换为直引号", () => {
     expect(normalizeQuotes(`${LEFT_SINGLE_CURLY_QUOTE}hello`)).toBe("'hello");
   });
 
-  test("converts right single curly to straight", () => {
+  test("将右单花引号转换为直引号", () => {
     expect(normalizeQuotes(`hello${RIGHT_SINGLE_CURLY_QUOTE}`)).toBe("hello'");
   });
 
-  test("converts left double curly to straight", () => {
+  test("将左双花引号转换为直引号", () => {
     expect(normalizeQuotes(`${LEFT_DOUBLE_CURLY_QUOTE}hello`)).toBe('"hello');
   });
 
-  test("converts right double curly to straight", () => {
+  test("将右双花引号转换为直引号", () => {
     expect(normalizeQuotes(`hello${RIGHT_DOUBLE_CURLY_QUOTE}`)).toBe('hello"');
   });
 
-  test("leaves straight quotes unchanged", () => {
+  test("保持直引号不变", () => {
     expect(normalizeQuotes("'hello' \"world\"")).toBe("'hello' \"world\"");
   });
 
-  test("handles empty string", () => {
+  test("处理空字符串", () => {
     expect(normalizeQuotes("")).toBe("");
   });
 });
@@ -61,39 +61,47 @@ describe("normalizeQuotes", () => {
 // ─── stripTrailingWhitespace ────────────────────────────────────────────
 
 describe("stripTrailingWhitespace", () => {
-  test("strips trailing spaces from lines", () => {
-    expect(stripTrailingWhitespace("hello   \nworld  ")).toBe("hello\nworld");
+  test("去除行尾空格", () => {
+    expect(stripTrailingWhitespace("hello   
+world  ")).toBe("hello
+world");
   });
 
-  test("strips trailing tabs", () => {
-    expect(stripTrailingWhitespace("hello\t\nworld\t")).toBe("hello\nworld");
+  test("去除行尾制表符", () => {
+    expect(stripTrailingWhitespace("hello	
+world	")).toBe("hello
+world");
   });
 
-  test("preserves leading whitespace", () => {
+  test("保留行首空白字符", () => {
     expect(stripTrailingWhitespace("  hello  \n  world  ")).toBe(
       "  hello\n  world"
     );
   });
 
-  test("handles empty string", () => {
+  test("处理空字符串", () => {
     expect(stripTrailingWhitespace("")).toBe("");
   });
 
-  test("handles CRLF line endings", () => {
-    expect(stripTrailingWhitespace("hello   \r\nworld  ")).toBe(
-      "hello\r\nworld"
+  test("处理 CRLF 换行符", () => {
+    expect(stripTrailingWhitespace("hello   
+world  ")).toBe(
+      "hello
+world"
     );
   });
 
-  test("handles no trailing whitespace", () => {
-    expect(stripTrailingWhitespace("hello\nworld")).toBe("hello\nworld");
+  test("处理无尾随空白字符的情况", () => {
+    expect(stripTrailingWhitespace("hello
+world")).toBe("hello
+world");
   });
 
-  test("handles CR-only line endings", () => {
-    expect(stripTrailingWhitespace("hello   \rworld  ")).toBe("hello\rworld");
+  test("处理仅 CR 换行符", () => {
+    expect(stripTrailingWhitespace("hello   world  ")).toBe("helloworld");
   });
 
-  test("handles content with no trailing newline", () => {
+  test("处理无尾随换行符的内容", () => {
     expect(stripTrailingWhitespace("hello   ")).toBe("hello");
   });
 });
@@ -101,22 +109,22 @@ describe("stripTrailingWhitespace", () => {
 // ─── findActualString ───────────────────────────────────────────────────
 
 describe("findActualString", () => {
-  test("finds exact match", () => {
+  test("查找精确匹配", () => {
     expect(findActualString("hello world", "hello")).toBe("hello");
   });
 
-  test("finds match with curly quotes normalized", () => {
+  test("在花引号标准化后查找匹配", () => {
     const fileContent = `${LEFT_DOUBLE_CURLY_QUOTE}hello${RIGHT_DOUBLE_CURLY_QUOTE}`;
     const result = findActualString(fileContent, '"hello"');
     expect(result).not.toBeNull();
   });
 
-  test("returns null when not found", () => {
+  test("未找到时返回 null", () => {
     expect(findActualString("hello world", "xyz")).toBeNull();
   });
 
-  test("returns null for empty search in non-empty content", () => {
-    // Empty string is always found at index 0 via includes()
+  test("在非空内容中搜索空字符串时返回 null", () => {
+    // 空字符串通过 includes() 方法总是在索引 0 处被找到
     const result = findActualString("hello", "");
     expect(result).toBe("");
   });
@@ -125,11 +133,11 @@ describe("findActualString", () => {
 // ─── preserveQuoteStyle ─────────────────────────────────────────────────
 
 describe("preserveQuoteStyle", () => {
-  test("returns newString unchanged when no normalization happened", () => {
+  test("未发生标准化时返回未更改的 newString", () => {
     expect(preserveQuoteStyle("hello", "hello", "world")).toBe("world");
   });
 
-  test("converts straight double quotes to curly in replacement", () => {
+  test("在替换中将直双引号转换为花双引号", () => {
     const oldString = '"hello"';
     const actualOldString = `${LEFT_DOUBLE_CURLY_QUOTE}hello${RIGHT_DOUBLE_CURLY_QUOTE}`;
     const newString = '"world"';
@@ -138,7 +146,7 @@ describe("preserveQuoteStyle", () => {
     expect(result).toContain(RIGHT_DOUBLE_CURLY_QUOTE);
   });
 
-  test("converts straight single quotes to curly in replacement", () => {
+  test("在替换中将直单引号转换为花单引号", () => {
     const oldString = "'hello'";
     const actualOldString = `${LEFT_SINGLE_CURLY_QUOTE}hello${RIGHT_SINGLE_CURLY_QUOTE}`;
     const newString = "'world'";
@@ -147,14 +155,14 @@ describe("preserveQuoteStyle", () => {
     expect(result).toContain(RIGHT_SINGLE_CURLY_QUOTE);
   });
 
-  test("treats apostrophe in contraction as right curly quote", () => {
+  test("将缩写中的撇号视为右花单引号", () => {
     const oldString = "'it's a test'";
     const actualOldString = `${LEFT_SINGLE_CURLY_QUOTE}it${RIGHT_SINGLE_CURLY_QUOTE}s a test${RIGHT_SINGLE_CURLY_QUOTE}`;
     const newString = "'don't worry'";
     const result = preserveQuoteStyle(oldString, actualOldString, newString);
-    // The leading ' at position 0 should be LEFT_SINGLE_CURLY_QUOTE
+    // 位置 0 处的前导 ' 应为 LEFT_SINGLE_CURLY_QUOTE
     expect(result[0]).toBe(LEFT_SINGLE_CURLY_QUOTE);
-    // The apostrophe in "don't" (between n and t) should be RIGHT_SINGLE_CURLY_QUOTE
+    // "don't" 中的撇号（n 和 t 之间）应为 RIGHT_SINGLE_CURLY_QUOTE
     expect(result).toContain(RIGHT_SINGLE_CURLY_QUOTE);
   });
 });
@@ -162,7 +170,7 @@ describe("preserveQuoteStyle", () => {
 // ─── applyEditToFile ────────────────────────────────────────────────────
 
 describe("applyEditToFile", () => {
-  test("replaces first occurrence by default", () => {
+  test("默认替换第一个匹配项", () => {
     expect(applyEditToFile("foo bar foo", "foo", "baz")).toBe("baz bar foo");
   });
 
@@ -177,7 +185,7 @@ describe("applyEditToFile", () => {
     expect(result).toBe("line1\nline3\n");
   });
 
-  test("handles deletion without trailing newline", () => {
+  test("处理不带尾随换行符的删除操作", () => {
     const result = applyEditToFile("foobar", "foo", "");
     expect(result).toBe("bar");
   });
@@ -186,23 +194,33 @@ describe("applyEditToFile", () => {
     expect(applyEditToFile("hello world", "xyz", "abc")).toBe("hello world");
   });
 
-  test("handles empty original content with insertion", () => {
+  test("处理原始内容为空时的插入操作", () => {
     expect(applyEditToFile("", "", "new content")).toBe("new content");
   });
 
-  test("handles multiline oldString and newString", () => {
+  test("处理多行 oldString 和 newString", () => {
     const content = "line1\nline2\nline3\n";
     const result = applyEditToFile(content, "line2\nline3", "replaced");
     expect(result).toBe("line1\nreplaced\n");
   });
 
-  test("handles multiline replacement across multiple lines", () => {
-    const content = "header\nold line A\nold line B\nfooter\n";
+  test("处理跨多行的多行替换", () => {
+    const content = "header
+old line A
+old line B
+footer
+";
     const result = applyEditToFile(
       content,
-      "old line A\nold line B",
-      "new line X\nnew line Y"
+      "old line A
+old line B",
+      "new line X
+new line Y"
     );
-    expect(result).toBe("header\nnew line X\nnew line Y\nfooter\n");
+    expect(result).toBe("页眉
+新行 X
+新行 Y
+页脚
+");
   });
 });

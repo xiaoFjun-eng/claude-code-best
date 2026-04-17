@@ -105,7 +105,7 @@ function ClaudeInChromeMenu({
 
   if (!isExtensionInstalled && !isHomespace) {
     options.push({
-      label: 'Install Chrome extension',
+      label: '安装 Chrome 扩展程序',
       value: 'install-extension',
     })
   }
@@ -130,7 +130,7 @@ function ClaudeInChromeMenu({
       value: 'reconnect',
     },
     {
-      label: `Enabled by default: ${enabledByDefault ? 'Yes' : 'No'}`,
+      label: `默认启用：${enabledByDefault ? 'Yes' : 'No'}`,
       value: 'toggle-default',
     },
   )

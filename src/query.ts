@@ -1,4 +1,4 @@
-// biome-ignore-all assist/source/organizeImports: ANT-ONLY 导入标记不得重新排序
+// biome-ignore-all assist/source/organizeImports: 仅限 ANT 的导入标记不得重新排序
 import type {
   ToolResultBlockParam,
   ToolUseBlock,
@@ -151,8 +151,7 @@ function* yieldMissingToolResultBlocks(
   }
 }
 
-/**
- * 思考的规则冗长而偶然。它们需要长时间的深入冥想，巫师才能理解。
+/** * 思考的规则冗长而偶然。它们需要长时间的深入冥想，巫师才能理解。
  *
  * 规则如下：
  * 1. 包含思考或编辑后思考块的消息必须是其 max_thinking_length > 0 的查询的一部分
@@ -161,18 +160,15 @@ function* yieldMissingToolResultBlocks(
  *
  * 年轻的巫师，请务必遵守这些规则。因为它们是思考的规则，
  * 而思考的规则就是宇宙的规则。如果你不遵守这些规则，
- * 你将受到一整天的调试和拔头发的惩罚。
- */
+ * 你将受到一整天的调试和拔头发的惩罚。 */
 const MAX_OUTPUT_TOKENS_RECOVERY_LIMIT = 3
 
-/**
- * 这是 max_output_tokens 错误消息吗？如果是，流循环应将其
+/** * 这是 max_output_tokens 错误消息吗？如果是，流循环应将其
  * 保留，直到我们知道恢复循环能否继续。提前产生会向 SDK 调用者
  * 泄露中间错误（例如 cowork/desktop），后者会在任何 `error` 字段上终止会话 ——
  * 恢复循环仍在运行，但无人监听。
  *
- * 镜像 reactiveCompact.isWithheldPromptTooLong。
- */
+ * 镜像 reactiveCompact.isWithheldPromptTooLong。 */
 function isWithheldMaxOutputTokens(
   msg: Message | StreamEvent | undefined,
 ): msg is AssistantMessage {
@@ -316,7 +312,7 @@ async function* queryLoop(
 
   // 跨压缩边界的 task_budget.remaining 跟踪。在第一次压缩触发前未定义
   // — 当上下文未压缩时，服务器可以看到完整历史记录，并自行处理从 {total} 开始的倒计时
-  //（参见 api/api/sampling/prompt/renderer.py:292）。压缩后，服务器只看到摘要，
+  // （参见 api/api/sampling/prompt/renderer.py:292）。压缩后，服务器只看到摘要，
   // 会低估消费量；remaining 告诉它被摘要掉的压缩前最终窗口。跨多次压缩累积：
   // 每次减去该压缩触发点的最终上下文。循环本地（不在 State 上），以避免触及 7 个继续站点。
   let taskBudgetRemaining: number | undefined = undefined
@@ -561,7 +557,7 @@ async function* queryLoop(
       }
     }
 
-    // TODO：设置期间不需要设置 toolUseContext.messages，因为在这里已更新
+    // TODO：设置期间无需设置 toolUseContext.messages，因为此处已更新
     toolUseContext = {
       ...toolUseContext,
       messages: messagesForQuery,
@@ -598,12 +594,12 @@ async function* queryLoop(
 
     queryCheckpoint('query_setup_end')
 
-    // 每次查询会话创建一次 fetch 包装器，以避免内存保留。
+    // 每个查询会话创建一次 fetch 包装器，以避免内存保留。
     // 每次调用 createDumpPromptsFetch 都会创建一个捕获请求体的闭包。
     // 只创建一次意味着只保留最新的请求体（约 700KB），
     // 而不是会话中的所有请求体（长时间会话约 500MB）。
     // 注意：在 query() 调用期间，agentId 实际上是常量 —— 它只在查询之间变化
-    //（例如 /clear 命令或会话恢复）。
+    // （例如 /clear 命令或会话恢复）。
     const dumpPromptsFetch = config.gates.isAnt
       ? createDumpPromptsFetch(toolUseContext.agentId ?? config.sessionId)
       : undefined
@@ -749,8 +745,8 @@ async function* queryLoop(
                 )
               }
             }
-            // 在产生之前，在克隆的消息上回填 tool_use 输入，以便
-            // SDK 流输出和记录序列化看到遗留/派生字段。
+            // 在生成之前，在克隆的消息上回填 tool_use 输入，以便
+            // SDK 流输出和记录序列化能看到遗留/派生字段。
             // 原始的 `message` 保持不变以供下面的 assistantMessages.push 使用
             // — 将其流回 API 并修改它会破坏提示缓存（字节不匹配）。
             let yieldMessage: typeof message = message
@@ -773,7 +769,7 @@ async function* queryLoop(
                     const originalInput = block.input as Record<string, unknown>
                     const inputCopy = { ...originalInput }
                     tool.backfillObservableInput(inputCopy)
-                    // 仅在回填添加了字段时产生克隆；如果它只是覆盖了现有字段（例如文件工具扩展 file_path），则跳过。
+                    // 仅在回填添加了字段时生成克隆；如果它只是覆盖了现有字段（例如文件工具扩展 file_path），则跳过。
                     // 覆盖会更改序列化的记录并在恢复时破坏 VCR 测试夹具哈希，
                     // 而不会添加 SDK 流需要的任何内容 — 钩子通过 toolExecution.ts 单独获取扩展路径。
                     const addedFields = Object.keys(inputCopy).some(
@@ -794,7 +790,7 @@ async function* queryLoop(
               }
             }
             // 保留可恢复的错误（提示过长、最大输出令牌），直到我们知道恢复
-            //（折叠排空 / 响应式压缩 / 截断重试）能否成功。仍然推送到 assistantMessages，
+            // （折叠排空 / 响应式压缩 / 截断重试）能否成功。仍然推送到 assistantMessages，
             // 以便下面的恢复检查能够找到它们。
             // 任一子系统的保留都足够了 — 它们是独立的，因此关闭一个不会破坏另一个的恢复路径。
             //
@@ -868,7 +864,7 @@ async function* queryLoop(
           }
           queryCheckpoint('query_api_streaming_end')
 
-          // 使用 API 报告的实际令牌删除计数（而不是客户端估算）产生延迟的 microcompact 边界消息。
+          // 使用 API 报告的实际令牌删除计数（而不是客户端估算）生成延迟的 microcompact 边界消息。
           // 整个块通过 feature() 门控，以便从外部构建中消除被排除的字符串。
           if (feature('CACHED_MICROCOMPACT') && pendingCacheEdits) {
             const lastAssistant = assistantMessages.at(-1)
@@ -940,7 +936,7 @@ async function* queryLoop(
               queryDepth: queryTracking.depth,
             })
 
-            // 产生关于回退的系统消息 — 使用 'warning' 级别，以便
+            // 生成关于回退的系统消息 — 使用 'warning' 级别，以便
             // 用户无需详细模式即可看到通知
             yield createSystemMessage(
               `由于对 ${renderModelName(innerError.originalModel)} 的高需求，已切换到 ${renderModelName(innerError.fallbackModel)}`,
@@ -977,7 +973,7 @@ async function* queryLoop(
         return { reason: 'image_error' }
       }
 
-      // 通常 queryModelWithStreaming 不应抛出错误，而是将它们作为合成助手消息产生。
+      // 通常 queryModelWithStreaming 不应抛出错误，而是将它们作为合成助手消息生成。
       // 但是如果由于错误而抛出，我们可能处于已发出 tool_use 块但将在发出 tool_result 之前停止的状态。
       yield* yieldMissingToolResultBlocks(assistantMessages, errorMessage)
 
@@ -1046,7 +1042,7 @@ async function* queryLoop(
       return { reason: 'aborted_streaming' }
     }
 
-    // 产生上一轮的工具使用摘要 — haiku（约 1 秒）在模型流式传输期间解析（5-30 秒）
+    // 生成上一轮的工具使用摘要 — haiku（约 1 秒）在模型流式传输期间解析（5-30 秒）
     if (pendingToolUseSummary) {
       const summary = await pendingToolUseSummary
       if (summary) {
@@ -1527,12 +1523,12 @@ async function* queryLoop(
     // 这些将作为附件发送，以便 Claude 可以在当前轮次中响应它们。
     //
     // 排空待处理的通知。LocalShellTask 完成是 'next'
-    //（当 MONITOR_TOOL 开启时）并在没有 Sleep 的情况下排空。其他任务类型
-    //（agent/workflow/framework）仍然默认为 'later' — Sleep 刷新覆盖了这些。
+    // （当 MONITOR_TOOL 开启时）并在没有 Sleep 的情况下排空。其他任务类型
+    // （agent/workflow/framework）仍然默认为 'later' — Sleep 刷新覆盖了这些。
     // 如果所有任务类型都移到 'next'，此分支可以移除。
     //
     // 斜杠命令被排除在轮次中排空之外 — 它们必须通过轮次结束后的 processSlashCommand
-    //（通过 useQueueProcessor）处理，而不是作为文本发送给模型。
+    // （通过 useQueueProcessor）处理，而不是作为文本发送给模型。
     // Bash 模式命令已被 getQueuedCommandAttachments 中的 INLINE_NOTIFICATION_MODES 排除。
     //
     // Agent 作用域：队列是协调器和所有进程内子代理共享的进程全局单例。

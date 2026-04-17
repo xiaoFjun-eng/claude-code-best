@@ -1,15 +1,12 @@
 import { feature } from 'bun:bundle'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
 
-/**
- * Runtime gate for the /assistant command visibility.
+/** * /assistant 命令可见性的运行时门控。
  *
- * Build-time: feature('KAIROS') must be on.
- * Runtime: tengu_kairos_assistant GrowthBook flag (remote kill switch).
+ * 构建时要求：feature('KAIROS') 必须开启。
+ * 运行时要求：tengu_kairos_assistant GrowthBook 标志（远程开关）。
  *
- * Does NOT require kairosActive — the /assistant command is visible
- * before activation so users can invoke it to activate KAIROS.
- */
+ * 不要求 kairosActive — /assistant 命令在激活前即可见，以便用户可以通过调用它来激活 KAIROS。 */
 export function isAssistantEnabled(): boolean {
   if (!feature('KAIROS')) {
     return false

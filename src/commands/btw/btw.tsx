@@ -49,7 +49,7 @@ function BtwSideQuestion({
   const scrollRef = useRef<ScrollBoxHandle>(null)
   const { rows } = useModalOrTerminalSize(useTerminalSize())
 
-  // Animate spinner while loading
+  // 加载时显示动画旋转图标
   useInterval(() => setFrame(f => f + 1), response || error ? null : 80)
 
   function handleKeyDown(e: KeyboardEvent): void {
@@ -85,12 +85,12 @@ function BtwSideQuestion({
           if (result.response) {
             setResponse(result.response)
           } else {
-            setError('No response received')
+            setError('未收到响应')
           }
         }
       } catch (err) {
         if (!abortController.signal.aborted) {
-          setError(errorMessage(err) || 'Failed to get response')
+          setError(errorMessage(err) || '获取响应失败')
         }
       }
     }
@@ -145,21 +145,11 @@ function BtwSideQuestion({
   )
 }
 
-/**
- * Build CacheSafeParams for the side question fork.
+/** * 为侧边问题分支构建 CacheSafeParams。
  *
- * The preferred source is getLastCacheSafeParams — the exact
- * systemPrompt/userContext/systemContext bytes the main thread sent on its
- * last request (captured in stopHooks). Reusing them guarantees a byte-
- * identical prefix and thus a prompt cache hit. We pair these with the
- * current toolUseContext (for thinkingConfig/tools) and current messages
- * (for up-to-date context).
+ * 首选来源是 getLastCacheSafeParams —— 主线程在其最后一次请求中发送的精确 systemPrompt/userContext/systemContext 字节（在 stopHooks 中捕获）。重用它们可保证字节完全相同的前缀，从而实现提示缓存命中。我们将这些与当前的 toolUseContext（用于 thinkingConfig/tools）和当前的消息（用于获取最新上下文）配对。
  *
- * Fallback (first turn before stop hooks fire, or prompt-suggestion
- * disabled): rebuild from scratch. This may miss the cache if the main loop
- * applied buildEffectiveSystemPrompt extras (--agent, --system-prompt,
- * --append-system-prompt, coordinator mode).
- */
+ * 备用方案（在 stop hooks 触发前的第一轮，或提示建议禁用时）：从头开始重建。如果主循环应用了 buildEffectiveSystemPrompt 额外参数（--agent、--system-prompt、--append-system-prompt、协调器模式），这可能会错过缓存。 */
 function stripInProgressAssistantMessage(messages: Message[]): Message[] {
   const last = messages.at(-1)
   if (last?.type === 'assistant' && last.message!.stop_reason === null) {

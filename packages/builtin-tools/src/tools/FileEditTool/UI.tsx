@@ -41,9 +41,9 @@ export function userFacingName(
     return 'Update'
   }
   if (input.file_path?.startsWith(getPlansDirectory())) {
-    return 'Updated plan'
+    return '已更新计划'
   }
-  // Hashline edits always modify an existing file (line-ref based)
+  // Hashline 编辑始终修改现有文件（基于行引用）
   if (input.edits != null) {
     return 'Update'
   }
@@ -76,7 +76,7 @@ export function renderToolUseMessage(
   if (!file_path) {
     return null
   }
-  // For plan files, path is already in userFacingName
+  // 对于计划文件，路径已包含在 userFacingName 中
   if (file_path.startsWith(getPlansDirectory())) {
     return ''
   }
@@ -92,7 +92,7 @@ export function renderToolResultMessage(
   _progressMessagesForMessage: ProgressMessage[],
   { style, verbose }: { style?: 'condensed'; verbose: boolean },
 ): React.ReactNode {
-  // For plan files, show /plan hint above the diff
+  // 对于计划文件，在差异上方显示 /plan 提示
   const isPlanFile = filePath.startsWith(getPlansDirectory())
 
   return (
@@ -132,7 +132,7 @@ export function renderToolUseRejectedMessage(
   const newString = input.new_string ?? ''
   const replaceAll = input.replace_all ?? false
 
-  // Defensive: if input has an unexpected shape, show a simple rejection message
+  // 防御性处理：如果输入格式意外，显示简单的拒绝消息
   if ('edits' in input && input.edits != null) {
     return (
       <FileEditToolUseRejectedMessage
@@ -146,7 +146,7 @@ export function renderToolUseRejectedMessage(
 
   const isNewFile = oldString === ''
 
-  // For new file creation, show content preview instead of diff
+  // 对于新文件创建，显示内容预览而非差异
   if (isNewFile) {
     return (
       <FileEditToolUseRejectedMessage
@@ -186,8 +186,8 @@ export function renderToolUseErrorMessage(
     extractTag(result, 'tool_use_error')
   ) {
     const errorMessage = extractTag(result, 'tool_use_error')
-    // Show a less scary message for intended behavior
-    if (errorMessage?.includes('File has not been read yet')) {
+    // 为预期行为显示不那么令人担忧的消息
+    if (errorMessage?.includes('文件尚未读取')) {
       return (
         <MessageResponse>
           <Text dimColor>File must be read first</Text>
@@ -287,12 +287,12 @@ async function loadRejectionDiff(
   replaceAll: boolean,
 ): Promise<RejectionDiffData> {
   try {
-    // Chunked read — context window around the first occurrence. replaceAll
-    // still shows matches *within* the window via getPatchForEdit; we accept
-    // losing the all-occurrences view to keep the read bounded.
+    // 分块读取 — 围绕首次出现的上下文窗口。replaceAll
+    // 仍通过 getPatchForEdit 显示窗口*内*的匹配项；我们接受
+    // 失去所有出现项的视图以保持读取有界。
     const ctx = await readEditContext(filePath, oldString, CONTEXT_LINES)
     if (ctx === null || ctx.truncated || ctx.content === '') {
-      // ENOENT / not found / truncated — diff just the tool inputs.
+      // ENOENT / 未找到 / 截断 — 仅显示工具输入的差异。
       const { patch } = getPatchForEdit({
         filePath,
         fileContents: oldString,
@@ -316,7 +316,7 @@ async function loadRejectionDiff(
       fileContent: ctx.content,
     }
   } catch (e) {
-    // User may have manually applied the change while the diff was shown.
+    // 用户可能在显示差异时已手动应用了更改。
     logError(e as Error)
     return { patch: [], firstLine: null, fileContent: undefined }
   }

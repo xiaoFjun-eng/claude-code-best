@@ -25,14 +25,11 @@ import { openForScan, readCapped } from 'src/utils/readEditContext.js'
 import type { Output } from './FileWriteTool.js'
 
 const MAX_LINES_TO_RENDER = 10
-// Model output uses \n regardless of platform, so always split on \n.
-// os.EOL is \r\n on Windows, which would give numLines=1 for all files.
+// 模型输出始终使用 \n 作为换行符，与平台无关，因此请始终按 \n 进行分割。
+// 在 Windows 上，os.EOL 是 \r\n，这会导致所有文件的 numLines 都等于 1。
 const EOL = '\n'
 
-/**
- * Count visible lines in file content. A trailing newline is treated as a
- * line terminator (not a new empty line), matching editor line numbering.
- */
+/** * 统计文件内容中的可见行数。尾随换行符被视为行终止符（而非新的空行），以匹配编辑器中的行号计数方式。 */
 export function countLines(content: string): number {
   const parts = content.split(EOL)
   return content.endsWith(EOL) ? parts.length - 1 : parts.length
@@ -88,15 +85,13 @@ export function userFacingName(
   input: Partial<{ file_path: string; content: string }> | undefined,
 ): string {
   if (input?.file_path?.startsWith(getPlansDirectory())) {
-    return 'Updated plan'
+    return '更新后的计划'
   }
   return 'Write'
 }
 
-/** Gates fullscreen click-to-expand. Only `create` truncates (to
- *  MAX_LINES_TO_RENDER); `update` renders the full diff regardless of verbose.
- *  Called per visible message on hover/scroll, so early-exit after finding the
- *  (MAX+1)th line instead of splitting the whole (possibly huge) content. */
+/** 控制全屏点击展开。只有 `create` 会进行截断（至 MAX_LINES_TO_RENDER）；`update` 无论 verbose 参数如何，都会渲染完整的差异。
+ *  在悬停/滚动时对每条可见消息调用，因此在找到第 (MAX+1) 行后提前退出，而不是分割整个（可能非常庞大的）内容。 */
 export function isResultTruncated({ type, content }: Output): boolean {
   if (type !== 'create') return false
   let pos = 0
@@ -105,7 +100,7 @@ export function isResultTruncated({ type, content }: Output): boolean {
     if (pos === -1) return false
     pos++
   }
-  // countLines treats a trailing EOL as a terminator, not a new line
+  // countLines 将尾随的 EOL 视为终止符，而非新行
   return pos < content.length
 }
 
@@ -125,7 +120,7 @@ export function renderToolUseMessage(
   if (!input.file_path) {
     return null
   }
-  // For plan files, path is already in userFacingName
+  // 对于计划文件，路径已包含在 userFacingName 中
   if (input.file_path.startsWith(getPlansDirectory())) {
     return ''
   }
@@ -244,8 +239,8 @@ async function loadRejectionDiff(
     } finally {
       await handle.close()
     }
-    // File exceeds MAX_SCAN_BYTES — fall back to the create view rather than
-    // OOMing on a diff of a multi-GB file.
+    // 文件大小超过 MAX_SCAN_BYTES — 回退到创建视图，而不是
+    // 在对比一个数 GB 大小的文件时导致内存溢出。
     if (oldContent === null) return { type: 'create' }
     const patch = getPatchForDisplay({
       filePath,
@@ -256,7 +251,7 @@ async function loadRejectionDiff(
     })
     return { type: 'update', patch, oldContent }
   } catch (e) {
-    // User may have manually applied the change while the diff was shown.
+    // 用户可能在显示差异时已手动应用了更改。
     logError(e as Error)
     return { type: 'error' }
   }
@@ -289,9 +284,9 @@ export function renderToolResultMessage(
     case 'create': {
       const isPlanFile = filePath.startsWith(getPlansDirectory())
 
-      // Plan files: invert condensed behavior
-      // - Regular mode: just show hint (user can type /plan to see full content)
-      // - Condensed mode (subagent view): show full content
+      // 计划文件：反转精简模式的行为
+      // - 常规模式：仅显示提示（用户可以输入 /plan 查看完整内容）
+      // - 精简模式（子代理视图）：显示完整内容
       if (isPlanFile && !verbose) {
         if (style !== 'condensed') {
           return (

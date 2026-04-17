@@ -31,9 +31,9 @@ function AddDirError({
   onDone: () => void
 }): React.ReactNode {
   useEffect(() => {
-    // We need to defer calling onDone to avoid the "return null" bug where
-    // the component unmounts before React can render the error message.
-    // Using setTimeout ensures the error displays before the command exits.
+    // 我们需要延迟调用 onDone，以避免出现“返回 null”的 bug，即
+    // 组件在 React 能够渲染错误信息之前就被卸载的情况。
+    // 使用 setTimeout 可以确保在命令退出前显示错误信息。
     const timer = setTimeout(onDone, 0)
     return () => clearTimeout(timer)
   }, [onDone])
@@ -58,7 +58,7 @@ export async function call(
   const directoryPath = (args ?? '').trim()
   const appState = context.getAppState()
 
-  // Helper to handle adding a directory (shared by both with-path and no-path cases)
+  // 用于处理添加目录的辅助函数（在带路径和不带路径的情况下共享）
   const handleAddDirectory = async (path: string, remember = false) => {
     const destination: PermissionUpdateDestination = remember
       ? 'localSettings'
@@ -70,7 +70,7 @@ export async function call(
       destination,
     }
 
-    // Apply to session context
+    // 应用到会话上下文
     const latestAppState = context.getAppState()
     const updatedContext = applyPermissionUpdate(
       latestAppState.toolPermissionContext,
@@ -81,10 +81,10 @@ export async function call(
       toolPermissionContext: updatedContext,
     }))
 
-    // Update sandbox config so Bash commands can access the new directory.
-    // Bootstrap state is the source of truth for session-only dirs; persisted
-    // dirs are picked up via the settings subscription, but we refresh
-    // eagerly here to avoid a race when the user acts immediately.
+    // 更新沙箱配置，以便 Bash 命令可以访问新目录。
+    // 引导状态是会话专用目录的唯一来源；持久化目录
+    // 通过设置订阅获取，但我们在此主动刷新
+    // 以避免用户在立即操作时出现竞态条件。
     const currentDirs = getAdditionalDirectoriesForClaudeMd()
     if (!currentDirs.includes(path)) {
       setAdditionalDirectoriesForClaudeMd([...currentDirs, path])
@@ -96,27 +96,25 @@ export async function call(
     if (remember) {
       try {
         persistPermissionUpdate(permissionUpdate)
-        message = `Added ${chalk.bold(path)} as a working directory and saved to local settings`
+        message = `已将 ${chalk.bold(path)} 添加为工作目录并保存到本地设置`
       } catch (error) {
-        message = `Added ${chalk.bold(path)} as a working directory. Failed to save to local settings: ${error instanceof Error ? error.message : 'Unknown error'}`
-      }
-    } else {
-      message = `Added ${chalk.bold(path)} as a working directory for this session`
+        message = `已将 ${chalk.bold(path)} 添加为工作目录。保存到本地设置失败：${error instanceof Error ? error.message : 'Unknown error'}`    } else {
+      message = `已将 ${chalk.bold(path)} 添加为本次会话的工作目录`
     }
 
     const messageWithHint = `${message} ${chalk.dim('· /permissions to manage')}`
     onDone(messageWithHint)
   }
 
-  // When no path is provided, show AddWorkspaceDirectory input form directly
-  // and return to REPL after confirmation
+  // 当未提供路径时，直接显示 AddWorkspaceDirectory 输入表单
+  // 并在确认后返回到 REPL
   if (!directoryPath) {
     return (
       <AddWorkspaceDirectory
         permissionContext={appState.toolPermissionContext}
         onAddDirectory={handleAddDirectory}
         onCancel={() => {
-          onDone('Did not add a working directory.')
+          onDone('未添加工作目录。')
         }}
       />
     )
@@ -146,7 +144,7 @@ export async function call(
       onAddDirectory={handleAddDirectory}
       onCancel={() => {
         onDone(
-          `Did not add ${chalk.bold(result.absolutePath)} as a working directory.`,
+          `未将 ${chalk.bold(result.absolutePath)} 添加为工作目录。`,
         )
       }}
     />

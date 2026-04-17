@@ -1,7 +1,7 @@
 import { isPDFSupported } from 'src/utils/pdfUtils.js'
 import { BASH_TOOL_NAME } from '../BashTool/toolName.js'
 
-// Use a string constant for tool names to avoid circular dependencies
+// 使用字符串常量作为工具名称，以避免循环依赖
 export const FILE_READ_TOOL_NAME = 'Read'
 
 export const FILE_UNCHANGED_STUB =
@@ -9,7 +9,7 @@ export const FILE_UNCHANGED_STUB =
 
 export const MAX_LINES_TO_READ = 2000
 
-export const DESCRIPTION = 'Read a file from the local filesystem.'
+export const DESCRIPTION = '从本地文件系统读取文件。'
 
 export const LINE_FORMAT_INSTRUCTION =
   '- 结果以 cat -n 格式返回，行号从 1 开始'
@@ -20,10 +20,7 @@ export const OFFSET_INSTRUCTION_DEFAULT =
 export const OFFSET_INSTRUCTION_TARGETED =
   '- 当你已经知道需要文件的哪一部分时，只读取那一段。这对大文件很重要。'
 
-/**
- * Renders the Read tool prompt template.  The caller (FileReadTool) supplies
- * the runtime-computed parts.
- */
+/** * 渲染 Read 工具的提示模板。调用方（FileReadTool）提供运行时计算的部分。 */
 export function renderPromptTemplate(
   lineFormat: string,
   maxSizeInstruction: string,
@@ -37,11 +34,9 @@ export function renderPromptTemplate(
 - 默认从文件开头读取，最多读取 ${MAX_LINES_TO_READ} 行${maxSizeInstruction}
 ${offsetInstruction}
 ${lineFormat}
-- 此工具允许 Claude Code 读取图片（例如 PNG、JPG 等）。读取图片文件时，内容会以可视方式呈现，因为 Claude Code 是多模态 LLM。${
-    isPDFSupported()
+- 此工具允许 Claude Code 读取图片（例如 PNG、JPG 等）。读取图片文件时，内容会以可视方式呈现，因为 Claude Code 是多模态 LLM。${isPDFSupported()
       ? '\n- 此工具可以读取 PDF 文件（.pdf）。对于大型 PDF（超过 10 页），你必须提供 pages 参数来读取指定页范围（例如：pages: "1-5"）。不提供 pages 读取大型 PDF 会失败。每次请求最多 20 页。'
-      : ''
-  }
+      : ''}
 - 此工具可以读取 Jupyter notebook（.ipynb）并返回所有单元及其输出，包含代码、文本与可视化内容。
 - 此工具只能读取文件，不能读取目录。要查看目录内容，请通过 ${BASH_TOOL_NAME} 使用 ls 命令。
 - 你会经常被要求读取截图。如果用户提供了截图路径，务必使用此工具查看该路径下的文件。它适用于所有临时文件路径。

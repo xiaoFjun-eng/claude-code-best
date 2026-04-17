@@ -1,4 +1,4 @@
-// biome-ignore-all assist/source/organizeImports: ANT-ONLY import markers must not be reordered
+// biome-ignore-all assist/source/organizeImports: ANT-ONLY 导入标记不得被重新排序
 import addDir from './commands/add-dir/index.js'
 import autofixPr from './commands/autofix-pr/index.js'
 import backfillSessions from './commands/backfill-sessions/index.js'
@@ -58,7 +58,7 @@ import usage from './commands/usage/index.js'
 import theme from './commands/theme/index.js'
 import vim from './commands/vim/index.js'
 import { feature } from 'bun:bundle'
-// Dead code elimination: conditional imports
+// 死代码消除：条件导入
 /* eslint-disable @typescript-eslint/no-require-imports */
 const proactive =
   feature('PROACTIVE') || feature('KAIROS')
@@ -227,14 +227,14 @@ import rateLimitOptions from './commands/rate-limit-options/index.js'
 import statusline from './commands/statusline.js'
 import effort from './commands/effort/index.js'
 import stats from './commands/stats/index.js'
-// insights.ts is 113KB (3200 lines, includes diffLines/html rendering). Lazy
-// shim defers the heavy module until /insights is actually invoked.
+// insights.ts 文件大小为 113KB（3200 行，包含 diffLines/html 渲染）。延迟加载
+// 垫片将重量级模块的加载推迟到实际调用 /insights 时。
 const usageReport: Command = {
   type: 'prompt',
   name: 'insights',
-  description: 'Generate a report analyzing your Claude Code sessions',
+  description: '生成一份分析您的 Claude Code 会话的报告',
   contentLength: 0,
-  progressMessage: 'analyzing your sessions',
+  progressMessage: '正在分析您的会话',
   source: 'builtin',
   async getPromptForCommand(args, context) {
     const real = (await import('./commands/insights.js')).default
@@ -251,7 +251,7 @@ import {
   isCommandEnabled,
 } from './types/command.js'
 
-// Re-export types from the centralized location
+// 从集中位置重新导出类型
 export type {
   Command,
   CommandBase,
@@ -263,7 +263,7 @@ export type {
 } from './types/command.js'
 export { getCommandName, isCommandEnabled } from './types/command.js'
 
-// Commands that get eliminated from the external build
+// 在外部构建中被消除的命令
 export const INTERNAL_ONLY_COMMANDS = [
   backfillSessions,
   breakCache,
@@ -294,8 +294,8 @@ export const INTERNAL_ONLY_COMMANDS = [
   autofixPr,
 ].filter(Boolean)
 
-// Declared as a function so that we don't run this until getCommands is called,
-// since underlying functions read from config, which can't be read at module initialization time
+// 声明为函数，以便在调用 getCommands 之前不运行此代码，
+// 因为底层函数会读取配置，而配置无法在模块初始化时读取
 const COMMANDS = memoize((): Command[] => [
   addDir,
   advisor,
@@ -418,22 +418,22 @@ async function getSkills(cwd: string): Promise<{
       getSkillDirCommands(cwd).catch(err => {
         logError(toError(err))
         logForDebugging(
-          'Skill directory commands failed to load, continuing without them',
+          '技能目录命令加载失败，将在没有它们的情况下继续运行',
         )
         return []
       }),
       getPluginSkills().catch(err => {
         logError(toError(err))
-        logForDebugging('Plugin skills failed to load, continuing without them')
+        logForDebugging('插件技能加载失败，将在没有它们的情况下继续运行')
         return []
       }),
     ])
-    // Bundled skills are registered synchronously at startup
+    // 捆绑技能在启动时同步注册
     const bundledSkills = getBundledSkills()
-    // Built-in plugin skills come from enabled built-in plugins
+    // 内置插件技能来自已启用的内置插件
     const builtinPluginSkills = getBuiltinPluginSkillCommands()
     logForDebugging(
-      `getSkills returning: ${skillDirCommands.length} skill dir commands, ${pluginSkills.length} plugin skills, ${bundledSkills.length} bundled skills, ${builtinPluginSkills.length} builtin plugin skills`,
+      `getSkills 返回：${skillDirCommands.length} 个技能目录命令，${pluginSkills.length} 个插件技能，${bundledSkills.length} 个捆绑技能，${builtinPluginSkills.length} 个内置插件技能`,
     )
     return {
       skillDirCommands,
@@ -442,9 +442,9 @@ async function getSkills(cwd: string): Promise<{
       builtinPluginSkills,
     }
   } catch (err) {
-    // This should never happen since we catch at the Promise level, but defensive
+    // 这应该永远不会发生，因为我们在 Promise 级别进行了捕获，但出于防御性编程
     logError(toError(err))
-    logForDebugging('Unexpected error in getSkills, returning empty')
+    logForDebugging('getSkills 中出现意外错误，返回空结果')
     return {
       skillDirCommands: [],
       pluginSkills: [],
@@ -462,15 +462,13 @@ const getWorkflowCommands = feature('WORKFLOW_SCRIPTS')
   : null
 /* eslint-enable @typescript-eslint/no-require-imports */
 
-/**
- * Filters commands by their declared `availability` (auth/provider requirement).
- * Commands without `availability` are treated as universal.
- * This runs before `isEnabled()` so that provider-gated commands are hidden
- * regardless of feature-flag state.
+/** * 根据命令声明的 `availability`（身份验证/提供商要求）过滤命令。
+ * 没有 `availability` 的命令被视为通用命令。
+ * 此操作在 `isEnabled()` 之前运行，以便无论功能标志状态如何，
+ * 由提供商限制的命令都会被隐藏。
  *
- * Not memoized — auth state can change mid-session (e.g. after /login),
- * so this must be re-evaluated on every getCommands() call.
- */
+ * 未进行记忆化 — 身份验证状态可能在会话中途改变（例如，在 /login 之后），
+ * 因此必须在每次 getCommands() 调用时重新评估。 */
 export function meetsAvailabilityRequirement(cmd: Command): boolean {
   if (!cmd.availability || cmd.availability.length === 0) return true
   for (const a of cmd.availability) {
@@ -479,9 +477,9 @@ export function meetsAvailabilityRequirement(cmd: Command): boolean {
         if (isClaudeAISubscriber()) return true
         break
       case 'console':
-        // Console API key user = direct 1P API customer (not 3P, not claude.ai).
-        // Excludes 3P (Bedrock/Vertex/Foundry) who don't set ANTHROPIC_BASE_URL
-        // and gateway users who proxy through a custom base URL.
+        // Console API key 用户 = 直接的一方 API 客户（非三方，非 claude.ai）。
+        // 排除未设置 ANTHROPIC_BASE_URL 的三方用户（Bedrock/Vertex/Foundry）
+        // 以及通过自定义基础 URL 代理的网关用户。
         if (
           !isClaudeAISubscriber() &&
           !isUsing3PServices() &&
@@ -499,10 +497,8 @@ export function meetsAvailabilityRequirement(cmd: Command): boolean {
   return false
 }
 
-/**
- * Loads all command sources (skills, plugins, workflows). Memoized by cwd
- * because loading is expensive (disk I/O, dynamic imports).
- */
+/** * 加载所有命令源（技能、插件、工作流）。按当前工作目录进行记忆化，
+ * 因为加载成本高昂（磁盘 I/O，动态导入）。 */
 const loadAllCommands = memoize(async (cwd: string): Promise<Command[]> => {
   const [
     { skillDirCommands, pluginSkills, bundledSkills, builtinPluginSkills },
@@ -525,18 +521,16 @@ const loadAllCommands = memoize(async (cwd: string): Promise<Command[]> => {
   ]
 })
 
-/**
- * Returns commands available to the current user. The expensive loading is
- * memoized, but availability and isEnabled checks run fresh every call so
- * auth changes (e.g. /login) take effect immediately.
- */
+/** * 返回当前用户可用的命令。昂贵的加载操作已记忆化，
+ * 但可用性和 isEnabled 检查每次调用都会重新运行，
+ * 以便身份验证更改（例如 /login）立即生效。 */
 export async function getCommands(cwd: string): Promise<Command[]> {
   const allCommands = await loadAllCommands(cwd)
 
-  // Get dynamic skills discovered during file operations
+  // 获取在文件操作期间发现的动态技能
   const dynamicSkills = getDynamicSkills()
 
-  // Build base commands without dynamic skills
+  // 构建不含动态技能的基础命令
   const baseCommands = allCommands.filter(
     _ => meetsAvailabilityRequirement(_) && isCommandEnabled(_),
   )
@@ -545,7 +539,7 @@ export async function getCommands(cwd: string): Promise<Command[]> {
     return baseCommands
   }
 
-  // Dedupe dynamic skills - only add if not already present
+  // 动态技能去重 - 仅当不存在时才添加
   const baseCommandNames = new Set(baseCommands.map(c => c.name))
   const uniqueDynamicSkills = dynamicSkills.filter(
     s =>
@@ -558,7 +552,7 @@ export async function getCommands(cwd: string): Promise<Command[]> {
     return baseCommands
   }
 
-  // Insert dynamic skills after plugin skills but before built-in commands
+  // 在插件技能之后、内置命令之前插入动态技能
   const builtInNames = new Set(COMMANDS().map(c => c.name))
   const insertIndex = baseCommands.findIndex(c => builtInNames.has(c.name))
 
@@ -573,18 +567,16 @@ export async function getCommands(cwd: string): Promise<Command[]> {
   ]
 }
 
-/**
- * Clears only the memoization caches for commands, WITHOUT clearing skill caches.
- * Use this when dynamic skills are added to invalidate cached command lists.
- */
+/** * 仅清除命令的缓存，而不清除技能缓存。
+ * 当添加动态技能使缓存的命令列表失效时，使用此方法。 */
 export function clearCommandMemoizationCaches(): void {
   loadAllCommands.cache?.clear?.()
   getSkillToolCommands.cache?.clear?.()
   getSlashCommandToolSkills.cache?.clear?.()
-  // getSkillIndex in skillSearch/localSearch.ts is a separate memoization layer
-  // built ON TOP of getSkillToolCommands/getCommands. Clearing only the inner
-  // caches is a no-op for the outer — lodash memoize returns the cached result
-  // without ever reaching the cleared inners. Must clear it explicitly.
+  // skillSearch/localSearch.ts 中的 getSkillIndex 是一个独立的缓存层
+  // 构建在 getSkillToolCommands/getCommands 之上。仅清除内部
+  // 缓存对外层无效 — lodash memoize 会返回缓存的结果
+  // 而不会触及已清除的内部缓存。必须显式清除它。
   clearSkillIndexCache?.()
 }
 
@@ -595,12 +587,9 @@ export function clearCommandsCache(): void {
   clearSkillCaches()
 }
 
-/**
- * Filter AppState.mcp.commands to MCP-provided skills (prompt-type,
- * model-invocable, loaded from MCP). These live outside getCommands() so
- * callers that need MCP skills in their skill index thread them through
- * separately.
- */
+/** * 将 AppState.mcp.commands 过滤为 MCP 提供的技能（提示类型、
+ * 模型可调用、从 MCP 加载）。这些存在于 getCommands() 之外，因此
+ * 需要在技能索引中包含 MCP 技能的调用方会单独处理它们。 */
 export function getMcpSkillCommands(
   mcpCommands: readonly Command[],
 ): readonly Command[] {
@@ -615,8 +604,8 @@ export function getMcpSkillCommands(
   return []
 }
 
-// SkillTool shows ALL prompt-based commands that the model can invoke
-// This includes both skills (from /skills/) and commands (from /commands/)
+// SkillTool 显示模型可以调用的所有基于提示的命令
+// 这包括技能（来自 /skills/）和命令（来自 /commands/）
 export const getSkillToolCommands = memoize(
   async (cwd: string): Promise<Command[]> => {
     const allCommands = await getCommands(cwd)
@@ -637,9 +626,9 @@ export const getSkillToolCommands = memoize(
   },
 )
 
-// Filters commands to include only skills. Skills are commands that provide
-// specialized capabilities for the model to use. They are identified by
-// loadedFrom being 'skills', 'plugin', or 'bundled', or having disableModelInvocation set.
+// 过滤命令，仅包含技能。技能是为模型提供
+// 专用能力的命令。它们通过以下方式标识：
+// loadedFrom 为 'skills'、'plugin' 或 'bundled'，或者设置了 disableModelInvocation。
 export const getSlashCommandToolSkills = memoize(
   async (cwd: string): Promise<Command[]> => {
     try {
@@ -656,23 +645,21 @@ export const getSlashCommandToolSkills = memoize(
       )
     } catch (error) {
       logError(toError(error))
-      // Return empty array rather than throwing - skills are non-critical
-      // This prevents skill loading failures from breaking the entire system
-      logForDebugging('Returning empty skills array due to load failure')
+      // 返回空数组而非抛出错误 - 技能是非关键性的
+      // 这可以防止技能加载失败导致整个系统崩溃
+      logForDebugging('因加载失败返回空技能数组')
       return []
     }
   },
 )
 
-/**
- * Commands that are safe to use in remote mode (--remote).
- * These only affect local TUI state and don't depend on local filesystem,
- * git, shell, IDE, MCP, or other local execution context.
+/** * 在远程模式（--remote）下可安全使用的命令。
+ * 这些命令仅影响本地 TUI 状态，不依赖本地文件系统、
+ * git、shell、IDE、MCP 或其他本地执行上下文。
  *
- * Used in two places:
- * 1. Pre-filtering commands in main.tsx before REPL renders (prevents race with CCR init)
- * 2. Preserving local-only commands in REPL's handleRemoteInit after CCR filters
- */
+ * 在两个地方使用：
+ * 1. 在 REPL 渲染前，于 main.tsx 中预过滤命令（防止与 CCR 初始化竞争）
+ * 2. 在 CCR 过滤后，于 REPL 的 handleRemoteInit 中保留仅限本地的命令 */
 export const REMOTE_SAFE_COMMANDS: Set<Command> = new Set([
   session, // Shows QR code / URL for remote session
   exit, // Exit the TUI
@@ -693,18 +680,14 @@ export const REMOTE_SAFE_COMMANDS: Set<Command> = new Set([
   mobile, // Mobile QR code
 ])
 
-/**
- * Builtin commands of type 'local' that ARE safe to execute when received
- * over the Remote Control bridge. These produce text output that streams
- * back to the mobile/web client and have no terminal-only side effects.
+/** * 通过远程控制桥接收时，可安全执行的 'local' 类型内置命令。
+ * 这些命令产生流式传输回移动端/Web 客户端的文本输出，且没有仅限终端的副作用。
  *
- * 'local-jsx' commands are blocked by type (they render Ink UI) and
- * 'prompt' commands are allowed by type (they expand to text sent to the
- * model) — this set only gates 'local' commands.
+ * 'local-jsx' 命令按类型被阻止（它们渲染 Ink UI），而
+ * 'prompt' 命令按类型被允许（它们扩展为发送给模型的文本）— 此集合仅控制 'local' 命令。
  *
- * When adding a new 'local' command that should work from mobile, add it
- * here. Default is blocked.
- */
+ * 当添加一个应在移动端工作的新 'local' 命令时，请在此处添加。
+ * 默认情况下是被阻止的。 */
 export const BRIDGE_SAFE_COMMANDS: Set<Command> = new Set(
   [
     compact, // Shrink context — useful mid-session from a phone
@@ -716,28 +699,21 @@ export const BRIDGE_SAFE_COMMANDS: Set<Command> = new Set(
   ].filter((c): c is Command => c !== null),
 )
 
-/**
- * Whether a slash command is safe to execute when its input arrived over the
- * Remote Control bridge (mobile/web client).
+/** * 当斜杠命令的输入通过远程控制桥（移动端/Web 客户端）到达时，是否可安全执行。
  *
- * PR #19134 blanket-blocked all slash commands from bridge inbound because
- * `/model` from iOS was popping the local Ink picker. This predicate relaxes
- * that with an explicit allowlist: 'prompt' commands (skills) expand to text
- * and are safe by construction; 'local' commands need an explicit opt-in via
- * BRIDGE_SAFE_COMMANDS; 'local-jsx' commands render Ink UI and stay blocked.
- */
+ * PR #19134 全面阻止了所有来自桥的斜杠命令，因为
+ * 来自 iOS 的 `/model` 会弹出本地 Ink 选择器。此谓词通过显式允许列表放宽了
+ * 该限制：'prompt' 命令（技能）扩展为文本，在构造上是安全的；'local' 命令需要通过
+ * BRIDGE_SAFE_COMMANDS 显式选择加入；'local-jsx' 命令渲染 Ink UI 并保持被阻止。 */
 export function isBridgeSafeCommand(cmd: Command): boolean {
   if (cmd.type === 'local-jsx') return false
   if (cmd.type === 'prompt') return true
   return BRIDGE_SAFE_COMMANDS.has(cmd)
 }
 
-/**
- * Filter commands to only include those safe for remote mode.
- * Used to pre-filter commands when rendering the REPL in --remote mode,
- * preventing local-only commands from being briefly available before
- * the CCR init message arrives.
- */
+/** * 过滤命令，仅包含对远程模式安全的命令。
+ * 用于在 --remote 模式下渲染 REPL 时预过滤命令，
+ * 防止在 CCR 初始化消息到达前，短暂出现仅限本地的命令。 */
 export function filterCommandsForRemoteMode(commands: Command[]): Command[] {
   return commands.filter(cmd => REMOTE_SAFE_COMMANDS.has(cmd))
 }
@@ -762,33 +738,29 @@ export function getCommand(commandName: string, commands: Command[]): Command {
   const command = findCommand(commandName, commands)
   if (!command) {
     throw ReferenceError(
-      `Command ${commandName} not found. Available commands: ${commands
+      `未找到命令 ${commandName}。可用命令：${commands
         .map(_ => {
           const name = getCommandName(_)
           return _.aliases ? `${name} (aliases: ${_.aliases.join(', ')})` : name
         })
         .sort((a, b) => a.localeCompare(b))
-        .join(', ')}`,
-    )
+        .join(', ')}`
   }
 
   return command
 }
 
-/**
- * Formats a command's description with its source annotation for user-facing UI.
- * Use this in typeahead, help screens, and other places where users need to see
- * where a command comes from.
+/** * 格式化命令的描述，并附上其来源标注，用于面向用户的 UI。
+ * 在自动补全、帮助屏幕和其他用户需要查看命令来源的地方使用。
  *
- * For model-facing prompts (like SkillTool), use cmd.description directly.
- */
+ * 对于面向模型的提示（如 SkillTool），直接使用 cmd.description。 */
 export function formatDescriptionWithSource(cmd: Command): string {
   if (cmd.type !== 'prompt') {
     return cmd.description
   }
 
   if (cmd.kind === 'workflow') {
-    return `${cmd.description} (workflow)`
+    return `${cmd.description}（工作流）`
   }
 
   if (cmd.source === 'plugin') {
@@ -796,7 +768,7 @@ export function formatDescriptionWithSource(cmd: Command): string {
     if (pluginName) {
       return `(${pluginName}) ${cmd.description}`
     }
-    return `${cmd.description} (plugin)`
+    return `${cmd.description}（插件）`
   }
 
   if (cmd.source === 'builtin' || cmd.source === 'mcp') {
@@ -804,7 +776,7 @@ export function formatDescriptionWithSource(cmd: Command): string {
   }
 
   if (cmd.source === 'bundled') {
-    return `${cmd.description} (bundled)`
+    return `${cmd.description}（捆绑）`
   }
 
   return `${cmd.description} (${getSettingSourceName(cmd.source)})`

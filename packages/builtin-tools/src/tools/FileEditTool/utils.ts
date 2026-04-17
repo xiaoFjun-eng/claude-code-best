@@ -15,19 +15,17 @@ import {
 } from 'src/utils/file.js'
 import type { EditInput, FileEdit } from './types.js'
 
-// Claude can't output curly quotes, so we define them as constants here for Claude to use
-// in the code. We do this because we normalize curly quotes to straight quotes
-// when applying edits.
+// Claude 无法输出花引号，因此我们在此将其定义为常量供 Claude 使用
+// 在代码中。我们这样做是因为在应用编辑时，我们会将花引号规范化为直引号
+// 。
 export const LEFT_SINGLE_CURLY_QUOTE = '‘'
 export const RIGHT_SINGLE_CURLY_QUOTE = '’'
 export const LEFT_DOUBLE_CURLY_QUOTE = '“'
 export const RIGHT_DOUBLE_CURLY_QUOTE = '”'
 
-/**
- * Normalizes quotes in a string by converting curly quotes to straight quotes
- * @param str The string to normalize
- * @returns The string with all curly quotes replaced by straight quotes
- */
+/** * 通过将花引号转换为直引号来规范化字符串中的引号
+ * @param str 要规范化的字符串
+ * @returns 所有花引号被替换为直引号的字符串 */
 export function normalizeQuotes(str: string): string {
   return str
     .replaceAll(LEFT_SINGLE_CURLY_QUOTE, "'")
@@ -36,14 +34,12 @@ export function normalizeQuotes(str: string): string {
     .replaceAll(RIGHT_DOUBLE_CURLY_QUOTE, '"')
 }
 
-/**
- * Strips trailing whitespace from each line in a string while preserving line endings
- * @param str The string to process
- * @returns The string with trailing whitespace removed from each line
- */
+/** * 去除字符串中每行的尾部空白，同时保留行尾符
+ * @param str 要处理的字符串
+ * @returns 每行尾部空白被移除的字符串 */
 export function stripTrailingWhitespace(str: string): string {
-  // Handle different line endings: CRLF, LF, CR
-  // Use a regex that matches line endings and captures them
+  // 处理不同的行尾符：CRLF、LF、CR
+  // 使用一个匹配行尾符并捕获它们的正则表达式
   const lines = str.split(/(\r\n|\n|\r)/)
 
   let result = ''
@@ -51,10 +47,10 @@ export function stripTrailingWhitespace(str: string): string {
     const part = lines[i]
     if (part !== undefined) {
       if (i % 2 === 0) {
-        // Even indices are line content
+        // 偶数索引是行内容
         result += part.replace(/\s+$/, '')
       } else {
-        // Odd indices are line endings
+        // 奇数索引是行尾符
         result += part
       }
     }
@@ -63,55 +59,51 @@ export function stripTrailingWhitespace(str: string): string {
   return result
 }
 
-/**
- * Finds the actual string in the file content that matches the search string,
- * accounting for quote normalization
- * @param fileContent The file content to search in
- * @param searchString The string to search for
- * @returns The actual string found in the file, or null if not found
- */
+/** * 在文件内容中查找与搜索字符串匹配的实际字符串，
+ * 考虑引号规范化
+ * @param fileContent 要搜索的文件内容
+ * @param searchString 要搜索的字符串
+ * @returns 在文件中找到的实际字符串，如果未找到则返回 null */
 export function findActualString(
   fileContent: string,
   searchString: string,
 ): string | null {
-  // First try exact match
+  // 首先尝试精确匹配
   if (fileContent.includes(searchString)) {
     return searchString
   }
 
-  // Try with normalized quotes
+  // 尝试使用规范化后的引号
   const normalizedSearch = normalizeQuotes(searchString)
   const normalizedFile = normalizeQuotes(fileContent)
 
   const searchIndex = normalizedFile.indexOf(normalizedSearch)
   if (searchIndex !== -1) {
-    // Find the actual string in the file that matches
+    // 在文件中查找匹配的实际字符串
     return fileContent.substring(searchIndex, searchIndex + searchString.length)
   }
 
   return null
 }
 
-/**
- * When old_string matched via quote normalization (curly quotes in file,
- * straight quotes from model), apply the same curly quote style to new_string
- * so the edit preserves the file's typography.
+/** * 当 old_string 通过引号规范化匹配时（文件中的花引号，
+ * 模型输出的直引号），将相同的花引号样式应用于 new_string
+ * 以便编辑保留文件的排版风格。
  *
- * Uses a simple open/close heuristic: a quote character preceded by whitespace,
- * start of string, or opening punctuation is treated as an opening quote;
- * otherwise it's a closing quote.
- */
+ * 使用简单的开/闭启发式规则：一个引号字符前面是空白、
+ * 字符串开头或开标点符号，则视为开引号；
+ * 否则视为闭引号。 */
 export function preserveQuoteStyle(
   oldString: string,
   actualOldString: string,
   newString: string,
 ): string {
-  // If they're the same, no normalization happened
+  // 如果它们相同，则没有发生规范化
   if (oldString === actualOldString) {
     return newString
   }
 
-  // Detect which curly quote types were in the file
+  // 检测文件中存在哪种花引号类型
   const hasDoubleQuotes =
     actualOldString.includes(LEFT_DOUBLE_CURLY_QUOTE) ||
     actualOldString.includes(RIGHT_DOUBLE_CURLY_QUOTE)
@@ -175,14 +167,14 @@ function applyCurlySingleQuotes(str: string): string {
   const result: string[] = []
   for (let i = 0; i < chars.length; i++) {
     if (chars[i] === "'") {
-      // Don't convert apostrophes in contractions (e.g., "don't", "it's")
-      // An apostrophe between two letters is a contraction, not a quote
+      // 不要转换缩略词中的撇号（例如 "don't"、"it's"）
+      // 两个字母之间的撇号是缩略词，不是引号
       const prev = i > 0 ? chars[i - 1] : undefined
       const next = i < chars.length - 1 ? chars[i + 1] : undefined
       const prevIsLetter = prev !== undefined && /\p{L}/u.test(prev)
       const nextIsLetter = next !== undefined && /\p{L}/u.test(next)
       if (prevIsLetter && nextIsLetter) {
-        // Apostrophe in a contraction — use right single curly quote
+        // 缩略词中的撇号 —— 使用右单花引号
         result.push(RIGHT_SINGLE_CURLY_QUOTE)
       } else {
         result.push(
@@ -198,11 +190,9 @@ function applyCurlySingleQuotes(str: string): string {
   return result.join('')
 }
 
-/**
- * Transform edits to ensure replace_all always has a boolean value
- * @param edits Array of edits with optional replace_all
- * @returns Array of edits with replace_all guaranteed to be boolean
- */
+/** * 转换编辑以确保 replace_all 始终具有布尔值
+ * @param edits 带有可选 replace_all 的编辑数组
+ * @returns 保证 replace_all 为布尔值的编辑数组 */
 export function applyEditToFile(
   originalContent: string,
   oldString: string,
@@ -227,10 +217,8 @@ export function applyEditToFile(
     : f(originalContent, oldString, newString)
 }
 
-/**
- * Applies an edit to a file and returns the patch and updated file.
- * Does not write the file to disk.
- */
+/** * 将编辑应用于文件并返回补丁和更新后的文件。
+ * 不将文件写入磁盘。 */
 export function getPatchForEdit({
   filePath,
   fileContents,
@@ -253,12 +241,10 @@ export function getPatchForEdit({
   })
 }
 
-/**
- * Applies a list of edits to a file and returns the patch and updated file.
- * Does not write the file to disk.
+/** * 将编辑列表应用于文件并返回补丁和更新后的文件。
+ * 不将文件写入磁盘。
  *
- * NOTE: The returned patch is to be used for display purposes only - it has spaces instead of tabs
- */
+ * 注意：返回的补丁仅用于显示目的 - 它使用空格代替制表符 */
 export function getPatchForEdits({
   filePath,
   fileContents,
@@ -271,7 +257,7 @@ export function getPatchForEdits({
   let updatedFile = fileContents
   const appliedNewStrings: string[] = []
 
-  // Special case for empty files.
+  // 空文件的特殊情况。
   if (
     !fileContents &&
     edits.length === 1 &&
@@ -293,12 +279,12 @@ export function getPatchForEdits({
     return { patch, updatedFile: '' }
   }
 
-  // Apply each edit and check if it actually changes the file
+  // 应用每个编辑并检查它是否实际更改了文件
   for (const edit of edits) {
-    // Strip trailing newlines from old_string before checking
+    // 在检查前去除 old_string 的尾部换行符
     const oldStringToCheck = edit.old_string.replace(/\n+$/, '')
 
-    // Check if old_string is a substring of any previously applied new_string
+    // 检查 old_string 是否是任何先前应用的 new_string 的子字符串
     for (const previousNewString of appliedNewStrings) {
       if (
         oldStringToCheck !== '' &&
@@ -321,25 +307,25 @@ export function getPatchForEdits({
             edit.replace_all,
           )
 
-    // If this edit didn't change anything, throw an error
+    // 如果此编辑未更改任何内容，则抛出错误
     if (updatedFile === previousContent) {
-      throw new Error('String not found in file. Failed to apply edit.')
+      throw new Error('在文件中未找到字符串。应用编辑失败。')
     }
 
-    // Track the new string that was applied
+    // 跟踪已应用的新字符串
     appliedNewStrings.push(edit.new_string)
   }
 
   if (updatedFile === fileContents) {
     throw new Error(
-      'Original and edited file match exactly. Failed to apply edit.',
+      '原始文件和编辑后的文件完全匹配。应用编辑失败。',
     )
   }
 
-  // We already have before/after content, so call getPatchFromContents directly.
-  // Previously this went through getPatchForDisplay with edits=[{old:fileContents,new:updatedFile}],
-  // which transforms fileContents twice (once as preparedFileContents, again as escapedOldString
-  // inside the reduce) and runs a no-op full-content .replace(). This saves ~20% on large files.
+  // 我们已经有了修改前后的内容，因此直接调用 getPatchFromContents。
+  // 之前这需要通过 getPatchForDisplay 处理，参数 edits=[{old:fileContents,new:updatedFile}]，
+  // 这会导致 fileContents 被转换两次（一次作为 preparedFileContents，另一次作为 reduce 内的 escapedOldString）
+  // 并执行一个无操作的全内容 .replace()。这为大型文件节省了约 20% 的开销。
   const patch = getPatchFromContents({
     filePath,
     oldContent: convertLeadingTabsToSpaces(fileContents),
@@ -349,16 +335,14 @@ export function getPatchForEdits({
   return { patch, updatedFile }
 }
 
-// Cap on edited_text_file attachment snippets. Format-on-save of a large file
-// previously injected the entire file per turn (observed max 16.1KB, ~14K
-// tokens/session). 8KB preserves meaningful context while bounding worst case.
+// 对 edited_text_file 附件片段设置上限。保存时格式化大型文件
+// 之前每次交互都会注入整个文件（观察到的最大值为 16.1KB，约 14K
+// tokens/会话）。8KB 在保留有意义上下文的同时，限制了最坏情况。
 const DIFF_SNIPPET_MAX_BYTES = 8192
 
-/**
- * Used for attachments, to show snippets when files change.
+/** * 用于附件，在文件更改时显示片段。
  *
- * TODO: Unify this with the other snippet logic.
- */
+ * TODO：将此逻辑与其他片段逻辑统一。 */
 export function getSnippetForTwoFileDiff(
   fileAContents: string,
   fileBContents: string,
@@ -396,34 +380,34 @@ export function getSnippetForTwoFileDiff(
     return full
   }
 
-  // Truncate at the last line boundary that fits within the cap.
-  // Marker format matches BashTool/utils.ts.
+  // 在符合上限的最后一个行边界处截断。
+  // 标记格式与 BashTool/utils.ts 匹配。
   const cutoff = full.lastIndexOf('\n', DIFF_SNIPPET_MAX_BYTES)
   const kept =
     cutoff > 0 ? full.slice(0, cutoff) : full.slice(0, DIFF_SNIPPET_MAX_BYTES)
   const remaining = countCharInString(full, '\n', kept.length) + 1
-  return `${kept}\n\n... [${remaining} lines truncated] ...`
+  return `${kept}
+
+... [${remaining} 行被截断] ...`
 }
 
 const CONTEXT_LINES = 4
 
-/**
- * Gets a snippet from a file showing the context around a patch with line numbers.
- * @param originalFile The original file content before applying the patch
- * @param patch The diff hunks to use for determining snippet location
- * @param newFile The file content after applying the patch
- * @returns The snippet text with line numbers and the starting line number
- */
+/** * 从文件中获取一个片段，显示补丁周围带行号的上下文。
+ * @param originalFile 应用补丁前的原始文件内容
+ * @param patch 用于确定片段位置的差异块
+ * @param newFile 应用补丁后的文件内容
+ * @returns 带行号的片段文本及起始行号 */
 export function getSnippetForPatch(
   patch: StructuredPatchHunk[],
   newFile: string,
 ): { formattedSnippet: string; startLine: number } {
   if (patch.length === 0) {
-    // No changes, return empty snippet
+    // 无更改，返回空片段
     return { formattedSnippet: '', startLine: 1 }
   }
 
-  // Find the first and last changed lines across all hunks
+  // 查找所有差异块中的第一个和最后一个更改行
   let minLine = Infinity
   let maxLine = -Infinity
 
@@ -431,23 +415,23 @@ export function getSnippetForPatch(
     if (hunk.oldStart < minLine) {
       minLine = hunk.oldStart
     }
-    // For the end line, we need to consider the new lines count since we're showing the new file
+    // 对于结束行，我们需要考虑新行数，因为我们显示的是新文件
     const hunkEnd = hunk.oldStart + (hunk.newLines || 0) - 1
     if (hunkEnd > maxLine) {
       maxLine = hunkEnd
     }
   }
 
-  // Calculate the range with context
+  // 计算包含上下文的范围
   const startLine = Math.max(1, minLine - CONTEXT_LINES)
   const endLine = maxLine + CONTEXT_LINES
 
-  // Split the new file into lines and get the snippet
+  // 将新文件拆分为行并获取片段
   const fileLines = newFile.split(/\r?\n/)
   const snippetLines = fileLines.slice(startLine - 1, endLine)
   const snippet = snippetLines.join('\n')
 
-  // Add line numbers
+  // 添加行号
   const formattedSnippet = addLineNumbers({
     content: snippet,
     startLine,
@@ -456,22 +440,20 @@ export function getSnippetForPatch(
   return { formattedSnippet, startLine }
 }
 
-/**
- * Gets a snippet from a file showing the context around a single edit.
- * This is a convenience function that uses the original algorithm.
- * @param originalFile The original file content
- * @param oldString The text to replace
- * @param newString The text to replace it with
- * @param contextLines The number of lines to show before and after the change
- * @returns The snippet and the starting line number
- */
+/** * 从文件中获取一个片段，显示单个编辑周围的上下文。
+ * 这是一个使用原始算法的便捷函数。
+ * @param originalFile 原始文件内容
+ * @param oldString 要替换的文本
+ * @param newString 替换后的文本
+ * @param contextLines 更改前后要显示的行数
+ * @returns 片段及起始行号 */
 export function getSnippet(
   originalFile: string,
   oldString: string,
   newString: string,
   contextLines: number = 4,
 ): { snippet: string; startLine: number } {
-  // Use the original algorithm from FileEditTool.tsx
+  // 使用 FileEditTool.tsx 中的原始算法
   const before = originalFile.split(oldString)[0] ?? ''
   const replacementLine = before.split(/\r?\n/).length - 1
   const newFileLines = applyEditToFile(
@@ -480,12 +462,12 @@ export function getSnippet(
     newString,
   ).split(/\r?\n/)
 
-  // Calculate the start and end line numbers for the snippet
+  // 计算片段的起始和结束行号
   const startLine = Math.max(0, replacementLine - contextLines)
   const endLine =
     replacementLine + contextLines + newString.split(/\r?\n/).length
 
-  // Get snippet
+  // 获取片段
   const snippetLines = newFileLines.slice(startLine, endLine)
   const snippet = snippetLines.join('\n')
 
@@ -494,23 +476,23 @@ export function getSnippet(
 
 export function getEditsForPatch(patch: StructuredPatchHunk[]): FileEdit[] {
   return patch.map(hunk => {
-    // Extract the changes from this hunk
+    // 从此差异块中提取更改
     const contextLines: string[] = []
     const oldLines: string[] = []
     const newLines: string[] = []
 
-    // Parse each line and categorize it
+    // 解析每一行并分类
     for (const line of hunk.lines) {
       if (line.startsWith(' ')) {
-        // Context line - appears in both versions
+        // 上下文行 - 在两个版本中都出现
         contextLines.push(line.slice(1))
         oldLines.push(line.slice(1))
         newLines.push(line.slice(1))
       } else if (line.startsWith('-')) {
-        // Deleted line - only in old version
+        // 删除行 - 仅出现在旧版本中
         oldLines.push(line.slice(1))
       } else if (line.startsWith('+')) {
-        // Added line - only in new version
+        // 新增行 - 仅出现在新版本中
         newLines.push(line.slice(1))
       }
     }
@@ -523,11 +505,9 @@ export function getEditsForPatch(patch: StructuredPatchHunk[]): FileEdit[] {
   })
 }
 
-/**
- * Contains replacements to de-sanitize strings from Claude
- * Since Claude can't see any of these strings (sanitized in the API)
- * It'll output the sanitized versions in the edit response
- */
+/** * 包含用于对 Claude 的字符串进行去清理的替换项
+ * 由于 Claude 无法看到这些字符串（在 API 中已被清理）
+ * 它将在编辑响应中输出清理后的版本 */
 const DESANITIZATIONS: Record<string, string> = {
   '<fnr>': '<function_results>',
   '<n>': '<name>',
@@ -549,11 +529,9 @@ const DESANITIZATIONS: Record<string, string> = {
   '\n\nA:': '\n\nAssistant:',
 }
 
-/**
- * Normalizes a match string by applying specific replacements
- * This helps handle when exact matches fail due to formatting differences
- * @returns The normalized string and which replacements were applied
- */
+/** * 通过应用特定替换来规范化匹配字符串
+ * 这有助于处理因格式差异导致精确匹配失败的情况
+ * @returns 规范化后的字符串以及应用的替换项 */
 function desanitizeMatchString(matchString: string): {
   result: string
   appliedReplacements: Array<{ from: string; to: string }>
@@ -573,11 +551,9 @@ function desanitizeMatchString(matchString: string): {
   return { result, appliedReplacements }
 }
 
-/**
- * Normalize the input for the FileEditTool
- * If the string to replace is not found in the file, try with a normalized version
- * Returns the normalized input if successful, or the original input if not
- */
+/** * 为 FileEditTool 规范化输入
+ * 如果文件中未找到要替换的字符串，则尝试使用规范化版本
+ * 如果成功则返回规范化输入，否则返回原始输入 */
 export function normalizeFileEditInput({
   file_path,
   edits,
@@ -592,16 +568,16 @@ export function normalizeFileEditInput({
     return { file_path, edits }
   }
 
-  // Markdown uses two trailing spaces as a hard line break — stripping would
-  // silently change semantics. Skip stripTrailingWhitespace for .md/.mdx.
+  // Markdown 使用两个尾随空格作为硬换行符——去除空格会静默改变语义。对 .md/.mdx 文件跳过 stripTrailingWhitespace。
+  // 使用缓存的文件读取以避免冗余的 I/O 操作。
   const isMarkdown = /\.(md|mdx)$/i.test(file_path)
 
   try {
     const fullPath = expandPath(file_path)
 
-    // Use cached file read to avoid redundant I/O operations.
-    // If the file doesn't exist, readFileSyncCached throws ENOENT which the
-    // catch below handles by returning the original input (no TOCTOU pre-check).
+    // 如果文件不存在，readFileSyncCached 会抛出 ENOENT 错误，该错误由
+    // 下方的 catch 块处理，返回原始输入（无需 TOCTOU 预检查）。
+    // 如果精确字符串匹配有效，则保持原样
     const fileContent = readFileSyncCached(fullPath)
 
     return {
@@ -611,7 +587,7 @@ export function normalizeFileEditInput({
           ? new_string
           : stripTrailingWhitespace(new_string)
 
-        // If exact string match works, keep it as is
+        // 如果精确匹配失败，尝试对字符串进行去清理操作
         if (fileContent.includes(old_string)) {
           return {
             old_string,
@@ -620,12 +596,12 @@ export function normalizeFileEditInput({
           }
         }
 
-        // Try de-sanitize string if exact match fails
+        // 对 new_string 应用相同的精确替换
         const { result: desanitizedOldString, appliedReplacements } =
           desanitizeMatchString(old_string)
 
         if (fileContent.includes(desanitizedOldString)) {
-          // Apply the same exact replacements to new_string
+          // 如果读取文件时出现任何错误，直接返回原始输入。
           let desanitizedNewString = normalizedNewString
           for (const { from, to } of appliedReplacements) {
             desanitizedNewString = desanitizedNewString.replaceAll(from, to)
@@ -646,8 +622,9 @@ export function normalizeFileEditInput({
       }),
     }
   } catch (error) {
-    // If there's any error reading the file, just return original input.
-    // ENOENT is expected when the file doesn't exist yet (e.g., new file).
+    // 当文件尚不存在时（例如新文件），ENOENT 是预期错误。
+    // * 比较两组编辑操作，通过将它们应用到原始内容并比较结果来确定它们是否等效。
+ * 这处理了编辑操作可能不同但产生相同结果的情况。
     if (!isENOENT(error)) {
       logError(error)
     }
@@ -656,17 +633,13 @@ export function normalizeFileEditInput({
   return { file_path, edits }
 }
 
-/**
- * Compare two sets of edits to determine if they are equivalent
- * by applying both sets to the original content and comparing results.
- * This handles cases where edits might be different but produce the same outcome.
- */
+/** 快速路径：检查编辑操作是否字面相同 */
 export function areFileEditsEquivalent(
   edits1: FileEdit[],
   edits2: FileEdit[],
   originalContent: string,
 ): boolean {
-  // Fast path: check if edits are literally identical
+  // 尝试应用两组编辑操作
   if (
     edits1.length === edits2.length &&
     edits1.every((edit1, index) => {
@@ -682,7 +655,7 @@ export function areFileEditsEquivalent(
     return true
   }
 
-  // Try applying both sets of edits
+  // 如果两者都抛出错误，则仅当错误相同时它们才相等
   let result1: { patch: StructuredPatchHunk[]; updatedFile: string } | null =
     null
   let error1: string | null = null
@@ -710,25 +683,23 @@ export function areFileEditsEquivalent(
     error2 = errorMessage(e)
   }
 
-  // If both threw errors, they're equal only if the errors are the same
+  // 规范化错误消息以便比较
   if (error1 !== null && error2 !== null) {
-    // Normalize error messages for comparison
+    // 如果一个抛出错误而另一个没有，则它们不相等
     return error1 === error2
   }
 
-  // If one threw an error and the other didn't, they're not equal
+  // 两者都成功 - 比较结果
   if (error1 !== null || error2 !== null) {
     return false
   }
 
-  // Both succeeded - compare the results
+  // * 统一函数，用于检查两个文件编辑输入是否等效。
+ * 处理文件编辑（FileEditTool）。
   return result1!.updatedFile === result2!.updatedFile
 }
 
-/**
- * Unified function to check if two file edit inputs are equivalent.
- * Handles file edits (FileEditTool).
- */
+/** 快速路径：不同文件 */
 export function areFileEditsInputsEquivalent(
   input1: {
     file_path: string
@@ -739,12 +710,12 @@ export function areFileEditsInputsEquivalent(
     edits: FileEdit[]
   },
 ): boolean {
-  // Fast path: different files
+  // 快速路径：字面相等
   if (input1.file_path !== input2.file_path) {
     return false
   }
 
-  // Fast path: literal equality
+  // 语义比较（需要读取文件）。如果文件不存在，
   if (
     input1.edits.length === input2.edits.length &&
     input1.edits.every((edit1, index) => {
@@ -760,8 +731,8 @@ export function areFileEditsInputsEquivalent(
     return true
   }
 
-  // Semantic comparison (requires file read). If the file doesn't exist,
-  // compare against empty content (no TOCTOU pre-check).
+  // 则与空内容进行比较（无需 TOCTOU 预检查）。
+  // 与空内容进行比较（无 TOCTOU 预检）。
   let fileContent = ''
   try {
     fileContent = readFileSyncCached(input1.file_path)

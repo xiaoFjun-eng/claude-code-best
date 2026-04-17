@@ -13,10 +13,8 @@ import type { LocalJSXCommandContext } from '../../commands.js';
 import type { LocalJSXCommandOnDone } from '../../types/command.js';
 import type { AppState } from '../../state/AppState.js';
 
-/**
- * Compute the default directory for assistant daemon installation.
- * Prefers git root of cwd; falls back to cwd itself.
- */
+/** * 计算助手守护进程安装的默认目录。
+ * 优先使用当前工作目录的 git 根目录；否则回退到当前工作目录本身。 */
 export async function computeDefaultInstallDir(): Promise<string> {
   const cwd = process.cwd();
   const gitRoot = findGitRoot(cwd);
@@ -30,14 +28,11 @@ interface WizardProps {
   onError: (message: string) => void;
 }
 
-/**
- * Install wizard for assistant mode. Shown when `claude assistant` finds
- * zero CCR sessions. Guides the user to start a daemon that registers
- * a bridge → CCR cloud session.
+/** * 助手模式的安装向导。当 `claude assistant` 发现零个 CCR 会话时显示。
+ * 引导用户启动一个守护进程，该进程会注册一个桥接 → CCR 云会话。
  *
- * After installation, main.tsx tells the user to run `claude assistant`
- * again in a few seconds (daemon needs time to register the bridge session).
- */
+ * 安装完成后，main.tsx 会提示用户在几秒钟后再次运行 `claude assistant`
+ *（守护进程需要时间来注册桥接会话）。 */
 export function NewInstallWizard({ defaultDir, onInstalled, onCancel, onError }: WizardProps): React.ReactNode {
   useRegisterOverlay('assistant-install-wizard');
   const [focusIndex, setFocusIndex] = useState(0);
@@ -76,30 +71,30 @@ export function NewInstallWizard({ defaultDir, onInstalled, onCancel, onError }:
       child.unref();
 
       child.on('error', err => {
-        onError(`Failed to start daemon: ${err.message}`);
+        onError(`启动守护进程失败: ${err.message}`);
       });
 
-      // Give the daemon a moment to initialize, then report success.
-      // The daemon still needs several more seconds to register the bridge
-      // and create a CCR session — main.tsx will tell the user to reconnect.
+      // 给守护进程一点时间初始化，然后报告成功。
+      // 守护进程还需要几秒钟来注册桥接
+      // 并创建一个 CCR 会话 — main.tsx 将提示用户重新连接。
       setTimeout(() => {
         onInstalled(dir);
       }, 1500);
     } catch (err) {
-      onError(`Failed to start daemon: ${err instanceof Error ? err.message : String(err)}`);
+      onError(`启动守护进程失败: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
   if (starting) {
     return (
-      <Dialog title="Assistant Setup" onCancel={onCancel} hideInputGuide>
+      <Dialog title="助手设置" onCancel={onCancel} hideInputGuide>
         <Text>Starting daemon in {defaultDir}...</Text>
       </Dialog>
     );
   }
 
   return (
-    <Dialog title="Assistant Setup" onCancel={onCancel} hideInputGuide>
+    <Dialog title="助手设置" onCancel={onCancel} hideInputGuide>
       <Box flexDirection="column" gap={1}>
         <Text>No active assistant sessions found.</Text>
         <Text>
@@ -119,12 +114,10 @@ export function NewInstallWizard({ defaultDir, onInstalled, onCancel, onError }:
   );
 }
 
-/**
- * /assistant command implementation.
+/** * /assistant 命令的实现。
  *
- * First invocation activates KAIROS (sets kairosActive, enables brief
- * and proactive tools). Subsequent invocations toggle the assistant panel.
- */
+ * 首次调用激活 KAIROS（设置 kairosActive，启用简要
+ * 和主动工具）。后续调用切换助手面板的显示状态。 */
 export async function call(
   onDone: LocalJSXCommandOnDone,
   context: LocalJSXCommandContext,
@@ -132,7 +125,7 @@ export async function call(
 ): Promise<React.ReactNode> {
   const { setAppState, getAppState } = context;
 
-  // First invocation: activate KAIROS
+  // 首次调用：激活 KAIROS
   if (!getKairosActive()) {
     setKairosActive(true);
     setAppState(
@@ -143,11 +136,11 @@ export async function call(
           assistantPanelVisible: true,
         }) as AppState,
     );
-    onDone('KAIROS assistant mode activated.', { display: 'system' });
+    onDone('KAIROS 助手模式已激活。', { display: 'system' });
     return null;
   }
 
-  // Subsequent invocations: toggle panel visibility
+  // 后续调用：切换面板可见性
   const current = getAppState();
   const isVisible = (current as Record<string, unknown>).assistantPanelVisible;
 
@@ -159,7 +152,7 @@ export async function call(
           assistantPanelVisible: false,
         }) as AppState,
     );
-    onDone('Assistant panel hidden.', { display: 'system' });
+    onDone('助手面板已隐藏。', { display: 'system' });
   } else {
     setAppState(
       (prev: AppState) =>
@@ -168,7 +161,7 @@ export async function call(
           assistantPanelVisible: true,
         }) as AppState,
     );
-    onDone('Assistant panel opened.', { display: 'system' });
+    onDone('助手面板已打开。', { display: 'system' });
   }
 
   return null;

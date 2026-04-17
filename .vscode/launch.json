@@ -6,7 +6,7 @@
       "type": "bun",
       "request": "attach",
       "stopOnEntry": false,
-      "url": "ws://localhost:8888/zfw6uuk6nao",
+      "url": "ws://localhost:8888/3q6jbksom5h",
       "localRoot": "${workspaceFolder}",
       "remoteRoot": "${workspaceFolder}",
       "sourceMapPathOverrides": {

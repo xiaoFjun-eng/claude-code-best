@@ -1,8 +1,8 @@
 import memoize from 'lodash-es/memoize.js'
 
-// This ensures you get the LOCAL date in ISO format
+// 确保得到本地时区下的 ISO 格式日期
 export function getLocalISODate(): string {
-  // Check for ant-only date override
+  // 仅 ant 构建可用的日期覆盖
   if (process.env.CLAUDE_CODE_OVERRIDE_DATE) {
     return process.env.CLAUDE_CODE_OVERRIDE_DATE
   }
@@ -14,20 +14,18 @@ export function getLocalISODate(): string {
   return `${year}-${month}-${day}`
 }
 
-// Memoized for prompt-cache stability — captures the date once at session start.
-// The main interactive path gets this behavior via memoize(getUserContext) in
-// context.ts; simple mode (--bare) calls getSystemPrompt per-request and needs
-// an explicit memoized date to avoid busting the cached prefix at midnight.
-// When midnight rolls over, getDateChangeAttachments appends the new date at
-// the tail (though simple mode disables attachments, so the trade-off there is:
-// stale date after midnight vs. ~entire-conversation cache bust — stale wins).
+// 为稳定提示缓存而记忆化 —— 在会话开始时固定日期一次。
+// 主交互路径通过 context.ts 中的 memoize(getUserContext) 获得相同效果；
+// 简易模式（--bare）按请求调用 getSystemPrompt，需显式记忆化日期，
+// 以免午夜时缓存前缀失效。跨日时 getDateChangeAttachments 在尾部追加新日期
+//（简易模式关闭附件时，权衡为：午夜后日期略旧 vs. 整段会话缓存失效 —— 取前者）。
 export const getSessionStartDate = memoize(getLocalISODate)
 
-// Returns "Month YYYY" (e.g. "February 2026") in the user's local timezone.
-// Changes monthly, not daily — used in tool prompts to minimize cache busting.
+// 返回用户本地时区的「月份 年份」（如「2026年2月」）。
+// 按月变化而非按日 —— 用于工具提示词以减少缓存失效。
 export function getLocalMonthYear(): string {
   const date = process.env.CLAUDE_CODE_OVERRIDE_DATE
     ? new Date(process.env.CLAUDE_CODE_OVERRIDE_DATE)
     : new Date()
-  return date.toLocaleString('en-US', { month: 'long', year: 'numeric' })
+  return date.toLocaleString('zh-CN', { month: 'long', year: 'numeric' })
 }

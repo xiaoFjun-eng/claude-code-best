@@ -11,9 +11,8 @@ import { asSystemPrompt, type SystemPrompt } from './systemPromptType.js'
 
 export { asSystemPrompt, type SystemPrompt } from './systemPromptType.js'
 
-// Dead code elimination: conditional import for proactive mode.
-// Same pattern as prompts.ts — lazy require to avoid pulling the module
-// into non-proactive builds.
+// 死代码消除：用于主动模式的条件导入。
+// 与 prompts.ts 相同的模式 —— 延迟 require 以避免将该模块拉入非主动构建中。
 /* eslint-disable @typescript-eslint/no-require-imports */
 const proactiveModule =
   feature('PROACTIVE') || feature('KAIROS')
@@ -26,17 +25,16 @@ function isProactiveActive_SAFE_TO_CALL_ANYWHERE(): boolean {
 }
 
 /**
- * Builds the effective system prompt array based on priority:
- * 0. Override system prompt (if set, e.g., via loop mode - REPLACES all other prompts)
- * 1. Coordinator system prompt (if coordinator mode is active)
- * 2. Agent system prompt (if mainThreadAgentDefinition is set)
- *    - In proactive mode: agent prompt is APPENDED to default (agent adds domain
- *      instructions on top of the autonomous agent prompt, like teammates do)
- *    - Otherwise: agent prompt REPLACES default
- * 3. Custom system prompt (if specified via --system-prompt)
- * 4. Default system prompt (the standard Claude Code prompt)
+ * 根据优先级构建有效的系统提示数组：
+ * 0. 覆盖系统提示（如果设置，例如通过循环模式 - 替换所有其他提示）
+ * 1. 协调器系统提示（如果协调器模式处于活动状态）
+ * 2. Agent 系统提示（如果设置了 mainThreadAgentDefinition）
+ *    - 在主动模式下：agent 提示被追加到默认提示之后（agent 在自主 agent 提示之上添加领域指令，类似于 teammates 的做法）
+ *    - 否则：agent 提示替换默认提示
+ * 3. 自定义系统提示（如果通过 --system-prompt 指定）
+ * 4. 默认系统提示（标准 Claude Code 提示）
  *
- * Plus appendSystemPrompt is always added at the end if specified (except when override is set).
+ * 此外，如果指定了 appendSystemPrompt，它总是被添加到最后（除非设置了覆盖提示）。
  */
 export function buildEffectiveSystemPrompt({
   mainThreadAgentDefinition,
@@ -56,15 +54,14 @@ export function buildEffectiveSystemPrompt({
   if (overrideSystemPrompt) {
     return asSystemPrompt([overrideSystemPrompt])
   }
-  // Coordinator mode: use coordinator prompt instead of default
-  // Use inline env check instead of coordinatorModule to avoid circular
-  // dependency issues during test module loading.
+  // 协调器模式：使用协调器提示而不是默认提示
+  // 使用内联 env 检查而不是 coordinatorModule，以避免测试模块加载期间的循环依赖问题。
   if (
     feature('COORDINATOR_MODE') &&
     isEnvTruthy(process.env.CLAUDE_CODE_COORDINATOR_MODE) &&
     !mainThreadAgentDefinition
   ) {
-    // Lazy require to avoid circular dependency at module load time
+    // 延迟 require 以避免在模块加载时产生循环依赖
     const { getCoordinatorSystemPrompt } =
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       require('../coordinator/coordinatorMode.js') as typeof import('../coordinator/coordinatorMode.js')
@@ -82,7 +79,7 @@ export function buildEffectiveSystemPrompt({
       : mainThreadAgentDefinition.getSystemPrompt()
     : undefined
 
-  // Log agent memory loaded event for main loop agents
+  // 记录主循环 agent 的 agent 记忆加载事件
   if (mainThreadAgentDefinition?.memory) {
     logEvent('tengu_agent_memory_loaded', {
       ...(process.env.USER_TYPE === 'ant' && {
@@ -96,10 +93,9 @@ export function buildEffectiveSystemPrompt({
     })
   }
 
-  // In proactive mode, agent instructions are appended to the default prompt
-  // rather than replacing it. The proactive default prompt is already lean
-  // (autonomous agent identity + memory + env + proactive section), and agents
-  // add domain-specific behavior on top — same pattern as teammates.
+  // 在主动模式下，agent 指令被追加到默认提示之后，而不是替换它。
+  // 主动模式下的默认提示已经是精简的（自主 agent 身份 + 记忆 + 环境 + 主动部分），而 agent
+  // 在此基础上添加特定领域的行为 —— 与 teammates 相同的模式。
   if (
     agentSystemPrompt &&
     (feature('PROACTIVE') || feature('KAIROS')) &&
@@ -107,7 +103,7 @@ export function buildEffectiveSystemPrompt({
   ) {
     return asSystemPrompt([
       ...defaultSystemPrompt,
-      `\n# Custom Agent Instructions\n${agentSystemPrompt}`,
+      `\n# 自定义 Agent 指令\n${agentSystemPrompt}`,
       ...(appendSystemPrompt ? [appendSystemPrompt] : []),
     ])
   }

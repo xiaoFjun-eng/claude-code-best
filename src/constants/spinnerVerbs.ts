@@ -12,7 +12,8 @@ export function getSpinnerVerbs(): string[] {
   return [...SPINNER_VERBS, ...config.verbs]
 }
 
-// Spinner verbs for loading messages
+// 加载动画文案：与「…」拼接显示（见 Spinner.tsx 的 effectiveVerb + '…'）。
+// 以下为原版英文趣味动词列表；若需全中文界面，可整体替换为简短中文动词（如「构思」「演算」）。
 export const SPINNER_VERBS = [
   'Accomplishing',
   'Actioning',

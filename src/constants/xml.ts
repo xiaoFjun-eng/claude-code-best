@@ -1,10 +1,10 @@
-// XML tag names used to mark skill/command metadata in messages
+// 消息中用于标记技能/命令元数据的 XML 标签名
 export const COMMAND_NAME_TAG = 'command-name'
 export const COMMAND_MESSAGE_TAG = 'command-message'
 export const COMMAND_ARGS_TAG = 'command-args'
 
-// XML tag names for terminal/bash command input and output in user messages
-// These wrap content that represents terminal activity, not actual user prompts
+// 用户消息里终端/bash 输入与输出的 XML 标签名
+// 用于包裹表示终端活动的内容，而非真实用户输入的提示
 export const BASH_INPUT_TAG = 'bash-input'
 export const BASH_STDOUT_TAG = 'bash-stdout'
 export const BASH_STDERR_TAG = 'bash-stderr'
@@ -12,7 +12,7 @@ export const LOCAL_COMMAND_STDOUT_TAG = 'local-command-stdout'
 export const LOCAL_COMMAND_STDERR_TAG = 'local-command-stderr'
 export const LOCAL_COMMAND_CAVEAT_TAG = 'local-command-caveat'
 
-// All terminal-related tags that indicate a message is terminal output, not a user prompt
+// 表示「终端输出而非用户提示」的终端相关标签集合
 export const TERMINAL_OUTPUT_TAGS = [
   BASH_INPUT_TAG,
   BASH_STDOUT_TAG,
@@ -24,7 +24,7 @@ export const TERMINAL_OUTPUT_TAGS = [
 
 export const TICK_TAG = 'tick'
 
-// XML tag names for task notifications (background task completions)
+// 任务通知（后台任务完成）的 XML 标签名
 export const TASK_NOTIFICATION_TAG = 'task-notification'
 export const TASK_ID_TAG = 'task-id'
 export const TOOL_USE_ID_TAG = 'tool-use-id'
@@ -37,38 +37,38 @@ export const WORKTREE_TAG = 'worktree'
 export const WORKTREE_PATH_TAG = 'worktreePath'
 export const WORKTREE_BRANCH_TAG = 'worktreeBranch'
 
-// XML tag names for ultraplan mode (remote parallel planning sessions)
+// ultraplan 模式（远程并行规划会话）的 XML 标签名
 export const ULTRAPLAN_TAG = 'ultraplan'
 
-// XML tag name for remote /review results (teleported review session output).
-// Remote session wraps its final review in this tag; local poller extracts it.
+// 远程 /review 结果的 XML 标签名（传送过来的审查会话输出）。
+// 远程会话将最终审查包在此标签内；本地轮询器解析提取。
 export const REMOTE_REVIEW_TAG = 'remote-review'
 
-// run_hunt.sh's heartbeat echoes the orchestrator's progress.json inside this
-// tag every ~10s. Local poller parses the latest for the task-status line.
+// run_hunt.sh 的心跳约每 10 秒将编排器的 progress.json 回显在此标签内。
+// 本地轮询器解析最新内容用于任务状态行。
 export const REMOTE_REVIEW_PROGRESS_TAG = 'remote-review-progress'
 
-// XML tag name for teammate messages (swarm inter-agent communication)
+// 队友消息（群体智能体间通信）的 XML 标签名
 export const TEAMMATE_MESSAGE_TAG = 'teammate-message'
 
-// XML tag name for external channel messages
+// 外部频道消息的 XML 标签名
 export const CHANNEL_MESSAGE_TAG = 'channel-message'
 export const CHANNEL_TAG = 'channel'
 
-// XML tag name for cross-session UDS messages (another Claude session's inbox)
+// 跨会话 UDS 消息（另一 Claude 会话收件箱）的 XML 标签名
 export const CROSS_SESSION_MESSAGE_TAG = 'cross-session-message'
 
-// XML tag wrapping the rules/format boilerplate in a fork child's first message.
-// Lets the transcript renderer collapse the boilerplate and show only the directive.
+// 包裹 fork 子进程首条消息中规则/格式模板的 XML 标签。
+// 便于会话渲染器折叠模板，仅展示指令部分。
 export const FORK_BOILERPLATE_TAG = 'fork-boilerplate'
-// Prefix before the directive text, stripped by the renderer. Keep in sync
-// across buildChildMessage (generates) and UserForkBoilerplateMessage (parses).
-export const FORK_DIRECTIVE_PREFIX = 'Your directive: '
+// 指令正文前的固定前缀，由渲染器剥离。须与 buildChildMessage（生成）
+// 及 UserForkBoilerplateMessage（解析）保持同步。
+export const FORK_DIRECTIVE_PREFIX = '你的指令：'
 
-// Common argument patterns for slash commands that request help
+// 斜杠命令中请求帮助的常见参数形式
 export const COMMON_HELP_ARGS = ['help', '-h', '--help']
 
-// Common argument patterns for slash commands that request current state/info
+// 斜杠命令中请求当前状态/信息的常见参数形式
 export const COMMON_INFO_ARGS = [
   'list',
   'show',

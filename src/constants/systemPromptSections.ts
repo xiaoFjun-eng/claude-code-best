@@ -14,8 +14,8 @@ type SystemPromptSection = {
 }
 
 /**
- * Create a memoized system prompt section.
- * Computed once, cached until /clear or /compact.
+ * 创建带记忆化的系统提示片段。
+ * 计算一次，缓存至执行 /clear 或 /compact。
  */
 export function systemPromptSection(
   name: string,
@@ -25,9 +25,9 @@ export function systemPromptSection(
 }
 
 /**
- * Create a volatile system prompt section that recomputes every turn.
- * This WILL break the prompt cache when the value changes.
- * Requires a reason explaining why cache-breaking is necessary.
+ * 创建每回合重算的易变系统提示片段。
+ * 值变化时会破坏提示缓存。
+ * 须提供 _reason 说明为何必须打破缓存。
  */
 export function DANGEROUS_uncachedSystemPromptSection(
   name: string,
@@ -38,7 +38,7 @@ export function DANGEROUS_uncachedSystemPromptSection(
 }
 
 /**
- * Resolve all system prompt sections, returning prompt strings.
+ * 解析全部系统提示片段，返回提示字符串数组。
  */
 export async function resolveSystemPromptSections(
   sections: SystemPromptSection[],
@@ -58,9 +58,8 @@ export async function resolveSystemPromptSections(
 }
 
 /**
- * Clear all system prompt section state. Called on /clear and /compact.
- * Also resets beta header latches so a fresh conversation gets fresh
- * evaluation of AFK/fast-mode/cache-editing headers.
+ * 清空系统提示片段状态。在 /clear 与 /compact 时调用。
+ * 同时重置 beta 头闩锁，使新会话重新评估 AFK/快速模式/缓存编辑等头。
  */
 export function clearSystemPromptSections(): void {
   clearSystemPromptSectionState()

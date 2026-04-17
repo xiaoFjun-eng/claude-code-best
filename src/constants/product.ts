@@ -1,13 +1,13 @@
 export const PRODUCT_URL = 'https://claude.com/claude-code'
 
-// Claude Code Remote session URLs
+// Claude Code 远程会话 URL
 export const CLAUDE_AI_BASE_URL = 'https://claude.ai'
 export const CLAUDE_AI_STAGING_BASE_URL = 'https://claude-ai.staging.ant.dev'
 export const CLAUDE_AI_LOCAL_BASE_URL = 'http://localhost:4000'
 
 /**
- * Determine if we're in a staging environment for remote sessions.
- * Checks session ID format and ingress URL.
+ * 判断远程会话是否处于预发（staging）环境。
+ * 检查会话 ID 格式与入口 URL。
  */
 export function isRemoteSessionStaging(
   sessionId?: string,
@@ -20,8 +20,8 @@ export function isRemoteSessionStaging(
 }
 
 /**
- * Determine if we're in a local-dev environment for remote sessions.
- * Checks session ID format (e.g. `session_local_...`) and ingress URL.
+ * 判断远程会话是否处于本地开发环境。
+ * 检查会话 ID 格式（如 `session_local_...`）与入口 URL。
  */
 export function isRemoteSessionLocal(
   sessionId?: string,
@@ -34,25 +34,13 @@ export function isRemoteSessionLocal(
 }
 
 /**
- * Get the base URL for Claude AI based on environment.
- * For localhost, derives the base URL from the ingress URL to preserve the
- * actual server port instead of using the hardcoded default (4000).
+ * 按环境返回 Claude AI 的基础 URL。
  */
 export function getClaudeAiBaseUrl(
   sessionId?: string,
   ingressUrl?: string,
 ): string {
   if (isRemoteSessionLocal(sessionId, ingressUrl)) {
-    // If an ingress URL is available, extract its origin to keep the correct port.
-    // Self-hosted servers may run on any port (default 3000), not just 4000.
-    if (ingressUrl) {
-      try {
-        const parsed = new URL(ingressUrl)
-        return parsed.origin
-      } catch {
-        // Fall through to default
-      }
-    }
     return CLAUDE_AI_LOCAL_BASE_URL
   }
   if (isRemoteSessionStaging(sessionId, ingressUrl)) {
@@ -62,17 +50,15 @@ export function getClaudeAiBaseUrl(
 }
 
 /**
- * Get the full session URL for a remote session.
+ * 获取远程会话的完整会话 URL。
  *
- * The cse_→session_ translation is a temporary shim gated by
- * tengu_bridge_repl_v2_cse_shim_enabled (see isCseShimEnabled). Worker
- * endpoints (/v1/code/sessions/{id}/worker/*) want `cse_*` but the claude.ai
- * frontend currently routes on `session_*` (compat/convert.go:27 validates
- * TagSession). Same UUID body, different tag prefix. Once the server tags by
- * environment_kind and the frontend accepts `cse_*` directly, flip the gate
- * off. No-op for IDs already in `session_*` form. See toCompatSessionId in
- * src/bridge/sessionIdCompat.ts for the canonical helper (lazy-required here
- * to keep constants/ leaf-of-DAG at module-load time).
+ * cse_→session_ 的转换是由 tengu_bridge_repl_v2_cse_shim_enabled 控制的临时垫片
+ *（见 isCseShimEnabled）。Worker 端点（/v1/code/sessions/{id}/worker/*）期望 `cse_*`，
+ * 而 claude.ai 前端当前按 `session_*` 路由（compat/convert.go:27 校验 TagSession）。
+ * UUID 主体相同，标签前缀不同。待服务端按 environment_kind 打标且前端直接接受 `cse_*`
+ * 后即可关闭该开关。已是 `session_*` 形式的 ID 不受影响。规范实现见
+ * src/bridge/sessionIdCompat.ts 的 toCompatSessionId（此处懒加载 require，
+ * 以保持 constants/ 在模块加载时处于 DAG 叶节点）。
  */
 export function getRemoteSessionUrl(
   sessionId: string,
@@ -83,12 +69,6 @@ export function getRemoteSessionUrl(
     require('../bridge/sessionIdCompat.js') as typeof import('../bridge/sessionIdCompat.js')
   /* eslint-enable @typescript-eslint/no-require-imports */
   const compatId = toCompatSessionId(sessionId)
-  // Use CLAUDE_BRIDGE_BASE_URL from env if available, otherwise fall back to default logic
-  const bridgeBaseUrl = process.env.CLAUDE_BRIDGE_BASE_URL
-  if (bridgeBaseUrl) {
-    const base = bridgeBaseUrl.replace(/\/+$/, '')
-    return `${base}/code/${compatId}`
-  }
   const baseUrl = getClaudeAiBaseUrl(compatId, ingressUrl)
   return `${baseUrl}/code/${compatId}`
 }

@@ -1,4 +1,4 @@
-export const PR_TITLE = 'Add Claude Code GitHub Workflow'
+export const PR_TITLE = '添加 Claude Code GitHub 工作流'
 
 export const GITHUB_ACTION_SETUP_DOCS_URL =
   'https://github.com/anthropics/claude-code-action/blob/main/docs/setup.md'
@@ -28,81 +28,81 @@ jobs:
       pull-requests: read
       issues: read
       id-token: write
-      actions: read # Required for Claude to read CI results on PRs
+      actions: read # 供 Claude 读取 PR 上的 CI 结果
     steps:
-      - name: Checkout repository
+      - name: 检出仓库
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      - name: Run Claude Code
+      - name: 运行 Claude Code
         id: claude
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: \${{ secrets.ANTHROPIC_API_KEY }}
 
-          # This is an optional setting that allows Claude to read CI results on PRs
+          # 可选：允许 Claude 读取 PR 的 CI 结果
           additional_permissions: |
             actions: read
 
-          # Optional: Give a custom prompt to Claude. If this is not specified, Claude will perform the instructions specified in the comment that tagged it.
-          # prompt: 'Update the pull request description to include a summary of changes.'
+          # 可选：向 Claude 提供自定义提示；不填则执行评论 @claude 时的说明
+          # prompt: '更新 PR 描述，加入变更摘要。'
 
-          # Optional: Add claude_args to customize behavior and configuration
-          # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
-          # or https://code.claude.com/docs/en/cli-reference for available options
+          # 可选：通过 claude_args 调整行为与配置
+          # 见 https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
+          # 或 https://code.claude.com/docs/en/cli-reference
           # claude_args: '--allowed-tools Bash(gh pr:*)'
 
 `
 
-export const PR_BODY = `## 🤖 Installing Claude Code GitHub App
+export const PR_BODY = `## 🤖 安装 Claude Code GitHub App
 
-This PR adds a GitHub Actions workflow that enables Claude Code integration in our repository.
+本 PR 添加 GitHub Actions 工作流，在本仓库中启用 Claude Code 集成。
 
-### What is Claude Code?
+### Claude Code 是什么？
 
-[Claude Code](https://claude.com/claude-code) is an AI coding agent that can help with:
-- Bug fixes and improvements  
-- Documentation updates
-- Implementing new features
-- Code reviews and suggestions
-- Writing tests
-- And more!
+[Claude Code](https://claude.com/claude-code) 是 AI 编程助手，可协助：
+- 修复缺陷与改进代码  
+- 更新文档
+- 实现新功能
+- 代码审查与建议
+- 编写测试
+- 等等
 
-### How it works
+### 如何运作
 
-Once this PR is merged, we'll be able to interact with Claude by mentioning @claude in a pull request or issue comment.
-Once the workflow is triggered, Claude will analyze the comment and surrounding context, and execute on the request in a GitHub action.
+合并本 PR 后，我们可在 Pull Request 或 Issue 评论中 @claude 与 Claude 交互。
+工作流被触发后，Claude 会分析评论及上下文，并在 GitHub Action 中执行请求。
 
-### Important Notes
+### 重要说明
 
-- **This workflow won't take effect until this PR is merged**
-- **@claude mentions won't work until after the merge is complete**
-- The workflow runs automatically whenever Claude is mentioned in PR or issue comments
-- Claude gets access to the entire PR or issue context including files, diffs, and previous comments
+- **工作流须等本 PR 合并后才生效**
+- **@claude 在合并完成前不会生效**
+- 在 PR 或 Issue 评论中提到 Claude 时会自动运行工作流
+- Claude 可访问完整 PR/Issue 上下文，含文件、diff 与历史评论
 
-### Security
+### 安全
 
-- Our Anthropic API key is securely stored as a GitHub Actions secret
-- Only users with write access to the repository can trigger the workflow
-- All Claude runs are stored in the GitHub Actions run history
-- Claude's default tools are limited to reading/writing files and interacting with our repo by creating comments, branches, and commits.
-- We can add more allowed tools by adding them to the workflow file like:
+- Anthropic API 密钥以 GitHub Actions Secret 安全存储
+- 仅对仓库有写权限的用户可触发工作流
+- 每次 Claude 运行会记录在 GitHub Actions 运行历史中
+- Claude 默认工具限于读写文件，以及通过评论、分支、提交与仓库交互。
+- 可在工作流文件中增加允许的工具，例如：
 
 \`\`\`
 allowed_tools: Bash(npm install),Bash(npm run build),Bash(npm run lint),Bash(npm run test)
 \`\`\`
 
-There's more information in the [Claude Code action repo](https://github.com/anthropics/claude-code-action).
+更多信息见 [Claude Code action 仓库](https://github.com/anthropics/claude-code-action)。
 
-After merging this PR, let's try mentioning @claude in a comment on any PR to get started!`
+合并本 PR 后，可在任意 PR 的评论里 @claude 试用！`
 
 export const CODE_REVIEW_PLUGIN_WORKFLOW_CONTENT = `name: Claude Code Review
 
 on:
   pull_request:
     types: [opened, synchronize, ready_for_review, reopened]
-    # Optional: Only run on specific file changes
+    # 可选：仅在特定文件变更时运行
     # paths:
     #   - "src/**/*.ts"
     #   - "src/**/*.tsx"
@@ -111,7 +111,7 @@ on:
 
 jobs:
   claude-review:
-    # Optional: Filter by PR author
+    # 可选：按 PR 作者过滤
     # if: |
     #   github.event.pull_request.user.login == 'external-contributor' ||
     #   github.event.pull_request.user.login == 'new-developer' ||
@@ -125,12 +125,12 @@ jobs:
       id-token: write
 
     steps:
-      - name: Checkout repository
+      - name: 检出仓库
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      - name: Run Claude Code Review
+      - name: 运行 Claude Code Review
         id: claude-review
         uses: anthropics/claude-code-action@v1
         with:
@@ -138,7 +138,7 @@ jobs:
           plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
           plugins: 'code-review@claude-code-plugins'
           prompt: '/code-review:code-review \${{ github.repository }}/pull/\${{ github.event.pull_request.number }}'
-          # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
-          # or https://code.claude.com/docs/en/cli-reference for available options
+          # 见 https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
+          # 或 https://code.claude.com/docs/en/cli-reference
 
 `

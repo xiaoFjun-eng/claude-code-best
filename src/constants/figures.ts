@@ -1,40 +1,40 @@
 import { env } from '../utils/env.js'
 
-// The former is better vertically aligned, but isn't usually supported on Windows/Linux
+// 前者纵向对齐更好，但在 Windows/Linux 上常无法显示
 export const BLACK_CIRCLE = env.platform === 'darwin' ? '⏺' : '●'
 export const BULLET_OPERATOR = '∙'
 export const TEARDROP_ASTERISK = '✻'
-export const UP_ARROW = '\u2191' // ↑ - used for opus 1m merge notice
-export const DOWN_ARROW = '\u2193' // ↓ - used for scroll hint
-export const LIGHTNING_BOLT = '↯' // \u21af - used for fast mode indicator
-export const EFFORT_LOW = '○' // \u25cb - effort level: low
-export const EFFORT_MEDIUM = '◐' // \u25d0 - effort level: medium
-export const EFFORT_HIGH = '●' // \u25cf - effort level: high
-export const EFFORT_MAX = '◉' // \u25c9 - effort level: max (Opus 4.6 only)
+export const UP_ARROW = '\u2191' // ↑ — Opus 1M 合并提示
+export const DOWN_ARROW = '\u2193' // ↓ — 滚动提示
+export const LIGHTNING_BOLT = '↯' // \u21af — 快速模式指示
+export const EFFORT_LOW = '○' // \u25cb — 努力程度：低
+export const EFFORT_MEDIUM = '◐' // \u25d0 — 努力程度：中
+export const EFFORT_HIGH = '●' // \u25cf — 努力程度：高
+export const EFFORT_MAX = '◉' // \u25c9 — 努力程度：最高（仅 Opus 4.6）
 
-// Media/trigger status indicators
+// 媒体/触发器状态指示
 export const PLAY_ICON = '\u25b6' // ▶
 export const PAUSE_ICON = '\u23f8' // ⏸
 
-// MCP subscription indicators
-export const REFRESH_ARROW = '\u21bb' // ↻ - used for resource update indicator
-export const CHANNEL_ARROW = '\u2190' // ← - inbound channel message indicator
-export const INJECTED_ARROW = '\u2192' // → - cross-session injected message indicator
-export const FORK_GLYPH = '\u2442' // ⑂ - fork directive indicator
+// MCP 订阅状态指示
+export const REFRESH_ARROW = '\u21bb' // ↻ — 资源更新指示
+export const CHANNEL_ARROW = '\u2190' // ← — 频道入站消息
+export const INJECTED_ARROW = '\u2192' // → — 跨会话注入消息
+export const FORK_GLYPH = '\u2442' // ⑂ — fork 指令指示
 
-// Review status indicators (ultrareview diamond states)
-export const DIAMOND_OPEN = '\u25c7' // ◇ - running
-export const DIAMOND_FILLED = '\u25c6' // ◆ - completed/failed
-export const REFERENCE_MARK = '\u203b' // ※ - komejirushi, away-summary recap marker
+// 审查状态（ultrareview 菱形状态）
+export const DIAMOND_OPEN = '\u25c7' // ◇ — 运行中
+export const DIAMOND_FILLED = '\u25c6' // ◆ — 已完成/失败
+export const REFERENCE_MARK = '\u203b' // ※ — 米字标，离开摘要回顾标记
 
-// Issue flag indicator
-export const FLAG_ICON = '\u2691' // ⚑ - used for issue flag banner
+// Issue 旗标指示
+export const FLAG_ICON = '\u2691' // ⚑ — issue 旗标横幅
 
-// Blockquote indicator
-export const BLOCKQUOTE_BAR = '\u258e' // ▎ - left one-quarter block, used as blockquote line prefix
-export const HEAVY_HORIZONTAL = '\u2501' // ━ - heavy box-drawing horizontal
+// 引用块竖条
+export const BLOCKQUOTE_BAR = '\u258e' // ▎ — 左四分之一块，作引用行前缀
+export const HEAVY_HORIZONTAL = '\u2501' // ━ — 粗横线制表
 
-// Bridge status indicators
+// Bridge 状态指示
 export const BRIDGE_SPINNER_FRAMES = [
   '\u00b7|\u00b7',
   '\u00b7/\u00b7',

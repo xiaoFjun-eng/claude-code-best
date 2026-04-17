@@ -29,55 +29,55 @@ import {
   isEnvTruthy,
 } from '../../utils/envUtils.js'
 
-/**
- * Environment variables for different client types:
+/** 
+ * 不同客户端类型的环境变量：
  *
- * Direct API:
- * - ANTHROPIC_API_KEY: Required for direct API access
+ * 直接 API：
+ * - ANTHROPIC_API_KEY：直接 API 访问所需
  *
- * AWS Bedrock:
- * - AWS credentials configured via aws-sdk defaults
- * - AWS_REGION or AWS_DEFAULT_REGION: Sets the AWS region for all models (default: us-east-1)
- * - ANTHROPIC_SMALL_FAST_MODEL_AWS_REGION: Optional. Override AWS region specifically for the small fast model (Haiku)
+ * AWS Bedrock：
+ * - 通过 aws-sdk 默认配置的 AWS 凭证
+ * - AWS_REGION 或 AWS_DEFAULT_REGION：为所有模型设置 AWS 区域（默认：us-east-1）
+ * - ANTHROPIC_SMALL_FAST_MODEL_AWS_REGION：可选。专门为小型快速模型（Haiku）覆盖 AWS 区域
  *
- * Foundry (Azure):
- * - ANTHROPIC_FOUNDRY_RESOURCE: Your Azure resource name (e.g., 'my-resource')
- *   For the full endpoint: https://{resource}.services.ai.azure.com/anthropic/v1/messages
- * - ANTHROPIC_FOUNDRY_BASE_URL: Optional. Alternative to resource - provide full base URL directly
- *   (e.g., 'https://my-resource.services.ai.azure.com')
+ * Foundry (Azure)：
+ * - ANTHROPIC_FOUNDRY_RESOURCE：您的 Azure 资源名称（例如 'my-resource'）
+ *   完整端点：https://{resource}.services.ai.azure.com/anthropic/v1/messages
+ * - ANTHROPIC_FOUNDRY_BASE_URL：可选。替代资源 - 直接提供完整的基础 URL
+ *   （例如 'https://my-resource.services.ai.azure.com'）
  *
- * Authentication (one of the following):
- * - ANTHROPIC_FOUNDRY_API_KEY: Your Microsoft Foundry API key (if using API key auth)
- * - Azure AD authentication: If no API key is provided, uses DefaultAzureCredential
- *   which supports multiple auth methods (environment variables, managed identity,
- *   Azure CLI, etc.). See: https://docs.microsoft.com/en-us/javascript/api/@azure/identity
+ * 身份验证（以下之一）：
+ * - ANTHROPIC_FOUNDRY_API_KEY：您的 Microsoft Foundry API 密钥（如果使用 API 密钥身份验证）
+ * - Azure AD 身份验证：如果未提供 API 密钥，则使用 DefaultAzureCredential
+ *   它支持多种身份验证方法（环境变量、托管标识、Azure CLI 等）。
+ *   参见：https://docs.microsoft.com/en-us/javascript/api/@azure/identity
  *
- * Vertex AI:
- * - Model-specific region variables (highest priority):
- *   - VERTEX_REGION_CLAUDE_3_5_HAIKU: Region for Claude 3.5 Haiku model
- *   - VERTEX_REGION_CLAUDE_HAIKU_4_5: Region for Claude Haiku 4.5 model
- *   - VERTEX_REGION_CLAUDE_3_5_SONNET: Region for Claude 3.5 Sonnet model
- *   - VERTEX_REGION_CLAUDE_3_7_SONNET: Region for Claude 3.7 Sonnet model
- * - CLOUD_ML_REGION: Optional. The default GCP region to use for all models
- *   If specific model region not specified above
- * - ANTHROPIC_VERTEX_PROJECT_ID: Required. Your GCP project ID
- * - Standard GCP credentials configured via google-auth-library
+ * Vertex AI：
+ * - 特定于模型的区域变量（最高优先级）：
+ *   - VERTEX_REGION_CLAUDE_3_5_HAIKU：Claude 3.5 Haiku 模型的区域
+ *   - VERTEX_REGION_CLAUDE_HAIKU_4_5：Claude Haiku 4.5 模型的区域
+ *   - VERTEX_REGION_CLAUDE_3_5_SONNET：Claude 3.5 Sonnet 模型的区域
+ *   - VERTEX_REGION_CLAUDE_3_7_SONNET：Claude 3.7 Sonnet 模型的区域
+ * - CLOUD_ML_REGION：可选。用于所有模型的默认 GCP 区域
+ *   如果上述未指定特定模型区域
+ * - ANTHROPIC_VERTEX_PROJECT_ID：必需。您的 GCP 项目 ID
+ * - 通过 google-auth-library 配置的标准 GCP 凭证
  *
- * Priority for determining region:
- * 1. Hardcoded model-specific environment variables
- * 2. Global CLOUD_ML_REGION variable
- * 3. Default region from config
- * 4. Fallback region (us-east5)
- */
+ * 确定区域的优先级：
+ * 1. 硬编码的特定于模型的环境变量
+ * 2. 全局 CLOUD_ML_REGION 变量
+ * 3. 配置中的默认区域
+ * 4. 回退区域 (us-east5)
+ */ 
 
 function createStderrLogger(): ClientOptions['logger'] {
   return {
     error: (msg, ...args) =>
       // biome-ignore lint/suspicious/noConsole:: intentional console output -- SDK logger must use console
       console.error('[Anthropic SDK ERROR]', msg, ...args),
-    // biome-ignore lint/suspicious/noConsole:: intentional console output -- SDK logger must use console
+    // biome-ignore lint/suspicious/noConsole:: 故意的控制台输出 -- SDK 日志记录器必须使用控制台
     warn: (msg, ...args) => console.error('[Anthropic SDK WARN]', msg, ...args),
-    // biome-ignore lint/suspicious/noConsole:: intentional console output -- SDK logger must use console
+    // biome-ignore lint/suspicious/noConsole:: 故意的控制台输出 -- SDK 日志记录器必须使用控制台
     info: (msg, ...args) => console.error('[Anthropic SDK INFO]', msg, ...args),
     debug: (msg, ...args) =>
       // biome-ignore lint/suspicious/noConsole:: intentional console output -- SDK logger must use console
@@ -111,16 +111,16 @@ export async function getAnthropicClient({
     ...(remoteSessionId
       ? { 'x-claude-remote-session-id': remoteSessionId }
       : {}),
-    // SDK consumers can identify their app/library for backend analytics
+    // SDK 使用者可以为其应用/库进行标识，以便进行后端分析
     ...(clientApp ? { 'x-client-app': clientApp } : {}),
   }
 
-  // Log API client configuration for HFI debugging
+  // 记录 API 客户端配置以供 HFI 调试
   logForDebugging(
     `[API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: ${!!process.env.ANTHROPIC_CUSTOM_HEADERS}, has Authorization header: ${!!customHeaders['Authorization']}`,
   )
 
-  // Add additional protection header if enabled via env var
+  // 如果通过环境变量启用，则添加额外的保护头
   const additionalProtectionEnabled = isEnvTruthy(
     process.env.CLAUDE_CODE_ADDITIONAL_PROTECTION,
   )
@@ -152,7 +152,7 @@ export async function getAnthropicClient({
   }
   if (isEnvTruthy(process.env.CLAUDE_CODE_USE_BEDROCK)) {
     const { AnthropicBedrock } = await import('@anthropic-ai/bedrock-sdk')
-    // Use region override for small fast model if specified
+    // 如果指定，则为小型快速模型使用区域覆盖
     const awsRegion =
       model === getSmallFastModel() &&
       process.env.ANTHROPIC_SMALL_FAST_MODEL_AWS_REGION
@@ -168,16 +168,16 @@ export async function getAnthropicClient({
       ...(isDebugToStdErr() && { logger: createStderrLogger() }),
     }
 
-    // Add API key authentication if available
+    // 如果可用，添加 API 密钥身份验证
     if (process.env.AWS_BEARER_TOKEN_BEDROCK) {
       bedrockArgs.skipAuth = true
-      // Add the Bearer token for Bedrock API key authentication
+      // 为 Bedrock API 密钥身份验证添加 Bearer 令牌
       bedrockArgs.defaultHeaders = {
         ...(bedrockArgs.defaultHeaders as Record<string, string> | undefined),
         Authorization: `Bearer ${process.env.AWS_BEARER_TOKEN_BEDROCK}`,
       }
     } else if (!isEnvTruthy(process.env.CLAUDE_CODE_SKIP_BEDROCK_AUTH)) {
-      // Refresh auth and get credentials with cache clearing
+      // 刷新身份验证并获取凭证（同时清除缓存）
       const cachedCredentials = await refreshAndGetAwsCredentials()
       if (cachedCredentials) {
         bedrockArgs.awsAccessKey = cachedCredentials.accessKeyId
@@ -185,20 +185,20 @@ export async function getAnthropicClient({
         bedrockArgs.awsSessionToken = cachedCredentials.sessionToken
       }
     }
-    // we have always been lying about the return type - this doesn't support batching or models
+    // 我们一直在对返回类型撒谎 - 这不支持批处理或模型
     return new AnthropicBedrock(bedrockArgs) as unknown as Anthropic
   }
   if (isEnvTruthy(process.env.CLAUDE_CODE_USE_FOUNDRY)) {
     const { AnthropicFoundry } = await import('@anthropic-ai/foundry-sdk')
-    // Determine Azure AD token provider based on configuration
-    // SDK reads ANTHROPIC_FOUNDRY_API_KEY by default
+    // 根据配置确定 Azure AD 令牌提供程序
+    // SDK 默认读取 ANTHROPIC_FOUNDRY_API_KEY
     let azureADTokenProvider: (() => Promise<string>) | undefined
     if (!process.env.ANTHROPIC_FOUNDRY_API_KEY) {
       if (isEnvTruthy(process.env.CLAUDE_CODE_SKIP_FOUNDRY_AUTH)) {
-        // Mock token provider for testing/proxy scenarios (similar to Vertex mock GoogleAuth)
+        // 用于测试/代理场景的模拟令牌提供程序（类似于 Vertex 模拟 GoogleAuth）
         azureADTokenProvider = () => Promise.resolve('')
       } else {
-        // Use real Azure AD authentication with DefaultAzureCredential
+        // 使用带有 DefaultAzureCredential 的真实 Azure AD 身份验证
         const {
           DefaultAzureCredential: AzureCredential,
           getBearerTokenProvider,
@@ -215,12 +215,12 @@ export async function getAnthropicClient({
       ...(azureADTokenProvider && { azureADTokenProvider }),
       ...(isDebugToStdErr() && { logger: createStderrLogger() }),
     }
-    // we have always been lying about the return type - this doesn't support batching or models
+    // 我们一直在对返回类型撒谎 - 这不支持批处理或模型
     return new AnthropicFoundry(foundryArgs) as unknown as Anthropic
   }
   if (isEnvTruthy(process.env.CLAUDE_CODE_USE_VERTEX)) {
-    // Refresh GCP credentials if gcpAuthRefresh is configured and credentials are expired
-    // This is similar to how we handle AWS credential refresh for Bedrock
+    // 如果配置了 gcpAuthRefresh 且凭证已过期，则刷新 GCP 凭证
+    // 这类似于我们处理 Bedrock 的 AWS 凭证刷新的方式
     if (!isEnvTruthy(process.env.CLAUDE_CODE_SKIP_VERTEX_AUTH)) {
       await refreshGcpCredentialsIfNeeded()
     }
@@ -229,57 +229,57 @@ export async function getAnthropicClient({
       import('@anthropic-ai/vertex-sdk'),
       import('google-auth-library'),
     ])
-    // TODO: Cache either GoogleAuth instance or AuthClient to improve performance
-    // Currently we create a new GoogleAuth instance for every getAnthropicClient() call
-    // This could cause repeated authentication flows and metadata server checks
-    // However, caching needs careful handling of:
-    // - Credential refresh/expiration
-    // - Environment variable changes (GOOGLE_APPLICATION_CREDENTIALS, project vars)
-    // - Cross-request auth state management
-    // See: https://github.com/googleapis/google-auth-library-nodejs/issues/390 for caching challenges
+    // TODO：缓存 GoogleAuth 实例或 AuthClient 以提高性能
+    // 目前我们为每个 getAnthropicClient() 调用创建一个新的 GoogleAuth 实例
+    // 这可能导致重复的身份验证流程和元数据服务器检查
+    // 然而，缓存需要仔细处理：
+    // - 凭证刷新/过期
+    // - 环境变量更改（GOOGLE_APPLICATION_CREDENTIALS、项目变量）
+    // - 跨请求的身份验证状态管理
+    // 有关缓存挑战，请参见：https://github.com/googleapis/google-auth-library-nodejs/issues/390
 
-    // Prevent metadata server timeout by providing projectId as fallback
-    // google-auth-library checks project ID in this order:
-    // 1. Environment variables (GCLOUD_PROJECT, GOOGLE_CLOUD_PROJECT, etc.)
-    // 2. Credential files (service account JSON, ADC file)
-    // 3. gcloud config
-    // 4. GCE metadata server (causes 12s timeout outside GCP)
+    // 通过提供 projectId 作为回退来防止元数据服务器超时
+    // google-auth-library 按以下顺序检查项目 ID：
+    // 1. 环境变量（GCLOUD_PROJECT、GOOGLE_CLOUD_PROJECT 等）
+    // 2. 凭证文件（服务帐户 JSON、ADC 文件）
+    // 3. gcloud 配置
+    // 4. GCE 元数据服务器（在 GCP 外部会导致 12 秒超时）
     //
-    // We only set projectId if user hasn't configured other discovery methods
-    // to avoid interfering with their existing auth setup
+    // 我们仅在用户未配置其他发现方法时设置 projectId
+    // 以避免干扰他们现有的身份验证设置
 
-    // Check project environment variables in same order as google-auth-library
-    // See: https://github.com/googleapis/google-auth-library-nodejs/blob/main/src/auth/googleauth.ts
+    // 按照与 google-auth-library 相同的顺序检查项目环境变量
+    // 参见：https://github.com/googleapis/google-auth-library-nodejs/blob/main/src/auth/googleauth.ts
     const hasProjectEnvVar =
       process.env['GCLOUD_PROJECT'] ||
       process.env['GOOGLE_CLOUD_PROJECT'] ||
       process.env['gcloud_project'] ||
       process.env['google_cloud_project']
 
-    // Check for credential file paths (service account or ADC)
-    // Note: We're checking both standard and lowercase variants to be safe,
-    // though we should verify what google-auth-library actually checks
+    // 检查凭证文件路径（服务帐户或 ADC）
+    // 注意：为安全起见，我们同时检查标准和小写变体，
+    // 尽管我们应该验证 google-auth-library 实际检查的内容
     const hasKeyFile =
       process.env['GOOGLE_APPLICATION_CREDENTIALS'] ||
       process.env['google_application_credentials']
 
     const googleAuth = isEnvTruthy(process.env.CLAUDE_CODE_SKIP_VERTEX_AUTH)
       ? ({
-          // Mock GoogleAuth for testing/proxy scenarios
+          // 用于测试/代理场景的模拟 GoogleAuth
           getClient: () => ({
             getRequestHeaders: () => ({}),
           }),
         } as unknown as GoogleAuth)
       : new GoogleAuth({
           scopes: ['https://www.googleapis.com/auth/cloud-platform'],
-          // Only use ANTHROPIC_VERTEX_PROJECT_ID as last resort fallback
-          // This prevents the 12-second metadata server timeout when:
-          // - No project env vars are set AND
-          // - No credential keyfile is specified AND
-          // - ADC file exists but lacks project_id field
+          // 仅将 ANTHROPIC_VERTEX_PROJECT_ID 作为最后手段的回退
+          // 这在以下情况下防止 12 秒的元数据服务器超时：
+          // - 未设置项目环境变量 且
+          // - 未指定凭证密钥文件 且
+          // - ADC 文件存在但缺少 project_id 字段
           //
-          // Risk: If auth project != API target project, this could cause billing/audit issues
-          // Mitigation: Users can set GOOGLE_CLOUD_PROJECT to override
+          // 风险：如果身份验证项目 != API 目标项目，可能导致计费/审计问题
+          // 缓解措施：用户可以设置 GOOGLE_CLOUD_PROJECT 来覆盖
           ...(hasProjectEnvVar || hasKeyFile
             ? {}
             : {
@@ -293,17 +293,17 @@ export async function getAnthropicClient({
       googleAuth: googleAuth as any,
       ...(isDebugToStdErr() && { logger: createStderrLogger() }),
     }
-    // we have always been lying about the return type - this doesn't support batching or models
+    // 我们一直在对返回类型撒谎 - 这不支持批处理或模型
     return new AnthropicVertex(vertexArgs) as unknown as Anthropic
   }
 
-  // Determine authentication method based on available tokens
+  // 根据可用令牌确定身份验证方法
   const clientConfig: ConstructorParameters<typeof Anthropic>[0] = {
     apiKey: isClaudeAISubscriber() ? null : apiKey || getAnthropicApiKey(),
     authToken: isClaudeAISubscriber()
       ? getClaudeAIOAuthTokens()?.accessToken
       : undefined,
-    // Set baseURL from OAuth config when using staging OAuth
+    // 使用暂存 OAuth 时，从 OAuth 配置设置 baseURL
     ...(process.env.USER_TYPE === 'ant' &&
     isEnvTruthy(process.env.USE_STAGING_OAUTH)
       ? { baseURL: getOauthConfig().BASE_API_URL }
@@ -333,14 +333,14 @@ function getCustomHeaders(): Record<string, string> {
 
   if (!customHeadersEnv) return customHeaders
 
-  // Split by newlines to support multiple headers
+  // 按换行符分割以支持多个头
   const headerStrings = customHeadersEnv.split(/\n|\r\n/)
 
   for (const headerString of headerStrings) {
     if (!headerString.trim()) continue
 
-    // Parse header in format "Name: Value" (curl style). Split on first `:`
-    // then trim — avoids regex backtracking on malformed long header lines.
+    // 解析格式为 "名称: 值" 的头（curl 风格）。在第一个 `:` 处分割
+    // 然后修剪 — 避免对格式错误的长头行进行正则回溯。
     const colonIdx = headerString.indexOf(':')
     if (colonIdx === -1) continue
     const name = headerString.slice(0, colonIdx).trim()
@@ -361,16 +361,16 @@ function buildFetch(
 ): ClientOptions['fetch'] {
   // eslint-disable-next-line eslint-plugin-n/no-unsupported-features/node-builtins
   const inner = fetchOverride ?? globalThis.fetch
-  // Only send to the first-party API — Bedrock/Vertex/Foundry don't log it
-  // and unknown headers risk rejection by strict proxies (inc-4029 class).
+  // 仅发送到第一方 API — Bedrock/Vertex/Foundry 不记录它
+  // 并且未知头可能被严格代理拒绝（inc-4029 类）。
   const injectClientRequestId =
     getAPIProvider() === 'firstParty' && isFirstPartyAnthropicBaseUrl()
   return (input, init) => {
     // eslint-disable-next-line eslint-plugin-n/no-unsupported-features/node-builtins
     const headers = new Headers(init?.headers)
-    // Generate a client-side request ID so timeouts (which return no server
-    // request ID) can still be correlated with server logs by the API team.
-    // Callers that want to track the ID themselves can pre-set the header.
+    // 生成客户端请求 ID，以便超时（不返回服务器请求 ID）
+    // 仍然可以被 API 团队与服务器日志关联。
+    // 希望自己跟踪 ID 的调用者可以预先设置该头。
     if (injectClientRequestId && !headers.has(CLIENT_REQUEST_ID_HEADER)) {
       headers.set(CLIENT_REQUEST_ID_HEADER, randomUUID())
     }
@@ -382,7 +382,7 @@ function buildFetch(
         `[API REQUEST] ${new URL(url).pathname}${id ? ` ${CLIENT_REQUEST_ID_HEADER}=${id}` : ''} source=${source ?? 'unknown'}`,
       )
     } catch {
-      // never let logging crash the fetch
+      // 绝不让日志记录使 fetch 崩溃
     }
     return inner(input, { ...init, headers })
   }

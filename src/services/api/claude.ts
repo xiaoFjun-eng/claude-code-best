@@ -260,59 +260,55 @@ import {
   withRetry,
 } from './withRetry.js'
 
-// Define a type that represents valid JSON values
+// 定义一个表示有效 JSON 值的类型
 type JsonValue = string | number | boolean | null | JsonObject | JsonArray
 type JsonObject = { [key: string]: JsonValue }
 type JsonArray = JsonValue[]
 
-/**
- * Assemble the extra body parameters for the API request, based on the
- * CLAUDE_CODE_EXTRA_BODY environment variable if present and on any beta
- * headers (primarily for Bedrock requests).
+/** * 根据 CLAUDE_CODE_EXTRA_BODY 环境变量（如果存在）以及任何 beta 请求头（主要用于 Bedrock 请求），组装 API 请求的额外主体参数。
  *
- * @param betaHeaders - An array of beta headers to include in the request.
- * @returns A JSON object representing the extra body parameters.
- */
+ * @param betaHeaders - 要包含在请求中的 beta 请求头数组。
+ * @returns 一个表示额外主体参数的 JSON 对象。 */
 export function getExtraBodyParams(betaHeaders?: string[]): JsonObject {
-  // Parse user's extra body parameters first
+  // 首先解析用户的额外主体参数
   const extraBodyStr = process.env.CLAUDE_CODE_EXTRA_BODY
   let result: JsonObject = {}
 
   if (extraBodyStr) {
     try {
-      // Parse as JSON, which can be null, boolean, number, string, array or object
+      // 解析为 JSON，可以是 null、布尔值、数字、字符串、数组或对象
       const parsed = safeParseJSON(extraBodyStr)
-      // We expect an object with key-value pairs to spread into API parameters
+      // 我们期望得到一个包含键值对的对象，以便将其展开到 API 参数中
       if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        // Shallow clone — safeParseJSON is LRU-cached and returns the same
-        // object reference for the same string. Mutating `result` below
-        // would poison the cache, causing stale values to persist.
+        // 浅克隆 — safeParseJSON 是 LRU 缓存的，对于相同的字符串会返回相同的
+        // 对象引用。如果修改下面的 `result`
+        // 会污染缓存，导致陈旧的值持续存在。
         result = { ...(parsed as JsonObject) }
       } else {
         logForDebugging(
-          `CLAUDE_CODE_EXTRA_BODY env var must be a JSON object, but was given ${extraBodyStr}`,
+          `CLAUDE_CODE_EXTRA_BODY 环境变量必须是 JSON 对象，但收到的是 ${extraBodyStr}`,
           { level: 'error' },
         )
       }
     } catch (error) {
       logForDebugging(
-        `Error parsing CLAUDE_CODE_EXTRA_BODY: ${errorMessage(error)}`,
+        `解析 CLAUDE_CODE_EXTRA_BODY 时出错: ${errorMessage(error)}`,
         { level: 'error' },
       )
     }
   }
 
-  // Handle beta headers if provided
+  // 如果提供了 beta 请求头，则处理它们
   if (betaHeaders && betaHeaders.length > 0) {
     if (result.anthropic_beta && Array.isArray(result.anthropic_beta)) {
-      // Add to existing array, avoiding duplicates
+      // 添加到现有数组，避免重复
       const existingHeaders = result.anthropic_beta as string[]
       const newHeaders = betaHeaders.filter(
         header => !existingHeaders.includes(header),
       )
       result.anthropic_beta = [...existingHeaders, ...newHeaders]
     } else {
-      // Create new array with the beta headers
+      // 使用 beta 请求头创建新数组
       result.anthropic_beta = betaHeaders
     }
   }
@@ -321,22 +317,22 @@ export function getExtraBodyParams(betaHeaders?: string[]): JsonObject {
 }
 
 export function getPromptCachingEnabled(model: string): boolean {
-  // Global disable takes precedence
+  // 全局禁用优先
   if (isEnvTruthy(process.env.DISABLE_PROMPT_CACHING)) return false
 
-  // Check if we should disable for small/fast model
+  // 检查是否应为小型/快速模型禁用
   if (isEnvTruthy(process.env.DISABLE_PROMPT_CACHING_HAIKU)) {
     const smallFastModel = getSmallFastModel()
     if (model === smallFastModel) return false
   }
 
-  // Check if we should disable for default Sonnet
+  // 检查是否应为默认的 Sonnet 模型禁用
   if (isEnvTruthy(process.env.DISABLE_PROMPT_CACHING_SONNET)) {
     const defaultSonnet = getDefaultSonnetModel()
     if (model === defaultSonnet) return false
   }
 
-  // Check if we should disable for default Opus
+  // 检查是否应为默认的 Opus 模型禁用
   if (isEnvTruthy(process.env.DISABLE_PROMPT_CACHING_OPUS)) {
     const defaultOpus = getDefaultOpusModel()
     if (model === defaultOpus) return false
@@ -363,26 +359,23 @@ export function getCacheControl({
   }
 }
 
-/**
- * Determines if 1h TTL should be used for prompt caching.
+/** * 确定是否应为提示缓存使用 1 小时 TTL。
  *
- * Only applied when:
- * 1. User is eligible (ant or subscriber within rate limits)
- * 2. The query source matches a pattern in the GrowthBook allowlist
+ * 仅在以下情况下应用：
+ * 1. 用户符合条件（在速率限制内的 ant 或订阅者）
+ * 2. 查询来源匹配 GrowthBook 允许列表中的模式
  *
- * GrowthBook config shape: { allowlist: string[] }
- * Patterns support trailing '*' for prefix matching.
- * Examples:
- * - { allowlist: ["repl_main_thread*", "sdk"] } — main thread + SDK only
- * - { allowlist: ["repl_main_thread*", "sdk", "agent:*"] } — also subagents
- * - { allowlist: ["*"] } — all sources
+ * GrowthBook 配置结构：{ allowlist: string[] }
+ * 模式支持尾随 '*' 进行前缀匹配。
+ * 示例：
+ * - { allowlist: ["repl_main_thread*", "sdk"] } — 仅主线程 + SDK
+ * - { allowlist: ["repl_main_thread*", "sdk", "agent:*"] } — 也包括子代理
+ * - { allowlist: ["*"] } — 所有来源
  *
- * The allowlist is cached in STATE for session stability — prevents mixed
- * TTLs when GrowthBook's disk cache updates mid-request.
- */
+ * 允许列表缓存在 STATE 中以保持会话稳定性 — 防止在 GrowthBook 的磁盘缓存于请求中途更新时出现混合的 TTL。 */
 function should1hCacheTTL(querySource?: QuerySource): boolean {
-  // 3P Bedrock users get 1h TTL when opted in via env var — they manage their own billing
-  // No GrowthBook gating needed since 3P users don't have GrowthBook configured
+  // 第三方 Bedrock 用户通过环境变量选择加入后获得 1 小时 TTL — 他们管理自己的账单
+  // 无需 GrowthBook 门控，因为第三方用户未配置 GrowthBook
   if (
     getAPIProvider() === 'bedrock' &&
     isEnvTruthy(process.env.ENABLE_PROMPT_CACHING_1H_BEDROCK)
@@ -390,9 +383,9 @@ function should1hCacheTTL(querySource?: QuerySource): boolean {
     return true
   }
 
-  // Latch eligibility in bootstrap state for session stability — prevents
-  // mid-session overage flips from changing the cache_control TTL, which
-  // would bust the server-side prompt cache (~20K tokens per flip).
+  // 在引导状态中锁定资格以保持会话稳定性 — 防止
+  // 由于更改 cache_control TTL 导致会话中途超额状态翻转，这
+  // 会破坏服务器端提示缓存（每次翻转约 20K 个令牌）。
   let userEligible = getPromptCache1hEligible()
   if (userEligible === null) {
     userEligible =
@@ -402,7 +395,7 @@ function should1hCacheTTL(querySource?: QuerySource): boolean {
   }
   if (!userEligible) return false
 
-  // Cache allowlist in bootstrap state for session stability — prevents mixed
+  // 在引导状态中缓存允许列表以保持会话稳定性 — 防止在 GrowthBook 的磁盘缓存于请求中途更新时出现混合的 TTL
   // TTLs when GrowthBook's disk cache updates mid-request
   let allowlist = getPromptCache1hAllowlist()
   if (allowlist === null) {
@@ -423,10 +416,8 @@ function should1hCacheTTL(querySource?: QuerySource): boolean {
   )
 }
 
-/**
- * Configure effort parameters for API request.
- *
- */
+/** * 为 API 请求配置 effort 参数。
+ * */
 function configureEffortParams(
   effortValue: EffortValue | undefined,
   outputConfig: BetaOutputConfig,
@@ -441,11 +432,11 @@ function configureEffortParams(
   if (effortValue === undefined) {
     betas.push(EFFORT_BETA_HEADER)
   } else if (typeof effortValue === 'string') {
-    // Send string effort level as is
+    // 按原样发送字符串形式的 effort 级别
     outputConfig.effort = effortValue as "high" | "medium" | "low" | "max"
     betas.push(EFFORT_BETA_HEADER)
   } else if (process.env.USER_TYPE === 'ant') {
-    // Numeric effort override - ant-only (uses anthropic_internal)
+    // 数字 effort 覆盖 - 仅限 ant（使用 anthropic_internal）
     const existingInternal =
       (extraBodyParams.anthropic_internal as Record<string, unknown>) || {}
     extraBodyParams.anthropic_internal = {
@@ -455,11 +446,11 @@ function configureEffortParams(
   }
 }
 
-// output_config.task_budget — API-side token budget awareness for the model.
-// Stainless SDK types don't yet include task_budget on BetaOutputConfig, so we
-// define the wire shape locally and cast. The API validates on receipt; see
-// api/api/schemas/messages/request/output_config.py:12-39 in the monorepo.
-// Beta: task-budgets-2026-03-13 (EAP, claude-strudel-eap only as of Mar 2026).
+// output_config.task_budget — 模型侧 API 的 token 预算感知。
+// Stainless SDK 类型目前尚未在 BetaOutputConfig 中包含 task_budget，因此我们
+// 在本地定义其传输结构并进行类型转换。API 会在接收时进行验证；请参阅
+// monorepo 中的 api/api/schemas/messages/request/output_config.py:12-39。
+// Beta 功能：task-budgets-2026-03-13（截至 2026 年 3 月，仅限 EAP 和 claude-strudel-eap）。
 type TaskBudgetParam = {
   type: 'tokens'
   total: number
@@ -500,7 +491,7 @@ export function getAPIMetadata() {
       extra = parsed as JsonObject
     } else {
       logForDebugging(
-        `CLAUDE_CODE_EXTRA_METADATA env var must be a JSON object, but was given ${extraStr}`,
+        `环境变量 CLAUDE_CODE_EXTRA_METADATA 必须是一个 JSON 对象，但收到的是 ${extraStr}`,
         { level: 'error' },
       )
     }
@@ -510,7 +501,7 @@ export function getAPIMetadata() {
     user_id: jsonStringify({
       ...extra,
       device_id: getOrCreateUserID(),
-      // Only include OAuth account UUID when actively using OAuth authentication
+      // 仅在主动使用 OAuth 认证时包含 OAuth 账户 UUID
       account_uuid: getOauthAccountInfo()?.accountUuid ?? '',
       session_id: getSessionId(),
     }),
@@ -521,13 +512,13 @@ export async function verifyApiKey(
   apiKey: string,
   isNonInteractiveSession: boolean,
 ): Promise<boolean> {
-  // Skip API verification if running in print mode (isNonInteractiveSession)
+  // 如果在打印模式下运行（isNonInteractiveSession），则跳过 API 验证
   if (isNonInteractiveSession) {
     return true
   }
 
   try {
-    // WARNING: if you change this to use a non-Haiku model, this request will fail in 1P unless it uses getCLISyspromptPrefix.
+    // 警告：如果你将其更改为使用非 Haiku 模型，此请求将在 1P 中失败，除非它使用 getCLISyspromptPrefix。
     const model = getSmallFastModel()
     const betas = getModelBetas(model)
     return await returnValue(
@@ -541,7 +532,7 @@ export async function verifyApiKey(
           }),
         async anthropic => {
           const messages: MessageParam[] = [{ role: 'user', content: 'test' }]
-          // biome-ignore lint/plugin: API key verification is intentionally a minimal direct call
+          // biome-ignore lint/plugin: API 密钥验证有意设计为最简化的直接调用
           await anthropic.beta.messages.create({
             model,
             max_tokens: 1,
@@ -562,7 +553,7 @@ export async function verifyApiKey(
       error = errorFromRetry.originalError
     }
     logError(error)
-    // Check for authentication error
+    // 检查认证错误
     if (
       error instanceof Error &&
       error.message.includes(
@@ -609,9 +600,9 @@ export function userMessageToMessageParam(
       }
     }
   }
-  // Clone array content to prevent in-place mutations (e.g., insertCacheEditsBlock's
-  // splice) from contaminating the original message. Without cloning, multiple calls
-  // to addCacheBreakpoints share the same array and each splices in duplicate cache_edits.
+  // 克隆数组内容以防止原地修改（例如，insertCacheEditsBlock 的
+  // splice 操作）污染原始消息。如果不克隆，多次调用
+  // addCacheBreakpoints 会共享同一个数组，并各自重复拼接 cache_edits。
   return {
     role: 'user',
     content: (Array.isArray(message.message!.content)
@@ -715,12 +706,12 @@ export type Options = {
   fastMode?: boolean
   advisorModel?: string
   addNotification?: (notif: Notification) => void
-  // API-side task budget (output_config.task_budget). Distinct from the
-  // tokenBudget.ts +500k auto-continue feature — this one is sent to the API
-  // so the model can pace itself. `remaining` is computed by the caller
-  // (query.ts decrements across the agentic loop).
+  // API 侧任务预算（output_config.task_budget）。区别于
+  // tokenBudget.ts 中的 +500k 自动继续功能 —— 此预算会发送给 API
+  // 以便模型可以自行控制节奏。`remaining` 由调用方计算
+  // （query.ts 会在智能体循环过程中递减它）。
   taskBudget?: { total: number; remaining?: number }
-  /** Langfuse root trace span for observability. No-op if null/undefined. */
+  /** 用于可观测性的 Langfuse 根跟踪跨度。如果为 null/undefined 则不执行任何操作。 */
   langfuseTrace?: LangfuseSpan | null
 }
 
@@ -739,8 +730,8 @@ export async function queryModelWithoutStreaming({
   signal: AbortSignal
   options: Options
 }): Promise<AssistantMessage> {
-  // Store the assistant message but continue consuming the generator to ensure
-  // logAPISuccessAndDuration gets called (which happens after all yields)
+  // 存储助手消息，但继续消费生成器以确保
+  // logAPISuccessAndDuration 被调用（该调用在所有 yield 之后发生）
   let assistantMessage: AssistantMessage | undefined
   for await (const message of withStreamingVCR(messages, async function* () {
     yield* queryModel(
@@ -757,12 +748,12 @@ export async function queryModelWithoutStreaming({
     }
   }
   if (!assistantMessage) {
-    // If the signal was aborted, throw APIUserAbortError instead of a generic error
-    // This allows callers to handle abort scenarios gracefully
+    // 如果信号被中止，抛出 APIUserAbortError 而非通用错误
+    // 这允许调用方优雅地处理中止场景
     if (signal.aborted) {
       throw new APIUserAbortError()
     }
-    throw new Error('No assistant message found')
+    throw new Error('未找到助手消息')
   }
   return assistantMessage
 }
@@ -797,42 +788,36 @@ export async function* queryModelWithStreaming({
   })
 }
 
-/**
- * Determines if an LSP tool should be deferred (tool appears with defer_loading: true)
- * because LSP initialization is not yet complete.
- */
+/** * 判断是否应推迟加载 LSP 工具（工具显示为 defer_loading: true）
+ * 因为 LSP 初始化尚未完成。 */
 function shouldDeferLspTool(tool: Tool): boolean {
   if (!('isLsp' in tool) || !tool.isLsp) {
     return false
   }
   const status = getInitializationStatus()
-  // Defer when pending or not started
+  // 当处于挂起或未启动状态时推迟
   return status.status === 'pending' || status.status === 'not-started'
 }
 
-/**
- * Per-attempt timeout for non-streaming fallback requests, in milliseconds.
- * Reads API_TIMEOUT_MS when set so slow backends and the streaming path
- * share the same ceiling.
+/** * 非流式回退请求的每次尝试超时时间，单位为毫秒。
+ * 当设置了 API_TIMEOUT_MS 时读取该值，以便慢速后端和流式路径
+ * 共享相同的上限。
  *
- * Remote sessions default to 120s to stay under CCR's container idle-kill
- * (~5min) so a hung fallback to a wedged backend surfaces a clean
- * APIConnectionTimeoutError instead of stalling past SIGKILL.
+ * 远程会话默认为 120 秒，以保持在 CCR 容器空闲终止时间
+ *（约 5 分钟）之内，这样当回退到一个卡死的后端时，会抛出一个清晰的
+ * APIConnectionTimeoutError，而不是在 SIGKILL 后一直停滞。
  *
- * Otherwise defaults to 300s — long enough for slow backends without
- * approaching the API's 10-minute non-streaming boundary.
- */
+ * 否则默认为 300 秒 —— 对于慢速后端来说足够长，但不会
+ * 接近 API 的 10 分钟非流式边界。 */
 function getNonstreamingFallbackTimeoutMs(): number {
   const override = parseInt(process.env.API_TIMEOUT_MS || '', 10)
   if (override) return override
   return isEnvTruthy(process.env.CLAUDE_CODE_REMOTE) ? 120_000 : 300_000
 }
 
-/**
- * Helper generator for non-streaming API requests.
- * Encapsulates the common pattern of creating a withRetry generator,
- * iterating to yield system messages, and returning the final BetaMessage.
- */
+/** * 用于非流式 API 请求的辅助生成器。
+ * 封装了创建 withRetry 生成器、
+ * 迭代以产出系统消息并返回最终 BetaMessage 的通用模式。 */
 export async function* executeNonStreamingRequest(
   clientOptions: {
     model: string
@@ -851,10 +836,8 @@ export async function* executeNonStreamingRequest(
   paramsFromContext: (context: RetryContext) => BetaMessageStreamParams,
   onAttempt: (attempt: number, start: number, maxOutputTokens: number) => void,
   captureRequest: (params: BetaMessageStreamParams) => void,
-  /**
-   * Request ID of the failed streaming attempt this fallback is recovering
-   * from. Emitted in tengu_nonstreaming_fallback_error for funnel correlation.
-   */
+  /** * 此回退正在恢复的失败流式尝试的请求 ID。
+   * 在 tengu_nonstreaming_fallback_error 中发出，用于漏斗关联。 */
   originatingRequestId?: string | null,
 ): AsyncGenerator<SystemAPIErrorMessage, BetaMessage> {
   const fallbackTimeoutMs = getNonstreamingFallbackTimeoutMs()
@@ -878,7 +861,7 @@ export async function* executeNonStreamingRequest(
       )
 
       try {
-        // biome-ignore lint/plugin: non-streaming API call
+        // biome-ignore lint/plugin: 非流式 API 调用
         return await anthropic.beta.messages.create(
           {
             ...adjustedParams,
@@ -890,12 +873,12 @@ export async function* executeNonStreamingRequest(
           },
         )
       } catch (err) {
-        // User aborts are not errors — re-throw immediately without logging
+        // 用户中止不是错误 — 立即重新抛出，无需记录日志
         if (err instanceof APIUserAbortError) throw err
 
-        // Instrumentation: record when the non-streaming request errors (including
-        // timeouts). Lets us distinguish "fallback hung past container kill"
-        // (no event) from "fallback hit the bounded timeout" (this event).
+        // 埋点：记录非流式请求出错（包括
+        // 超时）的时刻。这让我们能区分“回退逻辑在容器终止后挂起”
+        // （无事件）和“回退逻辑触发了有界超时”（此事件）。
         logForDiagnosticsNoPII('error', 'cli_nonstreaming_fallback_error')
         logEvent('tengu_nonstreaming_fallback_error', {
           model:
@@ -934,15 +917,12 @@ export async function* executeNonStreamingRequest(
   return e.value as BetaMessage
 }
 
-/**
- * Extracts the request ID from the most recent assistant message in the
- * conversation. Used to link consecutive API requests in analytics so we can
- * join them for cache-hit-rate analysis and incremental token tracking.
+/** * 从对话中最近的一条助手消息提取请求 ID。用于在分析中链接连续的 API 请求，以便我们
+ * 可以将它们关联起来进行缓存命中率分析和增量令牌追踪。
  *
- * Deriving this from the message array (rather than global state) ensures each
- * query chain (main thread, subagent, teammate) tracks its own request chain
- * independently, and rollback/undo naturally updates the value.
- */
+ * 从消息数组（而非全局状态）派生此值，确保每个
+ * 查询链（主线程、子代理、队友）独立追踪自己的请求链，
+ * 并且回滚/撤销操作能自然地更新该值。 */
 function getPreviousRequestIdFromMessages(
   messages: Message[],
 ): string | undefined {
@@ -967,10 +947,8 @@ function isToolResult(
   return block.type === 'tool_result'
 }
 
-/**
- * Ensures messages contain at most `limit` media items (images + documents).
- * Strips oldest media first to preserve the most recent.
- */
+/** * 确保消息最多包含 `limit` 个媒体项（图片 + 文档）。
+ * 优先移除最旧的媒体，以保留最新的。 */
 export function stripExcessMediaItems(
   messages: (UserMessage | AssistantMessage)[],
   limit: number,
@@ -1043,9 +1021,8 @@ async function* queryModel(
   StreamEvent | AssistantMessage | SystemAPIErrorMessage,
   void
 > {
-  // Check cheap conditions first — the off-switch await blocks on GrowthBook
-  // init (~10ms). For non-Opus models (haiku, sonnet) this skips the await
-  // entirely. Subscribers don't hit this path at all.
+  // 首先检查廉价的条件 — 关闭开关会阻塞等待 GrowthBook 初始化（约 10 毫秒）。
+  // 对于非 Opus 模型（haiku、sonnet），这会完全跳过等待。订阅者根本不会走这个路径。
   if (
     !isClaudeAISubscriber() &&
     isNonCustomOpusModel(options.model) &&
@@ -1066,10 +1043,10 @@ async function* queryModel(
     return
   }
 
-  // Derive previous request ID from the last assistant message in this query chain.
-  // This is scoped per message array (main thread, subagent, teammate each have their own),
-  // so concurrent agents don't clobber each other's request chain tracking.
-  // Also naturally handles rollback/undo since removed messages won't be in the array.
+  // 从该查询链中的最后一条助手消息派生 previous request ID。
+  // 这按消息数组作用域（主线程、子代理、队友各有自己的），
+  // 因此并发的代理不会互相干扰请求链跟踪。
+  // 同时也自然处理了回滚/撤销，因为被移除的消息不会在数组中。
   const previousRequestId = getPreviousRequestIdFromMessages(messages)
 
   const resolvedModel =
@@ -1088,9 +1065,8 @@ async function* queryModel(
     options.querySource === 'verification_agent'
   const betas = getMergedBetas(options.model, { isAgenticQuery })
 
-  // Always send the advisor beta header when advisor is enabled, so
-  // non-agentic queries (compact, side_question, extract_memories, etc.)
-  // can parse advisor server_tool_use blocks already in the conversation history.
+  // 当 advisor 启用时，总是发送 advisor beta 头，以便非代理查询（compact、side_question、extract_memories 等）
+  // 能够解析对话历史中已经存在的 advisor server_tool_use 块。
   if (isAdvisorEnabled()) {
     betas.push(ADVISOR_BETA_HEADER)
   }
@@ -1105,9 +1081,7 @@ async function* queryModel(
         normalizeModelStringForAPI(advisorExperiment.baseModel) ===
         normalizeModelStringForAPI(options.model)
       ) {
-        // Override the advisor model if the base model matches. We
-        // should only have experiment models if the user cannot
-        // configure it themselves.
+        // 如果基础模型匹配，则覆盖 advisor 模型。仅当用户无法自行配置时才应有实验模型。
         advisorOption = advisorExperiment.advisorModel
       }
     }
@@ -1118,23 +1092,23 @@ async function* queryModel(
       )
       if (!modelSupportsAdvisor(options.model)) {
         logForDebugging(
-          `[AdvisorTool] Skipping advisor - base model ${options.model} does not support advisor`,
+          `[AdvisorTool] 跳过 advisor - 基础模型 ${options.model} 不支持 advisor`,
         )
       } else if (!isValidAdvisorModel(normalizedAdvisorModel)) {
         logForDebugging(
-          `[AdvisorTool] Skipping advisor - ${normalizedAdvisorModel} is not a valid advisor model`,
+          `[AdvisorTool] 跳过 advisor - ${normalizedAdvisorModel} 不是有效的 advisor 模型`,
         )
       } else {
         advisorModel = normalizedAdvisorModel
         logForDebugging(
-          `[AdvisorTool] Server-side tool enabled with ${advisorModel} as the advisor model`,
+          `[AdvisorTool] 服务端工具已启用，使用 ${advisorModel} 作为 advisor 模型`,
         )
       }
     }
   }
 
-  // Check if tool search is enabled (checks mode, model support, and threshold for auto mode)
-  // This is async because it may need to calculate MCP tool description sizes for TstAuto mode
+  // 检查工具搜索是否启用（检查模式、模型支持以及自动模式的阈值）
+  // 这是异步的，因为对于 TstAuto 模式可能需要计算 MCP 工具描述大小
   let useToolSearch = await isToolSearchEnabled(
     options.model,
     tools,
@@ -1143,7 +1117,7 @@ async function* queryModel(
     'query',
   )
 
-  // Precompute once — isDeferredTool does 2 GrowthBook lookups per call
+  // 预先计算一次 — isDeferredTool 每次调用做两次 GrowthBook 查找
   const deferredToolNames = new Set<string>()
   if (useToolSearch) {
     for (const t of tools) {
@@ -1151,36 +1125,34 @@ async function* queryModel(
     }
   }
 
-  // Even if tool search mode is enabled, skip if there are no deferred tools
-  // AND no MCP servers are still connecting. When servers are pending, keep
-  // ToolSearch available so the model can discover tools after they connect.
+  // 即使工具搜索模式已启用，如果没有延迟工具且没有 MCP 服务器正在连接，则跳过。
+  // 当服务器待处理时，保持 ToolSearch 可用，以便模型可以在它们连接后发现工具。
   if (
     useToolSearch &&
     deferredToolNames.size === 0 &&
     !options.hasPendingMcpServers
   ) {
     logForDebugging(
-      'Tool search disabled: no deferred tools available to search',
+      '工具搜索已禁用：没有可搜索的延迟工具',
     )
     useToolSearch = false
   }
 
-  // Filter out ToolSearchTool if tool search is not enabled for this model
-  // ToolSearchTool returns tool_reference blocks which unsupported models can't handle
+  // 如果此模型未启用工具搜索，则过滤掉 ToolSearchTool
+  // ToolSearchTool 返回 tool_reference 块，不支持的模型无法处理
   let filteredTools: Tools
 
   if (useToolSearch) {
-    // Dynamic tool loading: Only include deferred tools that have been discovered
-    // via tool_reference blocks in the message history. This eliminates the need
-    // to predeclare all deferred tools upfront and removes limits on tool quantity.
+    // 动态工具加载：仅包含已通过消息历史中的 tool_reference 块发现的延迟工具。
+    // 这消除了预先声明所有延迟工具的需要，并移除了工具数量限制。
     const discoveredToolNames = extractDiscoveredToolNames(messages)
 
     filteredTools = tools.filter(tool => {
-      // Always include non-deferred tools
+      // 始终包含非延迟工具
       if (!deferredToolNames.has(tool.name)) return true
-      // Always include ToolSearchTool (so it can discover more tools)
+      // 始终包含 ToolSearchTool（以便它可以发现更多工具）
       if (toolMatchesName(tool, TOOL_SEARCH_TOOL_NAME)) return true
-      // Only include deferred tools that have been discovered
+      // 仅包含已发现的延迟工具
       return discoveredToolNames.has(tool.name)
     })
   } else {
@@ -1189,9 +1161,9 @@ async function* queryModel(
     )
   }
 
-  // Add tool search beta header if enabled - required for defer_loading to be accepted
-  // Header differs by provider: 1P/Foundry use advanced-tool-use, Vertex/Bedrock use tool-search-tool
-  // For Bedrock, this header must go in extraBodyParams, not the betas array
+  // 如果启用，添加工具搜索 beta 头 - 需要 defer_loading 被接受
+  // 头部因提供者而异：1P/Foundry 使用 advanced-tool-use，Vertex/Bedrock 使用 tool-search-tool
+  // 对于 Bedrock，此头部必须放在 extraBodyParams 中，而不是 betas 数组
   const toolSearchHeader = useToolSearch ? getToolSearchBetaHeader() : null
   if (toolSearchHeader && getAPIProvider() !== 'bedrock') {
     if (!betas.includes(toolSearchHeader)) {
@@ -1199,10 +1171,9 @@ async function* queryModel(
     }
   }
 
-  // Determine if cached microcompact is enabled for this model.
-  // Computed once here (in async context) and captured by paramsFromContext.
-  // The beta header is also captured here to avoid a top-level import of the
-  // ant-only CACHE_EDITING_BETA_HEADER constant.
+  // 确定此模型是否启用了缓存的 microcompact。
+  // 在此处（异步上下文中）计算一次，并由 paramsFromContext 捕获。
+  // beta 头也在此处捕获，以避免顶部导入仅限 ant 的 CACHE_EDITING_BETA_HEADER 常量。
   let cachedMCEnabled = false
   let cacheEditingBetaHeader = ''
   if (feature('CACHED_MICROCOMPACT')) {
@@ -1218,20 +1189,20 @@ async function* queryModel(
     cachedMCEnabled = featureEnabled && modelSupported
     const config = getCachedMCConfig()
     logForDebugging(
-      `Cached MC gate: enabled=${featureEnabled} modelSupported=${modelSupported} model=${options.model} supportedModels=${jsonStringify((config as any).supportedModels)}`,
+      `缓存 MC 门控：enabled=${featureEnabled} modelSupported=${modelSupported} model=${options.model} supportedModels=${jsonStringify((config as any).supportedModels)}`,
     )
   }
 
   const useGlobalCacheFeature = shouldUseGlobalCacheScope()
   const willDefer = (t: Tool) =>
     useToolSearch && (deferredToolNames.has(t.name) || shouldDeferLspTool(t))
-  // MCP tools are per-user → dynamic tool section → can't globally cache.
-  // Only gate when an MCP tool will actually render (not defer_loading).
+  // MCP 工具是每个用户的 → 动态工具部分 → 无法全局缓存。
+  // 仅当 MCP 工具实际渲染（而非延迟加载）时才进行门控。
   const needsToolBasedCacheMarker =
     useGlobalCacheFeature &&
     filteredTools.some(t => t.isMcp === true && !willDefer(t))
 
-  // Ensure prompt_caching_scope beta header is present when global cache is enabled.
+  // 当启用全局缓存时，确保 prompt_caching_scope beta 头存在。
   if (
     useGlobalCacheFeature &&
     !betas.includes(PROMPT_CACHING_SCOPE_BETA_HEADER)
@@ -1239,17 +1210,17 @@ async function* queryModel(
     betas.push(PROMPT_CACHING_SCOPE_BETA_HEADER)
   }
 
-  // Determine global cache strategy for logging
+  // 确定用于日志记录的全局缓存策略
   const globalCacheStrategy: GlobalCacheStrategy = useGlobalCacheFeature
     ? needsToolBasedCacheMarker
       ? 'none'
       : 'system_prompt'
     : 'none'
 
-  // Build tool schemas, adding defer_loading for MCP tools when tool search is enabled
-  // Note: We pass the full `tools` list (not filteredTools) to toolToAPISchema so that
-  // ToolSearchTool's prompt can list ALL available MCP tools. The filtering only affects
-  // which tools are actually sent to the API, not what the model sees in tool descriptions.
+  // 构建工具 schema，当工具搜索启用时为 MCP 工具添加 defer_loading
+  // 注意：我们将完整的 `tools` 列表（而不是 filteredTools）传递给 toolToAPISchema，
+  // 以便 ToolSearchTool 的提示可以列出所有可用的 MCP 工具。过滤仅影响哪些工具实际发送到 API，
+  // 而不影响模型在工具描述中看到的内容。
   const toolSchemas = await Promise.all(
     filteredTools.map(tool =>
       toolToAPISchema(tool, {
@@ -1268,14 +1239,14 @@ async function* queryModel(
       deferredToolNames.has(t.name),
     )
     logForDebugging(
-      `Dynamic tool loading: ${includedDeferredTools}/${deferredToolNames.size} deferred tools included`,
+      `动态工具加载：已包含 ${includedDeferredTools}/${deferredToolNames.size} 个延迟工具`,
     )
   }
 
   queryCheckpoint('query_tool_schema_build_end')
 
-  // Normalize messages before building system prompt (needed for fingerprinting)
-  // Instrumentation: Track message count before normalization
+  // 在构建系统提示之前规范化消息（用于指纹）
+  // 检测：跟踪规范化前的消息计数
   logEvent('tengu_api_before_normalize', {
     preNormalizedMessageCount: messages.length,
   })
@@ -1284,28 +1255,24 @@ async function* queryModel(
   let messagesForAPI = normalizeMessagesForAPI(messages, filteredTools)
   queryCheckpoint('query_message_normalization_end')
 
-  // Model-specific post-processing: strip tool-search-specific fields if the
-  // selected model doesn't support tool search.
+  // 特定模型的后处理：如果所选模型不支持工具搜索，则剥离工具搜索特定字段。
   //
-  // Why is this needed in addition to normalizeMessagesForAPI?
-  // - normalizeMessagesForAPI uses isToolSearchEnabledNoModelCheck() because it's
-  //   called from ~20 places (analytics, feedback, sharing, etc.), many of which
-  //   don't have model context. Adding model to its signature would be a large refactor.
-  // - This post-processing uses the model-aware isToolSearchEnabled() check
-  // - This handles mid-conversation model switching (e.g., Sonnet → Haiku) where
-  //   stale tool-search fields from the previous model would cause 400 errors
+  // 为什么除了 normalizeMessagesForAPI 之外还需要这个？
+  // - normalizeMessagesForAPI 使用 isToolSearchEnabledNoModelCheck()，因为它从大约 20 个地方被调用
+  //   （分析、反馈、共享等），其中许多没有模型上下文。向其签名添加模型将是一次大的重构。
+  // - 此后处理使用模型感知的 isToolSearchEnabled() 检查
+  // - 这处理了对话中的模型切换（例如 Sonnet → Haiku），其中来自先前模型的过时工具搜索字段会导致 400 错误
   //
-  // Note: For assistant messages, normalizeMessagesForAPI already normalized the
-  // tool inputs, so stripCallerFieldFromAssistantMessage only needs to remove the
-  // 'caller' field (not re-normalize inputs).
+  // 注意：对于助手消息，normalizeMessagesForAPI 已经规范了工具输入，
+  // 因此 stripCallerFieldFromAssistantMessage 只需要移除 'caller' 字段（而不是重新规范输入）。
   if (!useToolSearch) {
     messagesForAPI = messagesForAPI.map(msg => {
       switch (msg.type) {
         case 'user':
-          // Strip tool_reference blocks from tool_result content
+          // 从 tool_result 内容中剥离 tool_reference 块
           return stripToolReferenceBlocksFromUserMessage(msg)
         case 'assistant':
-          // Strip 'caller' field from tool_use blocks
+          // 从 tool_use 块中剥离 'caller' 字段
           return stripCallerFieldFromAssistantMessage(msg)
         default:
           return msg
@@ -1313,28 +1280,25 @@ async function* queryModel(
     })
   }
 
-  // Repair tool_use/tool_result pairing mismatches that can occur when resuming
-  // remote/teleport sessions. Inserts synthetic error tool_results for orphaned
-  // tool_uses and strips orphaned tool_results referencing non-existent tool_uses.
+  // 修复恢复远程/传送会话时可能发生的 tool_use/tool_result 配对不匹配。
+  // 为孤立的 tool_use 插入合成的错误 tool_result，并剥离引用不存在 tool_use 的孤立 tool_result。
   messagesForAPI = ensureToolResultPairing(messagesForAPI)
 
-  // Strip advisor blocks — the API rejects them without the beta header.
+  // 剥离 advisor 块 — API 在没有 beta 头的情况下会拒绝它们。
   if (!betas.includes(ADVISOR_BETA_HEADER)) {
     messagesForAPI = stripAdvisorBlocks(messagesForAPI)
   }
 
-  // Strip excess media items before making the API call.
-  // The API rejects requests with >100 media items but returns a confusing error.
-  // Rather than erroring (which is hard to recover from in Cowork/CCD), we
-  // silently drop the oldest media items to stay within the limit.
+  // 在进行 API 调用之前剥离多余的媒体项。
+  // API 拒绝超过 100 个媒体项的请求，但返回令人困惑的错误。
+  // 与其报错（在 Cowork/CCD 中难以恢复），不如静默丢弃最旧的媒体项以保持在限制内。
   messagesForAPI = stripExcessMediaItems(
     messagesForAPI,
     API_MAX_MEDIA_PER_REQUEST,
   )
 
-  // OpenAI-compatible provider: delegate to the OpenAI adapter layer
-  // after shared preprocessing (message normalization, tool filtering,
-  // media stripping) but before Anthropic-specific logic (betas, thinking, caching).
+  // OpenAI 兼容提供者：在共享预处理（消息规范化、工具过滤、媒体剥离）之后，
+  // 但在 Anthropic 特定逻辑（betas、thinking、缓存）之前委托给 OpenAI 适配器层。
   if (getAPIProvider() === 'openai') {
     const { queryModelOpenAI } = await import('./openai/index.js')
     yield* queryModelOpenAI(messagesForAPI, systemPrompt, filteredTools, signal, options)
@@ -1360,19 +1324,17 @@ async function* queryModel(
     return
   }
 
-  // Instrumentation: Track message count after normalization
+  // 检测：跟踪规范化后的消息计数
   logEvent('tengu_api_after_normalize', {
     postNormalizedMessageCount: messagesForAPI.length,
   })
 
-  // Compute fingerprint from first user message for attribution.
-  // Must run BEFORE injecting synthetic messages (e.g. deferred tool names)
-  // so the fingerprint reflects the actual user input.
+  // 从第一条用户消息计算指纹以用于归属。
+  // 必须在注入合成消息（例如延迟工具名称）之前运行，以便指纹反映实际的用户输入。
   const fingerprint = computeFingerprintFromMessages(messagesForAPI)
 
-  // When the delta attachment is enabled, deferred tools are announced
-  // via persisted deferred_tools_delta attachments instead of this
-  // ephemeral prepend (which busts cache whenever the pool changes).
+  // 当增量附件启用时，延迟工具通过持久化的 deferred_tools_delta 附件宣布，
+  // 而不是这个临时的前置（它会在池子变化时破坏缓存）。
   if (useToolSearch && !isDeferredToolsDeltaEnabled()) {
     const deferredToolList = tools
       .filter(t => deferredToolNames.has(t.name))
@@ -1382,7 +1344,9 @@ async function* queryModel(
     if (deferredToolList) {
       messagesForAPI = [
         createUserMessage({
-          content: `<available-deferred-tools>\n${deferredToolList}\n</available-deferred-tools>`,
+          content: `<available-deferred-tools>
+${deferredToolList}
+</available-deferred-tools>`,
           isMeta: true,
         }),
         ...messagesForAPI,
@@ -1390,17 +1354,15 @@ async function* queryModel(
     }
   }
 
-  // Chrome tool-search instructions: when the delta attachment is enabled,
-  // these are carried as a client-side block in mcp_instructions_delta
-  // (attachments.ts) instead of here. This per-request sys-prompt append
-  // busts the prompt cache when chrome connects late.
+  // Chrome 工具搜索指令：当增量附件启用时，这些作为客户端块在 mcp_instructions_delta（attachments.ts）中携带，
+  // 而不是在这里。这个每个请求的 sys-prompt 追加会在 chrome 延迟连接时破坏提示缓存。
   const hasChromeTools = filteredTools.some(t =>
     isToolFromMcpServer(t.name, CLAUDE_IN_CHROME_MCP_SERVER_NAME),
   )
   const injectChromeHere =
     useToolSearch && hasChromeTools && !isMcpInstructionsDeltaEnabled()
 
-  // filter(Boolean) works by converting each element to a boolean - empty strings become false and are filtered out.
+  // filter(Boolean) 通过将每个元素转换为布尔值来工作 - 空字符串变为 false 并被过滤掉。
   systemPrompt = asSystemPrompt(
     [
       getAttributionHeader(fingerprint),
@@ -1414,7 +1376,7 @@ async function* queryModel(
     ].filter(Boolean),
   )
 
-  // Prepend system prompt block for easy API identification
+  // 为便于 API 识别，前置系统提示块
   logAPIPrefix(systemPrompt)
 
   const enablePromptCaching =
@@ -1425,14 +1387,12 @@ async function* queryModel(
   })
   const useBetas = betas.length > 0
 
-  // Build minimal context for detailed tracing (when beta tracing is enabled)
-  // Note: The actual new_context message extraction is done in sessionTracing.ts using
-  // hash-based tracking per querySource (agent) from the messagesForAPI array
+  // 为详细跟踪构建最小上下文（当 beta 跟踪启用时）
+  // 注意：实际的新上下文消息提取在 sessionTracing.ts 中使用基于每个 querySource（agent）的哈希跟踪从 messagesForAPI 数组完成
   const extraToolSchemas = [...(options.extraToolSchemas ?? [])]
   if (advisorModel) {
-    // Server tools must be in the tools array by API contract. Appended after
-    // toolSchemas (which carries the cache_control marker) so toggling /advisor
-    // only churns the small suffix, not the cached prefix.
+    // 根据 API 合同，服务端工具必须位于 tools 数组中。附加在 toolSchemas 之后（它携带 cache_control 标记），
+    // 以便切换 /advisor 仅搅动小的后缀，而不是缓存的整个前缀。
     extraToolSchemas.push({
       type: 'advisor_20260301',
       name: 'advisor',
@@ -1448,12 +1408,11 @@ async function* queryModel(
     isFastModeSupportedByModel(options.model) &&
     !!options.fastMode
 
-  // Sticky-on latches for dynamic beta headers. Each header, once first
-  // sent, keeps being sent for the rest of the session so mid-session
-  // toggles don't change the server-side cache key and bust ~50-70K tokens.
-  // Latches are cleared on /clear and /compact via clearBetaHeaderLatches().
-  // Per-call gates (isAgenticQuery, querySource===repl_main_thread) stay
-  // per-call so non-agentic queries keep their own stable header set.
+  // 动态 beta 头的粘性锁定。每个头部一旦首次发送，就会在会话的剩余部分继续发送，
+  // 这样会话中的切换不会改变服务端缓存键并破坏约 50-70K 令牌。
+  // 锁定通过 clearBetaHeaderLatches() 在 /clear 和 /compact 上清除。
+  // 每次调用的门控（isAgenticQuery、querySource===repl_main_thread）保持每次调用，
+  // 以便非代理查询保持自己稳定的头部集。
 
   let afkHeaderLatched = getAfkModeHeaderLatched() === true
   if (feature('TRANSCRIPT_CLASSIFIER')) {
@@ -1487,8 +1446,7 @@ async function* queryModel(
     }
   }
 
-  // Only latch from agentic queries so a classifier call doesn't flip the
-  // main thread's context_management mid-turn.
+  // 仅从代理查询锁定，以便分类器调用不会在回合中间翻转主线程的 context_management。
   let thinkingClearLatched = getThinkingClearLatched() === true
   if (!thinkingClearLatched && isAgenticQuery) {
     const lastCompletion = getLastApiCompletionTimestamp()
@@ -1504,16 +1462,13 @@ async function* queryModel(
   const effort = resolveAppliedEffort(options.model, options.effortValue)
 
   if (feature('PROMPT_CACHE_BREAK_DETECTION')) {
-    // Exclude defer_loading tools from the hash -- the API strips them from the
-    // prompt, so they never affect the actual cache key. Including them creates
-    // false-positive "tool schemas changed" breaks when tools are discovered or
-    // MCP servers reconnect.
+    // 从哈希中排除 defer_loading 工具 — API 会从提示中剥离它们，因此它们永远不会影响实际的缓存键。
+    // 包含它们会在工具被发现或 MCP 服务器重新连接时产生假阳性的“工具 schema 已更改”中断。
     const toolsForCacheDetection = allTools.filter(
       t => !('defer_loading' in t && t.defer_loading),
     )
-    // Capture everything that could affect the server-side cache key.
-    // Pass latched header values (not live state) so break detection
-    // reflects what we actually send, not what the user toggled.
+    // 捕获所有可能影响服务端缓存键的内容。
+    // 传递锁定的头部值（而不是实时状态），以便中断检测反映我们实际发送的内容，而不是用户切换的内容。
     recordPromptState({
       system,
       toolSchemas: toolsForCacheDetection,
@@ -1539,8 +1494,8 @@ async function* queryModel(
       }
     : undefined
 
-  // Capture the span so we can pass it to endLLMRequestSpan later
-  // This ensures responses are matched to the correct request when multiple requests run in parallel
+  // 捕获 span，以便我们稍后可以将其传递给 endLLMRequestSpan
+  // 这确保当多个请求并行运行时，响应与正确的请求匹配
   const llmSpan = startLLMRequestSpan(
     options.model,
     newContext,
@@ -1555,13 +1510,12 @@ async function* queryModel(
   let stream: Stream<BetaRawMessageStreamEvent> | undefined = undefined
   let streamRequestId: string | null | undefined = undefined
   let clientRequestId: string | undefined = undefined
-  // eslint-disable-next-line eslint-plugin-n/no-unsupported-features/node-builtins -- Response is available in Node 18+ and is used by the SDK
+  // eslint-disable-next-line eslint-plugin-n/no-unsupported-features/node-builtins -- Response 在 Node 18+ 中可用，并由 SDK 使用
   let streamResponse: Response | undefined = undefined
 
-  // Release all stream resources to prevent native memory leaks.
-  // The Response object holds native TLS/socket buffers that live outside the
-  // V8 heap (observed on the Node.js/npm path; see GH #32920), so we must
-  // explicitly cancel and release it regardless of how the generator exits.
+  // 释放所有流资源以防止原生内存泄漏。
+  // Response 对象持有原生 TLS/套接字缓冲区，这些缓冲区存在于 V8 堆之外（在 Node.js/npm 路径上观察到；参见 GH #32920），
+  // 因此无论生成器如何退出，我们都必须显式取消并释放它。
   function releaseStreamResources(): void {
     cleanupStream(stream)
     stream = undefined
@@ -1571,20 +1525,18 @@ async function* queryModel(
     }
   }
 
-  // Consume pending cache edits ONCE before paramsFromContext is defined.
-  // paramsFromContext is called multiple times (logging, retries), so consuming
-  // inside it would cause the first call to steal edits from subsequent calls.
+  // 在 paramsFromContext 定义之前消费一次待处理的缓存编辑。
+  // paramsFromContext 被多次调用（日志记录、重试），因此在其中消费会导致第一次调用从后续调用中窃取编辑。
   const consumedCacheEdits = cachedMCEnabled ? consumePendingCacheEdits() : null
   const consumedPinnedEdits = cachedMCEnabled ? getPinnedCacheEdits() : []
 
-  // Capture the betas sent in the last API request, including the ones that
-  // were dynamically added, so we can log and send it to telemetry.
+  // 捕获最后一次 API 请求中发送的 betas，包括动态添加的，以便记录并发送到遥测。
   let lastRequestBetas: string[] | undefined
 
   const paramsFromContext = (retryContext: RetryContext) => {
     const betasParams = [...betas]
 
-    // Append 1M beta dynamically for the Sonnet 1M experiment.
+    // 为 Sonnet 1M 实验动态追加 1M beta。
     if (
       !betasParams.includes(CONTEXT_1M_BETA_HEADER) &&
       getSonnet1mExpTreatmentEnabled(retryContext.model)
@@ -1592,7 +1544,7 @@ async function* queryModel(
       betasParams.push(CONTEXT_1M_BETA_HEADER)
     }
 
-    // For Bedrock, include both model-based betas and dynamically-added tool search header
+    // 对于 Bedrock，包括基于模型的 betas 和动态添加的工具搜索头
     const bedrockBetas =
       getAPIProvider() === 'bedrock'
         ? [
@@ -1620,11 +1572,11 @@ async function* queryModel(
       betasParams,
     )
 
-    // Merge outputFormat into extraBodyParams.output_config alongside effort
-    // Requires structured-outputs beta header per SDK (see parse() in messages.mjs)
+    // 将 outputFormat 合并到 extraBodyParams.output_config 中，与 effort 一起
+    // 需要 structured-outputs beta 头（参见 messages.mjs 中的 parse()）
     if (options.outputFormat && !('format' in outputConfig)) {
       outputConfig.format = options.outputFormat as BetaJSONOutputFormat
-      // Add beta header if not already present and provider supports it
+      // 如果尚未存在且提供者支持，则添加 beta 头
       if (
         modelSupportsStructuredOutputs(options.model) &&
         !betasParams.includes(STRUCTURED_OUTPUTS_BETA_HEADER)
@@ -1633,7 +1585,7 @@ async function* queryModel(
       }
     }
 
-    // Retry context gets preference because it tries to course correct if we exceed the context window limit
+    // 重试上下文优先，因为它试图在超出上下文窗口限制时纠正方向
     const maxOutputTokens =
       retryContext?.maxTokensOverride ||
       options.maxOutputTokensOverride ||
@@ -1644,22 +1596,19 @@ async function* queryModel(
       !isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_THINKING)
     let thinking: BetaMessageStreamParams['thinking'] | undefined = undefined
 
-    // IMPORTANT: Do not change the adaptive-vs-budget thinking selection below
-    // without notifying the model launch DRI and research. This is a sensitive
-    // setting that can greatly affect model quality and bashing.
+    // 重要提示：不要在未通知模型发布负责人和研究部门的情况下更改下面的自适应与预算思考选择。
+    // 这是一个可能极大影响模型质量和性能的敏感设置。
     if (hasThinking && modelSupportsThinking(options.model)) {
       if (
         !isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING) &&
         modelSupportsAdaptiveThinking(options.model)
       ) {
-        // For models that support adaptive thinking, always use adaptive
-        // thinking without a budget.
+        // 对于支持自适应思考的模型，始终使用无预算的自适应思考。
         thinking = {
           type: 'adaptive',
         } satisfies BetaMessageStreamParams['thinking']
       } else {
-        // For models that do not support adaptive thinking, use the default
-        // thinking budget unless explicitly specified.
+        // 对于不支持自适应思考的模型，使用默认的思考预算，除非明确指定。
         let thinkingBudget = getMaxThinkingTokensForModel(options.model)
         if (
           thinkingConfig.type === 'enabled' &&
@@ -1675,7 +1624,7 @@ async function* queryModel(
       }
     }
 
-    // Get API context management strategies if enabled
+    // 如果启用，获取 API 上下文管理策略
     const contextManagement = getAPIContextManagement({
       hasThinking,
       isRedactThinkingActive: betasParams.includes(REDACT_THINKING_BETA_HEADER),
@@ -1685,9 +1634,7 @@ async function* queryModel(
     const enablePromptCaching =
       options.enablePromptCaching ?? getPromptCachingEnabled(retryContext.model)
 
-    // Fast mode: header is latched session-stable (cache-safe), but
-    // `speed='fast'` stays dynamic so cooldown still suppresses the actual
-    // fast-mode request without changing the cache key.
+    // 快速模式：头部是会话稳定的（缓存安全），但 `speed='fast'` 保持动态，以便冷却仍然抑制实际的快速模式请求而不改变缓存键。
     let speed: BetaMessageStreamParams['speed']
     const isFastModeForRetry =
       isFastModeEnabled() &&
@@ -1702,8 +1649,7 @@ async function* queryModel(
       betasParams.push(FAST_MODE_BETA_HEADER)
     }
 
-    // AFK mode beta: latched once auto mode is first activated. Still gated
-    // by isAgenticQuery per-call so classifiers/compaction don't get it.
+    // AFK 模式 beta：一旦自动模式首次激活就锁定。仍然按每次调用由 isAgenticQuery 门控，以便分类器/压缩不会获得它。
     if (feature('TRANSCRIPT_CLASSIFIER')) {
       if (
         afkHeaderLatched &&
@@ -1715,9 +1661,8 @@ async function* queryModel(
       }
     }
 
-    // Cache editing beta: header is latched session-stable; useCachedMC
-    // (controls cache_edits body behavior) stays live so edits stop when
-    // the feature disables but the header doesn't flip.
+    // 缓存编辑 beta：头部是会话稳定的；useCachedMC（控制 cache_edits 主体行为）保持动态，
+    // 以便当功能禁用时编辑停止，但头部不会翻转。
     const useCachedMC =
       cachedMCEnabled &&
       getAPIProvider() === 'firstParty' &&
@@ -1730,12 +1675,11 @@ async function* queryModel(
     ) {
       betasParams.push(cacheEditingBetaHeader)
       logForDebugging(
-        'Cache editing beta header enabled for cached microcompact',
+        '为缓存的 microcompact 启用了缓存编辑 beta 头',
       )
     }
 
-    // Only send temperature when thinking is disabled — the API requires
-    // temperature: 1 when thinking is enabled, which is already the default.
+    // 仅在禁用思考时发送温度 — API 要求在启用思考时 temperature: 1，这已经是默认值。
     const temperature = !hasThinking
       ? (options.temperatureOverride ?? 1)
       : undefined
@@ -1774,10 +1718,8 @@ async function* queryModel(
     }
   }
 
-  // Compute log scalars synchronously so the fire-and-forget .then() closure
-  // captures only primitives instead of paramsFromContext's full closure scope
-  // (messagesForAPI, system, allTools, betas — the entire request-building
-  // context), which would otherwise be pinned until the promise resolves.
+  // 同步计算日志标量，以便即发即忘的 .then() 闭包仅捕获原始值，而不是 paramsFromContext 的完整闭包作用域
+  // （messagesForAPI、system、allTools、betas — 整个请求构建上下文），否则这些将一直保留到 promise 解析。
   {
     const queryParams = paramsFromContext({
       model: options.model,
@@ -1816,7 +1758,7 @@ async function* queryModel(
   let maxOutputTokens = 0
   let responseHeaders: globalThis.Headers | undefined = undefined
   let research: unknown = undefined
-  let isFastModeRequest = isFastMode // Keep separate state as it may change if falling back
+  let isFastModeRequest = isFastMode // 保持单独的状态，因为如果回退，它可能会改变
   let isAdvisorInProgress = false
 
   try {
@@ -1824,7 +1766,7 @@ async function* queryModel(
     const generator = withRetry(
       () =>
         getAnthropicClient({
-          maxRetries: 0, // Disabled auto-retry in favor of manual implementation
+          maxRetries: 0, // 禁用自动重试，改为手动实现
           model: options.model,
           fetchOverride: options.fetchOverride,
           source: options.querySource,
@@ -1834,37 +1776,34 @@ async function* queryModel(
         isFastModeRequest = context.fastMode ?? false
         start = Date.now()
         attemptStartTimes.push(start)
-        // Client has been created by withRetry's getClient() call. This fires
-        // once per attempt; on retries the client is usually cached (withRetry
-        // only calls getClient() again after auth errors), so the delta from
-        // client_creation_start is meaningful on attempt 1.
+        // 客户端已由 withRetry 的 getClient() 调用创建。每次尝试触发一次；
+        // 在重试时，客户端通常被缓存（withRetry 仅在认证错误后再次调用 getClient()），
+        // 因此从 client_creation_start 开始的增量在第一次尝试时是有意义的。
         queryCheckpoint('query_client_creation_end')
 
         const params = paramsFromContext(context)
-        captureAPIRequest(params, options.querySource) // Capture for bug reports
+        captureAPIRequest(params, options.querySource) // 为 bug 报告捕获
 
         maxOutputTokens = params.max_tokens
 
-        // Fire immediately before the fetch is dispatched. .withResponse() below
-        // awaits until response headers arrive, so this MUST be before the await
-        // or the "Network TTFB" phase measurement is wrong.
+        // 在 fetch 分派之前立即触发。下面的 .withResponse() 等待直到响应头到达，
+        // 因此这必须在 await 之前，否则“网络 TTFB”阶段的测量将是错误的。
         queryCheckpoint('query_api_request_sent')
         if (!options.agentId) {
           headlessProfilerCheckpoint('api_request_sent')
         }
 
-        // Generate and track client request ID so timeouts (which return no
-        // server request ID) can still be correlated with server logs.
-        // First-party only — 3P providers don't log it (inc-4029 class).
+        // 生成并跟踪客户端请求 ID，以便超时（不返回服务端请求 ID）仍然可以与服务端日志关联。
+        // 仅第一方 — 第三方提供者不记录它（inc-4029 类）。
         clientRequestId =
           getAPIProvider() === 'firstParty' && isFirstPartyAnthropicBaseUrl()
             ? randomUUID()
             : undefined
 
-        // Use raw stream instead of BetaMessageStream to avoid O(n²) partial JSON parsing
-        // BetaMessageStream calls partialParse() on every input_json_delta, which we don't need
-        // since we handle tool input accumulation ourselves
-        // biome-ignore lint/plugin: main conversation loop handles attribution separately
+        // 使用原始流而不是 BetaMessageStream，以避免 O(n²) 的部分 JSON 解析
+        // BetaMessageStream 在每个 input_json_delta 上调用 partialParse()，我们不需要，
+        // 因为我们自己处理工具输入累积
+        // biome-ignore lint/plugin: 主对话循环单独处理归属
         const result = await anthropic.beta.messages
           .create(
             { ...params, stream: true },
@@ -1895,14 +1834,14 @@ async function* queryModel(
     do {
       e = await generator.next()
 
-      // yield API error messages (the stream has a 'controller' property, error messages don't)
+      // 产生 API 错误消息（流具有 'controller' 属性，错误消息没有）
       if (!('controller' in e.value)) {
         yield e.value
       }
     } while (!e.done)
     stream = e.value as Stream<BetaRawMessageStreamEvent>
 
-    // reset state
+    // 重置状态
     newMessages.length = 0
     ttftMs = 0
     partialMessage = undefined
@@ -1911,12 +1850,9 @@ async function* queryModel(
     stopReason = null
     isAdvisorInProgress = false
 
-    // Streaming idle timeout watchdog: abort the stream if no chunks arrive
-    // for STREAM_IDLE_TIMEOUT_MS. Unlike the stall detection below (which only
-    // fires when the *next* chunk arrives), this uses setTimeout to actively
-    // kill hung streams. Without this, a silently dropped connection can hang
-    // the session indefinitely since the SDK's request timeout only covers the
-    // initial fetch(), not the streaming body.
+    // 流式空闲超时看门狗：如果在 STREAM_IDLE_TIMEOUT_MS 内没有收到数据块，则中止流。
+    // 与下面的卡顿检测不同（它仅在*下一个*数据块到达时触发），这使用 setTimeout 主动终止挂起的流。
+    // 没有这个，静默断开的连接可能会无限期挂起会话，因为 SDK 的请求超时仅覆盖初始 fetch()，而不覆盖流式主体。
     const streamWatchdogEnabled = isEnvTruthy(
       process.env.CLAUDE_ENABLE_STREAM_WATCHDOG,
     )
@@ -1924,7 +1860,7 @@ async function* queryModel(
       parseInt(process.env.CLAUDE_STREAM_IDLE_TIMEOUT_MS || '', 10) || 90_000
     const STREAM_IDLE_WARNING_MS = STREAM_IDLE_TIMEOUT_MS / 2
     let streamIdleAborted = false
-    // performance.now() snapshot when watchdog fires, for measuring abort propagation delay
+    // performance.now() 快照，用于测量中止传播延迟
     let streamWatchdogFiredAt: number | null = null
     let streamIdleWarningTimer: ReturnType<typeof setTimeout> | null = null
     let streamIdleTimer: ReturnType<typeof setTimeout> | null = null
@@ -1946,7 +1882,7 @@ async function* queryModel(
       streamIdleWarningTimer = setTimeout(
         warnMs => {
           logForDebugging(
-            `Streaming idle warning: no chunks received for ${warnMs / 1000}s`,
+            `流式空闲警告：${warnMs / 1000}s 内未收到数据块`,
             { level: 'warn' },
           )
           logForDiagnosticsNoPII('warn', 'cli_streaming_idle_warning')
@@ -1958,7 +1894,7 @@ async function* queryModel(
         streamIdleAborted = true
         streamWatchdogFiredAt = performance.now()
         logForDebugging(
-          `Streaming idle timeout: no chunks received for ${STREAM_IDLE_TIMEOUT_MS / 1000}s, aborting stream`,
+          `流式空闲超时：${STREAM_IDLE_TIMEOUT_MS / 1000}s 内未收到数据块，正在中止流`,
           { level: 'error' },
         )
         logForDiagnosticsNoPII('error', 'cli_streaming_idle_timeout')
@@ -1976,10 +1912,10 @@ async function* queryModel(
 
     startSessionActivity('api_call')
     try {
-      // stream in and accumulate state
+      // 流式传输并累积状态
       let isFirstChunk = true
-      let lastEventTime: number | null = null // Set after first chunk to avoid measuring TTFB as a stall
-      const STALL_THRESHOLD_MS = 30_000 // 30 seconds
+      let lastEventTime: number | null = null // 在第一个数据块后设置，以避免将 TTFB 计为卡顿
+      const STALL_THRESHOLD_MS = 30_000 // 30 秒
       let totalStallTime = 0
       let stallCount = 0
 
@@ -1987,14 +1923,14 @@ async function* queryModel(
         resetStreamIdleTimer()
         const now = Date.now()
 
-        // Detect and log streaming stalls (only after first event to avoid counting TTFB)
+        // 检测并记录流式卡顿（仅在第一个事件之后，以避免计算 TTFB）
         if (lastEventTime !== null) {
           const timeSinceLastEvent = now - lastEventTime
           if (timeSinceLastEvent > STALL_THRESHOLD_MS) {
             stallCount++
             totalStallTime += timeSinceLastEvent
             logForDebugging(
-              `Streaming stall detected: ${(timeSinceLastEvent / 1000).toFixed(1)}s gap between events (stall #${stallCount})`,
+              `检测到流式卡顿：事件之间间隔 ${(timeSinceLastEvent / 1000).toFixed(1)}s（卡顿 #${stallCount}）`,
               { level: 'warn' },
             )
             logEvent('tengu_streaming_stall', {
@@ -2013,7 +1949,7 @@ async function* queryModel(
         lastEventTime = now
 
         if (isFirstChunk) {
-          logForDebugging('Stream started - received first chunk')
+          logForDebugging('流已启动 - 收到第一个数据块')
           queryCheckpoint('query_first_chunk_received')
           if (!options.agentId) {
             headlessProfilerCheckpoint('first_chunk')
@@ -2027,8 +1963,8 @@ async function* queryModel(
             partialMessage = part.message
             ttftMs = Date.now() - start
             usage = updateUsage(usage, part.message?.usage)
-            // Capture research from message_start if available (internal only).
-            // Always overwrite with the latest value.
+            // 如果可用，从 message_start 捕获研究（仅限内部）。
+            // 始终用最新值覆盖。
             if (
               process.env.USER_TYPE === 'ant' &&
               'research' in (part.message as unknown as Record<string, unknown>)
@@ -2053,7 +1989,7 @@ async function* queryModel(
                 }
                 if ((part.content_block.name as string) === 'advisor') {
                   isAdvisorInProgress = true
-                  logForDebugging(`[AdvisorTool] Advisor tool called`)
+                  logForDebugging(`[AdvisorTool] 调用了 Advisor 工具`)
                   logEvent('tengu_advisor_tool_call', {
                     model:
                       options.model as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
@@ -2065,33 +2001,30 @@ async function* queryModel(
               case 'text':
                 contentBlocks[part.index] = {
                   ...part.content_block,
-                  // awkwardly, the sdk sometimes returns text as part of a
-                  // content_block_start message, then returns the same text
-                  // again in a content_block_delta message. we ignore it here
-                  // since there doesn't seem to be a way to detect when a
-                  // content_block_delta message duplicates the text.
+                  // 尴尬的是，SDK 有时会在 content_block_start 消息中返回文本，
+                  // 然后在 content_block_delta 消息中再次返回相同的文本。我们在这里忽略它，
+                  // 因为似乎无法检测 content_block_delta 消息何时复制了文本。
                   text: '',
                 }
                 break
               case 'thinking':
                 contentBlocks[part.index] = {
                   ...part.content_block,
-                  // also awkward
+                  // 同样尴尬
                   thinking: '',
-                  // initialize signature to ensure field exists even if signature_delta never arrives
+                  // 初始化签名以确保字段存在，即使 signature_delta 从未到达
                   signature: '',
                 }
                 break
               default:
-                // even more awkwardly, the sdk mutates the contents of text blocks
-                // as it works. we want the blocks to be immutable, so that we can
-                // accumulate state ourselves.
+                // 更尴尬的是，SDK 在处理文本块时会改变其内容。
+                // 我们希望块是不可变的，以便我们自己累积状态。
                 contentBlocks[part.index] = { ...part.content_block }
                 if (
                   (part.content_block.type as string) === 'advisor_tool_result'
                 ) {
                   isAdvisorInProgress = false
-                  logForDebugging(`[AdvisorTool] Advisor tool result received`)
+                  logForDebugging(`[AdvisorTool] 收到 Advisor 工具结果`)
                 }
                 break
             }
@@ -2107,7 +2040,7 @@ async function* queryModel(
                   part.type as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
                 part_index: part.index,
               })
-              throw new RangeError('Content block not found')
+              throw new RangeError('未找到内容块')
             }
             if (
               feature('CONNECTOR_TEXT') &&
@@ -2122,13 +2055,13 @@ async function* queryModel(
                   actual_type:
                     contentBlock.type as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
                 })
-                throw new Error('Content block is not a connector_text block')
+                throw new Error('内容块不是 connector_text 块')
               }
               ;(contentBlock as { connector_text: string }).connector_text += delta.connector_text
             } else {
               switch (delta.type) {
                 case 'citations_delta':
-                  // TODO: handle citations
+                  // TODO: 处理引用
                   break
                 case 'input_json_delta':
                   if (
@@ -2143,7 +2076,7 @@ async function* queryModel(
                       actual_type:
                         contentBlock.type as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
                     })
-                    throw new Error('Content block is not a input_json block')
+                    throw new Error('内容块不是 input_json 块')
                   }
                   if (typeof contentBlock.input !== 'string') {
                     logEvent('tengu_streaming_error', {
@@ -2152,7 +2085,7 @@ async function* queryModel(
                       input_type:
                         typeof contentBlock.input as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
                     })
-                    throw new Error('Content block input is not a string')
+                    throw new Error('内容块输入不是字符串')
                   }
                   contentBlock.input += delta.partial_json
                   break
@@ -2166,7 +2099,7 @@ async function* queryModel(
                       actual_type:
                         contentBlock.type as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
                     })
-                    throw new Error('Content block is not a text block')
+                    throw new Error('内容块不是文本块')
                   }
                   ;(contentBlock as { text: string }).text += delta.text
                   break
@@ -2187,7 +2120,7 @@ async function* queryModel(
                       actual_type:
                         contentBlock.type as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
                     })
-                    throw new Error('Content block is not a thinking block')
+                    throw new Error('内容块不是 thinking 块')
                   }
                   contentBlock.signature = delta.signature
                   break
@@ -2201,14 +2134,14 @@ async function* queryModel(
                       actual_type:
                         contentBlock.type as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
                     })
-                    throw new Error('Content block is not a thinking block')
+                    throw new Error('内容块不是 thinking 块')
                   }
                   ;(contentBlock as { thinking: string }).thinking += delta.thinking
                   break
               }
             }
-            // Capture research from content_block_delta if available (internal only).
-            // Always overwrite with the latest value.
+            // 如果可用，从 content_block_delta 捕获研究（仅限内部）。
+            // 始终用最新值覆盖。
             if (process.env.USER_TYPE === 'ant' && 'research' in part) {
               research = (part as { research: unknown }).research
             }
@@ -2224,7 +2157,7 @@ async function* queryModel(
                   part.type as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
                 part_index: part.index,
               })
-              throw new RangeError('Content block not found')
+              throw new RangeError('未找到内容块')
             }
             if (!partialMessage) {
               logEvent('tengu_streaming_error', {
@@ -2233,7 +2166,7 @@ async function* queryModel(
                 part_type:
                   part.type as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
               })
-              throw new Error('Message not found')
+              throw new Error('未找到消息')
             }
             const m: AssistantMessage = {
               message: {
@@ -2258,10 +2191,8 @@ async function* queryModel(
           }
           case 'message_delta': {
             usage = updateUsage(usage, part.usage)
-            // Capture research from message_delta if available (internal only).
-            // Always overwrite with the latest value. Also write back to
-            // already-yielded messages since message_delta arrives after
-            // content_block_stop.
+            // 如果可用，从 message_delta 捕获研究（仅限内部）。
+            // 始终用最新值覆盖。也写回已经产生的消息，因为 message_delta 在 content_block_stop 之后到达。
             if (
               process.env.USER_TYPE === 'ant' &&
               'research' in (part as unknown as Record<string, unknown>)
@@ -2272,19 +2203,14 @@ async function* queryModel(
               }
             }
 
-            // Write final usage and stop_reason back to the last yielded
-            // message. Messages are created at content_block_stop from
-            // partialMessage, which was set at message_start before any tokens
-            // were generated (output_tokens: 0, stop_reason: null).
-            // message_delta arrives after content_block_stop with the real
-            // values.
+            // 将最终使用量和 stop_reason 写回最后产生的消息。
+            // 消息在 content_block_stop 时从 partialMessage 创建，而 partialMessage 是在 message_start 时设置的，
+            // 此时尚未生成任何令牌（output_tokens: 0, stop_reason: null）。
+            // message_delta 在 content_block_stop 之后到达，并携带了实际值。
             //
-            // IMPORTANT: Use direct property mutation, not object replacement.
-            // The transcript write queue holds a reference to message.message
-            // and serializes it lazily (100ms flush interval). Object
-            // replacement ({ ...lastMsg.message, usage }) would disconnect
-            // the queued reference; direct mutation ensures the transcript
-            // captures the final values.
+            // 重要提示：使用直接属性突变，而不是对象替换。
+            // 记录写入队列持有对 message.message 的引用，并延迟序列化（刷新间隔为 100ms）。
+            // 对象替换（{ ...lastMsg.message, usage }）会断开队列中的引用；直接修改可确保记录捕获最终值。
             stopReason = part.delta.stop_reason
 
             const lastMsg = newMessages.at(-1)
@@ -2293,7 +2219,7 @@ async function* queryModel(
               lastMsg.message.stop_reason = stopReason
             }
 
-            // Update cost
+            // 更新成本
             const costUSDForPart = calculateUSDCost(resolvedModel, usage as unknown as BetaUsage)
             costUSD += addToTotalSessionCost(
               costUSDForPart,
@@ -2314,9 +2240,7 @@ async function* queryModel(
                 max_tokens: maxOutputTokens,
               })
               yield createAssistantAPIErrorMessage({
-                content: `${API_ERROR_MESSAGE_PREFIX}: Claude's response exceeded the ${
-                  maxOutputTokens
-                } output token maximum. To configure this behavior, set the CLAUDE_CODE_MAX_OUTPUT_TOKENS environment variable.`,
+                content: `${API_ERROR_MESSAGE_PREFIX}: Claude 的响应超过了 ${maxOutputTokens} 个输出令牌的最大限制。要配置此行为，请设置 CLAUDE_CODE_MAX_OUTPUT_TOKENS 环境变量。`,
                 apiError: 'max_output_tokens',
                 error: 'max_output_tokens',
               })
@@ -2327,11 +2251,9 @@ async function* queryModel(
                 max_tokens: maxOutputTokens,
                 output_tokens: usage.output_tokens,
               })
-              // Reuse the max_output_tokens recovery path — from the model's
-              // perspective, both mean "response was cut off, continue from
-              // where you left off."
+              // 复用 max_output_tokens 恢复路径 — 从模型的角度看，两者都意味着“响应被截断，从中断处继续”。
               yield createAssistantAPIErrorMessage({
-                content: `${API_ERROR_MESSAGE_PREFIX}: The model has reached its context window limit.`,
+                content: `${API_ERROR_MESSAGE_PREFIX}: 模型已达到其上下文窗口限制。`,
                 apiError: 'max_output_tokens',
                 error: 'max_output_tokens',
               })
@@ -2348,15 +2270,13 @@ async function* queryModel(
           ...(part.type === 'message_start' ? { ttftMs } : undefined),
         }
       }
-      // Clear the idle timeout watchdog now that the stream loop has exited
+      // 现在流循环已退出，清除空闲超时看门狗
       clearStreamIdleTimers()
 
-      // If the stream was aborted by our idle timeout watchdog, fall back to
-      // non-streaming retry rather than treating it as a completed stream.
+      // 如果流被我们的空闲超时看门狗中止，则回退到非流式重试，而不是将其视为完成的流。
       if (streamIdleAborted) {
-        // Instrumentation: proves the for-await exited after the watchdog fired
-        // (vs. hung forever). exit_delay_ms measures abort propagation latency:
-        // 0-10ms = abort worked; >>1000ms = something else woke the loop.
+        // 检测：证明 for-await 循环在看门狗触发后退出（而非永久挂起）。exit_delay_ms 测量中止传播延迟：
+        // 0-10ms = 中止有效；>>1000ms = 有其他因素唤醒了循环。
         const exitDelayMs =
           streamWatchdogFiredAt !== null
             ? Math.round(performance.now() - streamWatchdogFiredAt)
@@ -2374,30 +2294,24 @@ async function* queryModel(
           model:
             options.model as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
         })
-        // Prevent double-emit: this throw lands in the catch block below,
-        // whose exit_path='error' probe guards on streamWatchdogFiredAt.
+        // 防止双重触发：此处的抛出现在会落入下面的 catch 块，其 exit_path='error' 探针以 streamWatchdogFiredAt 为条件。
         streamWatchdogFiredAt = null
-        throw new Error('Stream idle timeout - no chunks received')
+        throw new Error('流空闲超时 - 未收到数据块')
       }
 
-      // Detect when the stream completed without producing any assistant messages.
-      // This covers two proxy failure modes:
-      // 1. No events at all (!partialMessage): proxy returned 200 with non-SSE body
-      // 2. Partial events (partialMessage set but no content blocks completed AND
-      //    no stop_reason received): proxy returned message_start but stream ended
-      //    before content_block_stop and before message_delta with stop_reason
-      // BetaMessageStream had the first check in _endRequest() but the raw Stream
-      // does not - without it the generator silently returns no assistant messages,
-      // causing "Execution error" in -p mode.
-      // Note: We must check stopReason to avoid false positives. For example, with
-      // structured output (--json-schema), the model calls a StructuredOutput tool
-      // on turn 1, then on turn 2 responds with end_turn and no content blocks.
-      // That's a legitimate empty response, not an incomplete stream.
+      // 检测流何时完成但没有产生任何助手消息。
+      // 这涵盖了两种代理故障模式：
+      // 1. 无事件（!partialMessage）：代理返回 200 但响应体不是 SSE
+      // 2. 部分事件（设置了 partialMessage 但内容块未完成且未收到 stop_reason）：代理返回了 message_start，但流在 content_block_stop 和携带 stop_reason 的 message_delta 之前结束
+      // BetaMessageStream 在 _endRequest() 中有首次检查，但原始流没有 — 若无此检查，生成器会静默返回而无助手消息，
+      // 导致在 -p 模式下出现“执行错误”。
+      // 注意：我们必须检查 stopReason 以避免误报。例如，使用结构化输出（--json-schema）时，模型在第 1 轮调用 StructuredOutput 工具，
+      // 然后在第 2 轮以 end_turn 响应且无内容块。这是合法的空响应，而非不完整的流。
       if (!partialMessage || (newMessages.length === 0 && !stopReason)) {
         logForDebugging(
           !partialMessage
-            ? 'Stream completed without receiving message_start event - triggering non-streaming fallback'
-            : 'Stream completed with message_start but no content blocks completed - triggering non-streaming fallback',
+            ? '流已完成但未收到 message_start 事件 - 触发非流式回退'
+            : '流已完成但收到 message_start 且没有完成任何内容块 - 触发非流式回退',
           { level: 'error' },
         )
         logEvent('tengu_stream_no_events', {
@@ -2406,13 +2320,13 @@ async function* queryModel(
           request_id: (streamRequestId ??
             'unknown') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
         })
-        throw new Error('Stream ended without receiving any events')
+        throw new Error('流在未收到任何事件的情况下结束')
       }
 
-      // Log summary if any stalls occurred during streaming
+      // 如果流式传输期间发生任何卡顿，记录摘要
       if (stallCount > 0) {
         logForDebugging(
-          `Streaming completed with ${stallCount} stall(s), total stall time: ${(totalStallTime / 1000).toFixed(1)}s`,
+          `流式传输完成，发生 ${stallCount} 次卡顿，总卡顿时长：${(totalStallTime / 1000).toFixed(1)}s`,
           { level: 'warn' },
         )
         logEvent('tengu_streaming_stall_summary', {
@@ -2425,7 +2339,7 @@ async function* queryModel(
         })
       }
 
-      // Check if the cache actually broke based on response tokens
+      // 基于响应令牌检查缓存是否实际中断
       if (feature('PROMPT_CACHE_BREAK_DETECTION')) {
         void checkResponseForCacheBreak(
           options.querySource,
@@ -2437,23 +2351,22 @@ async function* queryModel(
         )
       }
 
-      // Process fallback percentage header and quota status if available
-      // streamResponse is set when the stream is created in the withRetry callback above
-      // TypeScript's control flow analysis can't track that streamResponse is set in the callback
+      // 如果可用，处理回退百分比标头和配额状态
+      // streamResponse 在 withRetry 回调中创建流时设置
+      // TypeScript 的控制流分析无法跟踪 streamResponse 是在回调中设置的
       // eslint-disable-next-line eslint-plugin-n/no-unsupported-features/node-builtins
       const resp = streamResponse as unknown as Response | undefined
       if (resp) {
         extractQuotaStatusFromHeaders(resp.headers)
-        // Store headers for gateway detection
+        // 存储标头以用于网关检测
         responseHeaders = resp.headers
       }
     } catch (streamingError) {
-      // Clear the idle timeout watchdog on error path too
+      // 在错误路径上也清除空闲超时看门狗
       clearStreamIdleTimers()
 
-      // Instrumentation: if the watchdog had already fired and the for-await
-      // threw (rather than exiting cleanly), record that the loop DID exit and
-      // how long after the watchdog. Distinguishes true hangs from error exits.
+      // 检测：如果看门狗已触发且 for-await 抛出错误（而非正常退出），则记录循环确实已退出以及在看门狗触发后多久退出。
+      // 区分真正的挂起和错误退出。
       if (streamIdleAborted && streamWatchdogFiredAt !== null) {
         const exitDelayMs = Math.round(
           performance.now() - streamWatchdogFiredAt,
@@ -2478,13 +2391,13 @@ async function* queryModel(
       }
 
       if (streamingError instanceof APIUserAbortError) {
-        // Check if the abort signal was triggered by the user (ESC key)
-        // If the signal is aborted, it's a user-initiated abort
-        // If not, it's likely a timeout from the SDK
+        // 检查中止信号是否由用户触发（ESC 键）
+        // 如果信号已中止，则是用户发起的中止
+        // 如果不是，则很可能是 SDK 的超时
         if (signal.aborted) {
-          // This is a real user abort (ESC key was pressed)
+          // 这是真实的用户中止（按下了 ESC 键）
           logForDebugging(
-            `Streaming aborted by user: ${errorMessage(streamingError)}`,
+            `用户中止流式传输：${errorMessage(streamingError)}`,
           )
           if (isAdvisorInProgress) {
             logEvent('tengu_advisor_tool_interrupted', {
@@ -2496,22 +2409,20 @@ async function* queryModel(
           }
           throw streamingError
         } else {
-          // The SDK threw APIUserAbortError but our signal wasn't aborted
-          // This means it's a timeout from the SDK's internal timeout
+          // SDK 抛出了 APIUserAbortError，但我们的信号未中止
+          // 这意味着是 SDK 内部超时
           logForDebugging(
-            `Streaming timeout (SDK abort): ${streamingError.message}`,
+            `流式超时（SDK 中止）：${streamingError.message}`,
             { level: 'error' },
           )
-          // Throw a more specific error for timeout
-          throw new APIConnectionTimeoutError({ message: 'Request timed out' })
+          // 为超时抛出更具体的错误
+          throw new APIConnectionTimeoutError({ message: '请求超时' })
         }
       }
 
-      // When the flag is enabled, skip the non-streaming fallback and let the
-      // error propagate to withRetry. The mid-stream fallback causes double tool
-      // execution when streaming tool execution is active: the partial stream
-      // starts a tool, then the non-streaming retry produces the same tool_use
-      // and runs it again. See inc-4258.
+      // 当标志启用时，跳过非流式回退，让错误传播到 withRetry。
+      // 当流式工具执行处于活动状态时，流中回退会导致双重工具执行：部分流启动一个工具，
+      // 然后非流式重试产生相同的 tool_use 并再次运行它。参见 inc-4258。
       const disableFallback =
         isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_NONSTREAMING_FALLBACK) ||
         getFeatureValue_CACHED_MAY_BE_STALE(
@@ -2521,7 +2432,7 @@ async function* queryModel(
 
       if (disableFallback) {
         logForDebugging(
-          `Error streaming (non-streaming fallback disabled): ${errorMessage(streamingError)}`,
+          `流式传输错误（非流式回退已禁用）：${errorMessage(streamingError)}`,
           { level: 'error' },
         )
         logEvent('tengu_streaming_fallback_to_non_streaming', {
@@ -2548,7 +2459,7 @@ async function* queryModel(
       }
 
       logForDebugging(
-        `Error streaming, falling back to non-streaming mode: ${errorMessage(streamingError)}`,
+        `流式传输错误，回退到非流式模式：${errorMessage(streamingError)}`,
         { level: 'error' },
       )
       didFallBackToNonStreaming = true
@@ -2577,13 +2488,11 @@ async function* queryModel(
           : 'other') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       })
 
-      // Fall back to non-streaming mode with retries.
-      // If the streaming failure was itself a 529, count it toward the
-      // consecutive-529 budget so total 529s-before-model-fallback is the
-      // same whether the overload was hit in streaming or non-streaming mode.
-      // This is a speculative fix for https://github.com/anthropics/claude-code/issues/1513
-      // Instrumentation: proves executeNonStreamingRequest was entered (vs. the
-      // fallback event firing but the call itself hanging at dispatch).
+      // 使用重试回退到非流式模式。
+      // 如果流式故障本身是 529，则将其计入连续 529 预算，以便在流式或非流式模式下遇到超载时，
+      // 模型回退前的总 529 次数相同。
+      // 这是针对 https://github.com/anthropics/claude-code/issues/1513 的推测性修复
+      // 检测：证明 executeNonStreamingRequest 已进入（相对于回退事件已触发但调用本身在调度时挂起）。
       logForDiagnosticsNoPII('info', 'cli_nonstreaming_fallback_started')
       logEvent('tengu_nonstreaming_fallback_started', {
         request_id: (streamRequestId ??
@@ -2642,19 +2551,16 @@ async function* queryModel(
       clearStreamIdleTimers()
     }
   } catch (errorFromRetry) {
-    // FallbackTriggeredError must propagate to query.ts, which performs the
-    // actual model switch. Swallowing it here would turn the fallback into a
-    // no-op — the user would just see "Model fallback triggered: X -> Y" as
-    // an error message with no actual retry on the fallback model.
+    // FallbackTriggeredError 必须传播到 query.ts，后者执行实际的模型切换。
+    // 在此处吞掉它会将回退变成空操作 — 用户只会看到“模型回退已触发：X -> Y”作为错误消息。
+    // 而实际上并没有在回退模型上重试。
     if (errorFromRetry instanceof FallbackTriggeredError) {
       throw errorFromRetry
     }
 
-    // Check if this is a 404 error during stream creation that should trigger
-    // non-streaming fallback. This handles gateways that return 404 for streaming
-    // endpoints but work fine with non-streaming. Before v2.1.8, BetaMessageStream
-    // threw 404s during iteration (caught by inner catch with fallback), but now
-    // with raw streams, 404s are thrown during creation (caught here).
+    // 检查这是否是流创建期间的 404 错误，应触发非流式回退。
+    // 这处理了流式端点返回 404 但非流式工作正常的网关。在 v2.1.8 之前，BetaMessageStream
+    // 在迭代期间抛出 404（被内部 catch 捕获并回退），但现在使用原始流，404 在创建期间抛出（在此处捕获）。
     const is404StreamCreationError =
       !didFallBackToNonStreaming &&
       errorFromRetry instanceof CannotRetryError &&
@@ -2662,13 +2568,12 @@ async function* queryModel(
       errorFromRetry.originalError.status === 404
 
     if (is404StreamCreationError) {
-      // 404 is thrown at .withResponse() before streamRequestId is assigned,
-      // and CannotRetryError means every retry failed — so grab the failed
-      // request's ID from the error header instead.
+      // 404 在 .withResponse() 时抛出，此时 streamRequestId 尚未分配，
+      // 而 CannotRetryError 意味着每次重试都失败 — 因此改为从错误头中获取失败的 request ID。
       const failedRequestId =
         (errorFromRetry.originalError as APIError).requestID ?? 'unknown'
       logForDebugging(
-        'Streaming endpoint returned 404, falling back to non-streaming mode',
+        '流式端点返回 404，回退到非流式模式',
         { level: 'warn' },
       )
       didFallBackToNonStreaming = true
@@ -2692,7 +2597,7 @@ async function* queryModel(
       })
 
       try {
-        // Fall back to non-streaming mode
+        // 回退到非流式模式
         const result = yield* executeNonStreamingRequest(
           { model: options.model, source: options.querySource },
           {
@@ -2732,16 +2637,16 @@ async function* queryModel(
         fallbackMessage = m
         yield m
 
-        // Continue to success logging below
+        // 继续到下面的成功日志记录
       } catch (fallbackError) {
-        // Propagate model-fallback signal to query.ts (see comment above).
+        // 将模型回退信号传播到 query.ts（参见上面的注释）。
         if (fallbackError instanceof FallbackTriggeredError) {
           throw fallbackError
         }
 
-        // Fallback also failed, handle as normal error
+        // 回退也失败了，作为正常错误处理
         logForDebugging(
-          `Non-streaming fallback also failed: ${errorMessage(fallbackError)}`,
+          `非流式回退也失败：${errorMessage(fallbackError)}`,
           { level: 'error' },
         )
 
@@ -2794,8 +2699,8 @@ async function* queryModel(
         return
       }
     } else {
-      // Original error handling for non-404 errors
-      logForDebugging(`Error in API request: ${errorMessage(errorFromRetry)}`, {
+      // 对于非 404 错误的原始错误处理
+      logForDebugging(`API 请求中的错误：${errorMessage(errorFromRetry)}`, {
         level: 'error',
       })
 
@@ -2806,12 +2711,12 @@ async function* queryModel(
         errorModel = errorFromRetry.retryContext.model
       }
 
-      // Extract quota status from error headers if it's a rate limit error
+      // 如果是速率限制错误，从错误头中提取配额状态
       if (error instanceof APIError) {
         extractQuotaStatusFromError(error)
       }
 
-      // Extract requestId from stream, error header, or error body
+      // 从流、错误头或错误体中提取 requestId
       const requestId =
         streamRequestId ||
         (error instanceof APIError ? error.requestID : undefined) ||
@@ -2837,8 +2742,8 @@ async function* queryModel(
         previousRequestId,
       })
 
-      // Don't yield an assistant error message for user aborts
-      // The interruption message is handled in query.ts
+      // 对于用户中止，不产生助手错误消息
+      // 中断消息在 query.ts 中处理
       if (error instanceof APIUserAbortError) {
         releaseStreamResources()
         return
@@ -2853,16 +2758,13 @@ async function* queryModel(
     }
   } finally {
     stopSessionActivity('api_call')
-    // Must be in the finally block: if the generator is terminated early
-    // via .return() (e.g. consumer breaks out of for-await-of, or query.ts
-    // encounters an abort), code after the try/finally never executes.
-    // Without this, the Response object's native TLS/socket buffers leak
-    // until the generator itself is GC'd (see GH #32920).
+    // 必须在 finally 块中：如果生成器通过 .return() 提前终止（例如消费者跳出 for-await-of，或 query.ts 遇到中止），
+    // try/finally 之后的代码永远不会执行。没有这个，Response 对象的原生 TLS/套接字缓冲区会泄漏，
+    // 直到生成器本身被 GC（参见 GH #32920）。
     releaseStreamResources()
 
-    // Non-streaming fallback cost: the streaming path tracks cost in the
-    // message_delta handler before any yield. Fallback pushes to newMessages
-    // then yields, so tracking must be here to survive .return() at the yield.
+    // 非流式回退成本：流式路径在产生之前在 message_delta 处理程序中跟踪成本。
+    // 回退推送到 newMessages 然后产生，因此跟踪必须在此处进行，以便在产生时 .return() 存活。
     if (fallbackMessage) {
       const fallbackUsage = fallbackMessage.message.usage as BetaMessageDeltaUsage
       usage = updateUsage(EMPTY_USAGE, fallbackUsage)
@@ -2876,16 +2778,14 @@ async function* queryModel(
     }
   }
 
-  // Mark all registered tools as sent to API so they become eligible for deletion
+  // 将所有已注册的工具标记为已发送到 API，以便它们有资格被删除
   if (feature('CACHED_MICROCOMPACT') && cachedMCEnabled) {
     markToolsSentToAPIState()
   }
 
-  // Track the last requestId for the main conversation chain so shutdown
-  // can send a cache eviction hint to inference. Exclude backgrounded
-  // sessions (Ctrl+B) which share the repl_main_thread querySource but
-  // run inside an agent context — they are independent conversation chains
-  // whose cache should not be evicted when the foreground session clears.
+  // 跟踪主对话链的最后 requestId，以便关闭时可以向下游发送缓存逐出提示。
+  // 排除后台会话（Ctrl+B），它们共享 repl_main_thread querySource 但在代理上下文中运行 —
+  // 它们是独立的对话链，其缓存不应在前台会话清除时被逐出。
   if (
     streamRequestId &&
     !getAgentContext() &&
@@ -2895,13 +2795,12 @@ async function* queryModel(
     setLastMainRequestId(streamRequestId)
   }
 
-  // Precompute scalars so the fire-and-forget .then() closure doesn't pin the
-  // full messagesForAPI array (the entire conversation up to the context window
-  // limit) until getToolPermissionContext() resolves.
+  // 预先计算标量，以便即发即忘的 .then() 闭包不会固定完整的 messagesForAPI 数组
+  // （整个对话直到上下文窗口限制）直到 getToolPermissionContext() 解析。
   const logMessageCount = messagesForAPI.length
   const logMessageTokens = tokenCountFromLastAPIResponse(messagesForAPI)
 
-  // Record LLM observation in Langfuse (no-op if not configured)
+  // 在 Langfuse 中记录 LLM 观察（如果未配置则为空操作）
   recordLLMObservation(options.langfuseTrace ?? null, {
     model: resolvedModel,
     provider: getAPIProvider(),
@@ -2939,8 +2838,7 @@ async function* queryModel(
       costUSD,
       queryTracking: options.queryTracking,
       permissionMode: permissionContext.mode,
-      // Pass newMessages for beta tracing - extraction happens in logging.ts
-      // only when beta tracing is enabled
+      // 传递 newMessages 以用于 beta 跟踪 - 仅在 beta 跟踪启用时在 logging.ts 中进行提取
       newMessages,
       llmSpan,
       globalCacheStrategy,
@@ -2952,14 +2850,12 @@ async function* queryModel(
     })
   })
 
-  // Defensive: also release on normal completion (no-op if finally already ran).
+  // 防御性：也在正常完成时释放（如果 finally 已经运行过，则为空操作）。
   releaseStreamResources()
 }
 
-/**
- * Cleans up stream resources to prevent memory leaks.
- * @internal Exported for testing
- */
+/** * 清理流资源以防止内存泄漏。
+ * @internal 导出用于测试 */
 export function cleanupStream(
   stream: Stream<BetaRawMessageStreamEvent> | undefined,
 ): void {
@@ -2967,25 +2863,23 @@ export function cleanupStream(
     return
   }
   try {
-    // Abort the stream via its controller if not already aborted
+    // 如果尚未中止，则通过其控制器中止流
     if (!stream.controller.signal.aborted) {
       stream.controller.abort()
     }
   } catch {
-    // Ignore - stream may already be closed
+    // 忽略 - 流可能已关闭
   }
 }
 
-/**
- * Updates usage statistics with new values from streaming API events.
- * Note: Anthropic's streaming API provides cumulative usage totals, not incremental deltas.
- * Each event contains the complete usage up to that point in the stream.
+/** * 使用来自流式 API 事件的新值更新使用统计信息。
+ * 注意：Anthropic 的流式 API 提供累积使用总量，而非增量。
+ * 每个事件包含到该流点为止的完整使用情况。
  *
- * Input-related tokens (input_tokens, cache_creation_input_tokens, cache_read_input_tokens)
- * are typically set in message_start and remain constant. message_delta events may send
- * explicit 0 values for these fields, which should not overwrite the values from message_start.
- * We only update these fields if they have a non-null, non-zero value.
- */
+ * 输入相关令牌（input_tokens、cache_creation_input_tokens、cache_read_input_tokens）
+ * 通常在 message_start 中设置并保持不变。message_delta 事件可能为这些字段发送
+ * 显式的 0 值，这些值不应覆盖 message_start 中的值。
+ * 我们仅在这些字段具有非空、非零值时更新它们。 */
 export function updateUsage(
   usage: Readonly<NonNullableUsage>,
   partUsage: BetaMessageDeltaUsage | undefined,
@@ -3019,7 +2913,7 @@ export function updateUsage(
     },
     service_tier: usage.service_tier,
     cache_creation: {
-      // SDK type BetaMessageDeltaUsage is missing cache_creation, but it's real!
+      // SDK 类型 BetaMessageDeltaUsage 缺少 cache_creation，但它是真实存在的！
       ephemeral_1h_input_tokens:
         (partUsage as BetaUsage).cache_creation?.ephemeral_1h_input_tokens ??
         usage.cache_creation.ephemeral_1h_input_tokens,
@@ -3027,11 +2921,11 @@ export function updateUsage(
         (partUsage as BetaUsage).cache_creation?.ephemeral_5m_input_tokens ??
         usage.cache_creation.ephemeral_5m_input_tokens,
     },
-    // cache_deleted_input_tokens: returned by the API when cache editing
-    // deletes KV cache content, but not in SDK types. Kept off NonNullableUsage
-    // so the string is eliminated from external builds by dead code elimination.
-    // Uses the same > 0 guard as other token fields to prevent message_delta
-    // from overwriting the real value with 0.
+    // cache_deleted_input_tokens：API 在缓存编辑时返回
+    // 删除 KV 缓存内容，但不在 SDK 类型中。保持在 NonNullableUsage 之外
+    // 以便通过死代码消除从外部构建中消除该字符串。
+    // 与其他令牌字段使用相同的 > 0 防护，以防止 message_delta
+    // 用 0 覆盖真实值。
     ...(feature('CACHED_MICROCOMPACT')
       ? {
           cache_deleted_input_tokens:
@@ -3051,10 +2945,8 @@ export function updateUsage(
   }
 }
 
-/**
- * Accumulates usage from one message into a total usage object.
- * Used to track cumulative usage across multiple assistant turns.
- */
+/** * 将单条消息的使用量累加到总使用量对象中。
+ * 用于跟踪跨多个助手轮次的累积使用量。 */
 export function accumulateUsage(
   totalUsage: Readonly<NonNullableUsage>,
   messageUsage: Readonly<NonNullableUsage>,
@@ -3084,8 +2976,8 @@ export function accumulateUsage(
         totalUsage.cache_creation.ephemeral_5m_input_tokens +
         messageUsage.cache_creation.ephemeral_5m_input_tokens,
     },
-    // See comment in updateUsage — field is not on NonNullableUsage to keep
-    // the string out of external builds.
+    // 参见 updateUsage 中的注释 — 该字段不在 NonNullableUsage 上，以保持
+    // 字符串不出现在外部构建中。
     ...(feature('CACHED_MICROCOMPACT')
       ? {
           cache_deleted_input_tokens:
@@ -3124,7 +3016,7 @@ type CachedMCPinnedEdits = {
   block: CachedMCEditsBlock
 }
 
-// Exported for testing cache_reference placement constraints
+// 为测试 cache_reference 放置约束而导出
 export function addCacheBreakpoints(
   messages: (UserMessage | AssistantMessage)[],
   enablePromptCaching: boolean,
@@ -3140,17 +3032,17 @@ export function addCacheBreakpoints(
     skipCacheWrite,
   })
 
-  // Exactly one message-level cache_control marker per request. Mycro's
-  // turn-to-turn eviction (page_manager/index.rs: Index::insert) frees
-  // local-attention KV pages at any cached prefix position NOT in
-  // cache_store_int_token_boundaries. With two markers the second-to-last
-  // position is protected and its locals survive an extra turn even though
-  // nothing will ever resume from there — with one marker they're freed
-  // immediately. For fire-and-forget forks (skipCacheWrite) we shift the
-  // marker to the second-to-last message: that's the last shared-prefix
-  // point, so the write is a no-op merge on mycro (entry already exists)
-  // and the fork doesn't leave its own tail in the KVCC. Dense pages are
-  // refcounted and survive via the new hash either way.
+  // 每个请求恰好有一个消息级别的 cache_control 标记。Mycro 的
+  // 轮次间逐出（page_manager/index.rs: Index::insert）会释放
+  // 不在 cache_store_int_token_boundaries 中的任何缓存前缀位置的
+  // 局部注意力 KV 页面。如果有两个标记，倒数第二个位置会受到保护，其局部页面会多存活一个轮次，即使
+  // 永远不会从那里恢复 — 如果只有一个标记，它们会立即被释放。
+  // 对于即发即弃的分支（skipCacheWrite），我们将标记移动到倒数第二条消息：那是最后一个共享前缀
+  // 点，因此写入对 mycro 来说是无操作的合并（条目已存在）
+  // 并且分支不会在 KVCC 中留下自己的尾部。密集页面是
+  // 引用计数的，并且无论如何都会通过新的哈希值存活。
+  // 跟踪所有正在删除的 cache_references，以防止跨块重复。
+  // 用于对 cache_edits 块进行去重，避免与已见的删除项重复
   const markerIndex = skipCacheWrite ? messages.length - 2 : messages.length - 1
   const result = messages.map((msg, index) => {
     const addCache = index === markerIndex
@@ -3174,10 +3066,10 @@ export function addCacheBreakpoints(
     return result
   }
 
-  // Track all cache_references being deleted to prevent duplicates across blocks.
+  // 将所有先前固定的 cache_edits 重新插入到其原始位置
   const seenDeleteRefs = new Set<string>()
 
-  // Helper to deduplicate a cache_edits block against already-seen deletions
+  // 将新的 cache_edits 插入到最后一条用户消息并固定它们
   const deduplicateEdits = (block: CachedMCEditsBlock): CachedMCEditsBlock => {
     const uniqueEdits = block.edits.filter(edit => {
       if (seenDeleteRefs.has(edit.cache_reference)) {
@@ -3189,7 +3081,7 @@ export function addCacheBreakpoints(
     return { ...block, edits: uniqueEdits }
   }
 
-  // Re-insert all previously-pinned cache_edits at their original positions
+  // 固定，以便此块在未来的调用中在同一位置重新发送
   for (const pinned of pinnedEdits ?? []) {
     const msg = result[pinned.userMessageIndex]
     if (msg && msg.role === 'user') {
@@ -3203,7 +3095,7 @@ export function addCacheBreakpoints(
     }
   }
 
-  // Insert new cache_edits into the last user message and pin them
+  // 已添加包含 {0} 个删除项的 cache_edits 块到 message[{1}]：{2}
   if (newCacheEdits && result.length > 0) {
     const dedupedNewEdits = deduplicateEdits(newCacheEdits)
     if (dedupedNewEdits.edits.length > 0) {
@@ -3214,11 +3106,11 @@ export function addCacheBreakpoints(
             msg.content = [{ type: 'text', text: msg.content as string }]
           }
           insertBlockAfterToolResults(msg.content, dedupedNewEdits)
-          // Pin so this block is re-sent at the same position in future calls
+          // 将 cache_reference 添加到缓存前缀内的 tool_result 块中。
           pinCacheEdits(i, newCacheEdits as any)
 
           logForDebugging(
-            `Added cache_edits block with ${dedupedNewEdits.edits.length} deletion(s) to message[${i}]: ${dedupedNewEdits.edits.map(e => e.cache_reference).join(', ')}`,
+            `必须在 cache_edits 插入之后完成，因为这会修改内容数组。`,
           )
           break
         }
@@ -3226,10 +3118,10 @@ export function addCacheBreakpoints(
     }
   }
 
-  // Add cache_reference to tool_result blocks that are within the cached prefix.
-  // Must be done AFTER cache_edits insertion since that modifies content arrays.
+  // 查找包含 cache_control 标记的最后一条消息
+  // 将 cache_reference 添加到严格位于最后一个 cache_control 标记之前的
   if (enablePromptCaching) {
-    // Find the last message containing a cache_control marker
+    // tool_result 块中。API 要求 cache_reference 出现在最后一个 cache_control "之前或之上" — 我们使用严格的 "之前"
     let lastCCMsg = -1
     for (let i = 0; i < result.length; i++) {
       const msg = result[i]!
@@ -3242,13 +3134,13 @@ export function addCacheBreakpoints(
       }
     }
 
-    // Add cache_reference to tool_result blocks that are strictly before
-    // the last cache_control marker. The API requires cache_reference to
-    // appear "before or on" the last cache_control — we use strict "before"
+    // 以避免 cache_edits 拼接导致块索引偏移的边缘情况。
+    // 最后一个 cache_control 标记。API 要求 cache_reference 必须出现在最后一个 cache_control "之前或之上" — 我们采用严格的 "之前" 规则
+    // 以避免在 cache_edits 拼接操作导致块索引偏移的边缘情况。
     // to avoid edge cases where cache_edits splicing shifts block indices.
     //
-    // Create new objects instead of mutating in-place to avoid contaminating
-    // blocks reused by secondary queries that use models without cache_editing support.
+    // 创建新对象而非就地修改，避免污染
+    // 被不支持 cache_editing 的模型所执行的次级查询所复用的代码块。
     if (lastCCMsg >= 0) {
       for (let i = 0; i < lastCCMsg; i++) {
         const msg = result[i]!
@@ -3283,7 +3175,7 @@ export function buildSystemPromptBlocks(
     querySource?: QuerySource
   },
 ): TextBlockParam[] {
-  // IMPORTANT: Do not add any more blocks for caching or you will get a 400
+  // 重要：请勿再添加任何用于缓存的代码块，否则将收到 400 错误
   return splitSysPromptPrefix(systemPrompt, {
     skipGlobalCacheForSystemPrompt: options?.skipGlobalCacheForSystemPrompt,
   }).map(block => {
@@ -3351,17 +3243,15 @@ export async function queryHaiku({
       return [result]
     },
   )
-  // We don't use streaming for Haiku so this is safe
+  // 我们不为 Haiku 使用流式传输，因此这是安全的
   return result[0]! as AssistantMessage
 }
 
 type QueryWithModelOptions = Omit<Options, 'getToolPermissionContext'>
 
-/**
- * Query a specific model through the Claude Code infrastructure.
- * This goes through the full query pipeline including proper authentication,
- * betas, and headers - unlike direct API calls.
- */
+/** * 通过 Claude Code 基础设施查询特定模型。
+ * 这会经过完整的查询管道，包括正确的身份验证、
+ * 测试版功能和请求头设置——这与直接调用 API 不同。 */
 export async function queryWithModel({
   systemPrompt = asSystemPrompt([]),
   userPrompt,
@@ -3412,20 +3302,18 @@ export async function queryWithModel({
   return result[0]! as AssistantMessage
 }
 
-// Non-streaming requests have a 10min max per the docs:
+// 根据文档，非流式请求的最长处理时间为 10 分钟：
 // https://platform.claude.com/docs/en/api/errors#long-requests
-// The SDK's 21333-token cap is derived from 10min × 128k tokens/hour, but we
-// bypass it by setting a client-level timeout, so we can cap higher.
+// SDK 的 21333 个令牌上限源自 10 分钟 × 128k 令牌/小时，但我们
+// 通过设置客户端级别的超时来绕过此限制，因此我们可以设置更高的上限。
 export const MAX_NON_STREAMING_TOKENS = 64_000
 
-/**
- * Adjusts thinking budget when max_tokens is capped for non-streaming fallback.
- * Ensures the API constraint: max_tokens > thinking.budget_tokens
+/** * 当 max_tokens 因非流式回退而被限制时，调整思考预算。
+ * 确保满足 API 约束：max_tokens > thinking.budget_tokens
  *
- * @param params - The parameters that will be sent to the API
- * @param maxTokensCap - The maximum allowed tokens (MAX_NON_STREAMING_TOKENS)
- * @returns Adjusted parameters with thinking budget capped if needed
- */
+ * @param params - 将发送给 API 的参数
+ * @param maxTokensCap - 允许的最大令牌数 (MAX_NON_STREAMING_TOKENS)
+ * @returns 调整后的参数，必要时会限制思考预算 */
 export function adjustParamsForNonStreaming<
   T extends {
     max_tokens: number
@@ -3434,8 +3322,8 @@ export function adjustParamsForNonStreaming<
 >(params: T, maxTokensCap: number): T {
   const cappedMaxTokens = Math.min(params.max_tokens, maxTokensCap)
 
-  // Adjust thinking budget if it would exceed capped max_tokens
-  // to maintain the constraint: max_tokens > thinking.budget_tokens
+  // 如果思考预算将超过被限制的 max_tokens，则调整它
+  // 以维持约束：max_tokens > thinking.budget_tokens
   const adjustedParams = { ...params }
   if (
     adjustedParams.thinking?.type === 'enabled' &&
@@ -3457,19 +3345,19 @@ export function adjustParamsForNonStreaming<
 }
 
 function isMaxTokensCapEnabled(): boolean {
-  // 3P default: false (not validated on Bedrock/Vertex)
+  // 第三方默认值：false（在 Bedrock/Vertex 上未验证）
   return getFeatureValue_CACHED_MAY_BE_STALE('tengu_otk_slot_v1', false)
 }
 
 export function getMaxOutputTokensForModel(model: string): number {
   const maxOutputTokens = getModelMaxOutputTokens(model)
 
-  // Slot-reservation cap: drop default to 8k for all models. BQ p99 output
-  // = 4,911 tokens; 32k/64k defaults over-reserve 8-16× slot capacity.
-  // Requests hitting the cap get one clean retry at 64k (query.ts
-  // max_output_tokens_escalate). Math.min keeps models with lower native
-  // defaults (e.g. claude-3-opus at 4k) at their native value. Applied
-  // before the env-var override so CLAUDE_CODE_MAX_OUTPUT_TOKENS still wins.
+  // 槽位预留上限：将所有模型的默认值降至 8k。BQ p99 输出
+  // = 4,911 个令牌；32k/64k 的默认值过度预留了 8-16 倍的槽位容量。
+  // 达到上限的请求会在 64k 处获得一次干净的重试（query.ts 中的
+  // max_output_tokens_escalate）。Math.min 使具有较低原生默认值的模型
+  // （例如 claude-3-opus 为 4k）保持其原生值。此操作在环境变量
+  // 覆盖之前应用，因此 CLAUDE_CODE_MAX_OUTPUT_TOKENS 仍具有最高优先级。
   const defaultTokens = isMaxTokensCapEnabled()
     ? Math.min(maxOutputTokens.default, CAPPED_DEFAULT_MAX_TOKENS)
     : maxOutputTokens.default

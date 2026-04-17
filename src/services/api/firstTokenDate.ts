@@ -5,10 +5,8 @@ import { getAuthHeaders } from '../../utils/http.js'
 import { logError } from '../../utils/log.js'
 import { getClaudeCodeUserAgent } from '../../utils/userAgent.js'
 
-/**
- * Fetch the user's first Claude Code token date and store in config.
- * This is called after successful login to cache when they started using Claude Code.
- */
+/** * 获取用户首次使用 Claude Code 的令牌日期并存储到配置中。
+ * 此操作在成功登录后调用，用于缓存他们开始使用 Claude Code 的时间。 */
 export async function fetchAndStoreClaudeCodeFirstTokenDate(): Promise<void> {
   try {
     const config = getGlobalConfig()
@@ -19,7 +17,7 @@ export async function fetchAndStoreClaudeCodeFirstTokenDate(): Promise<void> {
 
     const authHeaders = getAuthHeaders()
     if (authHeaders.error) {
-      logError(new Error(`Failed to get auth headers: ${authHeaders.error}`))
+      logError(new Error(`获取认证头信息失败: ${authHeaders.error}`))
       return
     }
 
@@ -36,16 +34,16 @@ export async function fetchAndStoreClaudeCodeFirstTokenDate(): Promise<void> {
 
     const firstTokenDate = response.data?.first_token_date ?? null
 
-    // Validate the date if it's not null
+    // 如果日期不为空，则验证其有效性
     if (firstTokenDate !== null) {
       const dateTime = new Date(firstTokenDate).getTime()
       if (isNaN(dateTime)) {
         logError(
           new Error(
-            `Received invalid first_token_date from API: ${firstTokenDate}`,
+            `从 API 接收到无效的 first_token_date: ${firstTokenDate}`,
           ),
         )
-        // Don't save invalid dates
+        // 不保存无效日期
         return
       }
     }

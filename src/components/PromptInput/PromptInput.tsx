@@ -3126,9 +3126,9 @@ function PromptInput({
 }
 
 /**
- * Compute the initial paste ID by finding the max ID used in existing messages.
- * This handles --continue/--resume scenarios where we need to avoid ID collisions.
- */
+* 通过查找现有消息中使用的最大 ID 来计算初始粘贴 ID。
+* 这可以处理 --continue/--resume 场景，避免 ID 冲突。
+*/
 function getInitialPasteId(messages: Message[]): number {
   let maxId = 0
   for (const message of messages) {

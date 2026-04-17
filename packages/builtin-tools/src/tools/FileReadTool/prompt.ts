@@ -5,20 +5,20 @@ import { BASH_TOOL_NAME } from '../BashTool/toolName.js'
 export const FILE_READ_TOOL_NAME = 'Read'
 
 export const FILE_UNCHANGED_STUB =
-  'File unchanged since last read. The content from the earlier Read tool_result in this conversation is still current — refer to that instead of re-reading.'
+  '自上次读取以来文件未发生变化。本对话中先前 Read 的 tool_result 仍是最新内容——请直接引用它，不要重复读取。'
 
 export const MAX_LINES_TO_READ = 2000
 
 export const DESCRIPTION = 'Read a file from the local filesystem.'
 
 export const LINE_FORMAT_INSTRUCTION =
-  '- Results are returned using cat -n format, with line numbers starting at 1'
+  '- 结果以 cat -n 格式返回，行号从 1 开始'
 
 export const OFFSET_INSTRUCTION_DEFAULT =
-  "- You can optionally specify a line offset and limit (especially handy for long files), but it's recommended to read the whole file by not providing these parameters"
+  '- 你可以选择性地指定行偏移与行数限制（长文件特别有用），但建议默认不提供这些参数以读取完整文件'
 
 export const OFFSET_INSTRUCTION_TARGETED =
-  '- When you already know which part of the file you need, only read that part. This can be important for larger files.'
+  '- 当你已经知道需要文件的哪一部分时，只读取那一段。这对大文件很重要。'
 
 /**
  * Renders the Read tool prompt template.  The caller (FileReadTool) supplies
@@ -29,21 +29,21 @@ export function renderPromptTemplate(
   maxSizeInstruction: string,
   offsetInstruction: string,
 ): string {
-  return `Reads a file from the local filesystem. You can access any file directly by using this tool.
-Assume this tool is able to read all files on the machine. If the User provides a path to a file assume that path is valid. It is okay to read a file that does not exist; an error will be returned.
+  return `从本地文件系统读取文件。你可以使用此工具直接访问任意文件。
+假设该工具能够读取机器上的所有文件。如果用户提供了文件路径，假设该路径是有效的。读取一个不存在的文件也是允许的；工具会返回错误。
 
-Usage:
-- The file_path parameter must be an absolute path, not a relative path
-- By default, it reads up to ${MAX_LINES_TO_READ} lines starting from the beginning of the file${maxSizeInstruction}
+用法：
+- file_path 参数必须是绝对路径，不能是相对路径
+- 默认从文件开头读取，最多读取 ${MAX_LINES_TO_READ} 行${maxSizeInstruction}
 ${offsetInstruction}
 ${lineFormat}
-- This tool allows Claude Code to read images (eg PNG, JPG, etc). When reading an image file the contents are presented visually as Claude Code is a multimodal LLM.${
+- 此工具允许 Claude Code 读取图片（例如 PNG、JPG 等）。读取图片文件时，内容会以可视方式呈现，因为 Claude Code 是多模态 LLM。${
     isPDFSupported()
-      ? '\n- This tool can read PDF files (.pdf). For large PDFs (more than 10 pages), you MUST provide the pages parameter to read specific page ranges (e.g., pages: "1-5"). Reading a large PDF without the pages parameter will fail. Maximum 20 pages per request.'
+      ? '\n- 此工具可以读取 PDF 文件（.pdf）。对于大型 PDF（超过 10 页），你必须提供 pages 参数来读取指定页范围（例如：pages: "1-5"）。不提供 pages 读取大型 PDF 会失败。每次请求最多 20 页。'
       : ''
   }
-- This tool can read Jupyter notebooks (.ipynb files) and returns all cells with their outputs, combining code, text, and visualizations.
-- This tool can only read files, not directories. To read a directory, use an ls command via the ${BASH_TOOL_NAME} tool.
-- You will regularly be asked to read screenshots. If the user provides a path to a screenshot, ALWAYS use this tool to view the file at the path. This tool will work with all temporary file paths.
-- If you read a file that exists but has empty contents you will receive a system reminder warning in place of file contents.`
+- 此工具可以读取 Jupyter notebook（.ipynb）并返回所有单元及其输出，包含代码、文本与可视化内容。
+- 此工具只能读取文件，不能读取目录。要查看目录内容，请通过 ${BASH_TOOL_NAME} 使用 ls 命令。
+- 你会经常被要求读取截图。如果用户提供了截图路径，务必使用此工具查看该路径下的文件。它适用于所有临时文件路径。
+- 如果你读取的文件存在但内容为空，你会收到一条 system reminder 警告，替代文件内容返回。`
 }

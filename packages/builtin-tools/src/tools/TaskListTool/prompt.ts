@@ -1,10 +1,10 @@
 import { isAgentSwarmsEnabled } from 'src/utils/agentSwarmsEnabled.js'
 
-export const DESCRIPTION = 'List all tasks in the task list'
+export const DESCRIPTION = '列出任务列表中的所有任务'
 
 export function getPrompt(): string {
   const teammateUseCase = isAgentSwarmsEnabled()
-    ? `- Before assigning tasks to teammates, to see what's available
+    ? `- 在把任务分配给队友之前，用于查看有哪些任务可领取
 `
     : ''
 
@@ -14,36 +14,37 @@ export function getPrompt(): string {
 
   const teammateWorkflow = isAgentSwarmsEnabled()
     ? `
-## Teammate Workflow
+## 队友工作流
 
-When working as a teammate:
-1. After completing your current task, call TaskList to find available work
-2. Look for tasks with status 'pending', no owner, and empty blockedBy
-3. **Prefer tasks in ID order** (lowest ID first) when multiple tasks are available, as earlier tasks often set up context for later ones
-4. Claim an available task using TaskUpdate (set \`owner\` to your name), or wait for leader assignment
-5. If blocked, focus on unblocking tasks or notify the team lead
+当你作为队友工作时：
+1. 完成当前任务后，调用 TaskList 查找可做工作
+2. 寻找 status 为 'pending'、没有 owner、且 blockedBy 为空的任务
+3. 当同时有多个任务可选时，**优先按 ID 顺序**（ID 越小越优先）处理，因为早期任务通常会为后续任务铺垫上下文
+4. 使用 TaskUpdate 领取可用任务（将 \`owner\` 设为你的名字），或等待队长分配
+5. 若被阻塞，优先处理解阻塞工作，或通知 team lead
 `
     : ''
 
-  return `Use this tool to list all tasks in the task list.
+  return `使用此工具列出任务列表中的所有任务。
 
-## When to Use This Tool
+## 何时使用
 
-- To see what tasks are available to work on (status: 'pending', no owner, not blocked)
-- To check overall progress on the project
-- To find tasks that are blocked and need dependencies resolved
-${teammateUseCase}- After completing a task, to check for newly unblocked work or claim the next available task
-- **Prefer working on tasks in ID order** (lowest ID first) when multiple tasks are available, as earlier tasks often set up context for later ones
+- 查看当前有哪些可做任务（status 为 'pending'、没有 owner、且不被阻塞）
+- 查看项目整体进度
+- 查找被阻塞、需要先解决依赖的任务
+${teammateUseCase}- 完成一个任务后，检查是否有新解锁的工作，或领取下一个可用任务
+- 完成一个任务后，检查是否有新解锁的工作，或领取下一个可用任务
+- 当同时有多个任务可选时，**优先按 ID 顺序**（ID 越小越优先）处理，因为早期任务通常会为后续任务铺垫上下文
 
-## Output
+## 输出
 
-Returns a summary of each task:
+返回每个任务的摘要：
 ${idDescription}
-- **subject**: Brief description of the task
-- **status**: 'pending', 'in_progress', or 'completed'
-- **owner**: Agent ID if assigned, empty if available
-- **blockedBy**: List of open task IDs that must be resolved first (tasks with blockedBy cannot be claimed until dependencies resolve)
+- **subject**：任务简述
+- **status**：'pending'、'in_progress' 或 'completed'
+- **owner**：若已分配则为 agent ID；未分配则为空
+- **blockedBy**：必须先解决的未完成任务 ID 列表（存在 blockedBy 时不可领取，直到依赖被解决）
 
-Use TaskGet with a specific task ID to view full details including description and comments.
+使用 TaskGet + 具体 task ID 可查看包含 description 与 comments 的完整详情。
 ${teammateWorkflow}`
 }

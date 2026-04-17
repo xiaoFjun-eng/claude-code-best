@@ -50,8 +50,8 @@ async function fetchBootstrapAPI(): Promise<BootstrapResponse | null> {
     return null
   }
 
-  // OAuth preferred (requires user:profile scope — service-key OAuth tokens
-  // lack it and would 403). Fall back to API key auth for console users.
+  // 首选 OAuth（需要 user:profile 权限范围 — 服务密钥 OAuth 令牌
+  // 缺少该权限将返回 403）。对于控制台用户，回退到 API 密钥认证。
   const apiKey = getAnthropicApiKey()
   const hasUsableOAuth =
     getClaudeAIOAuthTokens()?.accessToken && hasProfileScope()
@@ -62,11 +62,11 @@ async function fetchBootstrapAPI(): Promise<BootstrapResponse | null> {
 
   const endpoint = `${getOauthConfig().BASE_API_URL}/api/claude_cli/bootstrap`
 
-  // withOAuth401Retry handles the refresh-and-retry. API key users fail
-  // through on 401 (no refresh mechanism — no OAuth token to pass).
+  // withOAuth401Retry 处理刷新并重试。API 密钥用户在遇到 401 时
+  // 会直接失败（无刷新机制 — 没有可传递的 OAuth 令牌）。
   try {
     return await withOAuth401Retry(async () => {
-      // Re-read OAuth each call so the retry picks up the refreshed token.
+      // 每次调用都重新读取 OAuth，以便重试时能获取到刷新后的令牌。
       const token = getClaudeAIOAuthTokens()?.accessToken
       let authHeaders: Record<string, string>
       if (token && hasProfileScope()) {
@@ -93,7 +93,7 @@ async function fetchBootstrapAPI(): Promise<BootstrapResponse | null> {
       const parsed = bootstrapResponseSchema().safeParse(response.data)
       if (!parsed.success) {
         logForDebugging(
-          `[Bootstrap] Response failed validation: ${parsed.error.message}`,
+          `[Bootstrap] 响应验证失败：${parsed.error.message}`,
         )
         return null
       }
@@ -102,15 +102,13 @@ async function fetchBootstrapAPI(): Promise<BootstrapResponse | null> {
     })
   } catch (error) {
     logForDebugging(
-      `[Bootstrap] Fetch failed: ${axios.isAxiosError(error) ? (error.response?.status ?? error.code) : 'unknown'}`,
+      `[Bootstrap] 获取失败：${axios.isAxiosError(error) ? (error.response?.status ?? error.code) : 'unknown'}`,
     )
     throw error
   }
 }
 
-/**
- * Fetch bootstrap data from the API and persist to disk cache.
- */
+/** * 从 API 获取引导数据并持久化到磁盘缓存。 */
 export async function fetchBootstrapData(): Promise<void> {
   try {
     const response = await fetchBootstrapAPI()
@@ -119,7 +117,7 @@ export async function fetchBootstrapData(): Promise<void> {
     const clientData = response.client_data ?? null
     const additionalModelOptions = response.additional_model_options ?? []
 
-    // Only persist if data actually changed — avoids a config write on every startup.
+    // 仅在实际数据发生变化时持久化 — 避免每次启动都写入配置。
     const config = getGlobalConfig()
     if (
       isEqual(config.clientDataCache, clientData) &&

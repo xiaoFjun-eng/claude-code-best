@@ -1,13 +1,17 @@
 {
-	"version": "0.2.0",
-	"configurations": [
-		{
-			"type": "bun",
-			"request": "attach",
-			"name": "Attach to Claude Code",
-			"url": "ws://localhost:8888/2dc3gzl5xot",
-			"stopOnEntry": false,
-			"internalConsoleOptions": "neverOpen"
-		}
-	]
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Attach to Bun (TUI debug)",
+      "type": "bun",
+      "request": "attach",
+      "stopOnEntry": false,
+      "url": "ws://localhost:8888/zfw6uuk6nao",
+      "localRoot": "${workspaceFolder}",
+      "remoteRoot": "${workspaceFolder}",
+      "sourceMapPathOverrides": {
+        "*": "${workspaceFolder}/*"
+      }
+    }
+  ]
 }

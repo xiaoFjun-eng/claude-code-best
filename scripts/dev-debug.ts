@@ -1,2 +1,2 @@
-process.env.BUN_INSPECT="localhost:8888/2dc3gzl5xot"
+process.env.BUN_INSPECT = "localhost:8888"
 await import("./dev")

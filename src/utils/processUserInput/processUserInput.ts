@@ -73,11 +73,11 @@ export type ProcessUserInputBaseResult = {
   allowedTools?: string[]
   model?: string
   effort?: EffortValue
-  // Output text for non-interactive mode (e.g., forked commands)
-  // When set, this is used as the result in -p mode instead of empty string
+  // 非交互模式下的输出文本（例如，分叉命令）。
+  // 设置后，在 -p 模式下将使用此结果而非空字符串
   resultText?: string
-  // When set, prefills or submits the next input after command completes
-  // Used by /discover to chain into the selected feature's command
+  // 设置后，在命令完成后预填充或提交下一个输入。由 /
+  // discover 使用，以链接到所选功能的命令
   nextInput?: string
   submitNextInput?: boolean
 }
@@ -102,11 +102,9 @@ export async function processUserInput({
   skipAttachments,
 }: {
   input: string | Array<ContentBlockParam>
-  /**
-   * Input before [Pasted text #N] expansion. Used for ultraplan keyword
-   * detection so pasted content containing the word cannot trigger. Falls
-   * back to the string `input` when unset.
-   */
+  /** * 在 [粘贴文本 #N] 展开前的输入。用于 ultraplan 关键词
+   * 检测，因此包含该词的粘贴内容不会触发。未设置时
+   * 回退到字符串 `input`。 */
   preExpansionInput?: string
   mode: PromptInputMode
   setToolJSX: SetToolJSXFn
@@ -119,29 +117,21 @@ export async function processUserInput({
   isAlreadyProcessing?: boolean
   querySource?: QuerySource
   canUseTool?: CanUseToolFn
-  /**
-   * When true, input starting with `/` is treated as plain text.
-   * Used for remotely-received messages (bridge/CCR) that should not
-   * trigger local slash commands or skills.
-   */
+  /** * 为 true 时，以 `/` 开头的输入被视为纯文本。
+   * 用于不应触发本地斜杠命令或技能的远程接收消息（桥接/CCR）。 */
   skipSlashCommands?: boolean
-  /**
-   * When true, slash commands matching isBridgeSafeCommand() execute even
-   * though skipSlashCommands is set. See QueuedCommand.bridgeOrigin.
-   */
+  /** * 为 true 时，即使设置了 skipSlashCommands，匹配 isBridgeSafeCommand() 的斜杠命令仍会执行。
+   * 参见 QueuedCommand.bridgeOrigin。 */
   bridgeOrigin?: boolean
-  /**
-   * When true, the resulting UserMessage gets `isMeta: true` (user-hidden,
-   * model-visible). Propagated from `QueuedCommand.isMeta` for queued
-   * system-generated prompts.
-   */
+  /** * 为 true 时，生成的 UserMessage 会获得 `isMeta: true` 属性（用户不可见，
+   * 模型可见）。从 `QueuedCommand.isMeta` 传播而来，用于排队的系统生成提示。 */
   isMeta?: boolean
   skipAttachments?: boolean
 }): Promise<ProcessUserInputBaseResult> {
   const inputString = typeof input === 'string' ? input : null
-  // Immediately show the user input prompt while we are still processing the input.
-  // Skip for isMeta (system-generated prompts like scheduled tasks) — those
-  // should run invisibly.
+  // 在处理输入时立即向用户显示输入提示。对于 isMet
+  // a（系统生成的提示，如计划任务）则跳过——这些应
+  // 不可见地运行。
   if (mode === 'prompt' && inputString !== null && !isMeta) {
     setUserInputOnProcessing?.(inputString)
   }
@@ -175,7 +165,7 @@ export async function processUserInput({
     return result
   }
 
-  // Execute UserPromptSubmit hooks and handle blocking
+  // 执行 UserPromptSubmit 钩子并处理阻塞
   queryCheckpoint('query_hooks_start')
   const inputMessage = getContentText(input) || ''
 
@@ -185,21 +175,23 @@ export async function processUserInput({
     context,
     context.requestPrompt,
   )) {
-    // We only care about the result
+    // 我们只关心结果
     if (hookResult.message?.type === 'progress') {
       continue
     }
 
-    // Return only a system-level error message, erasing the original user input
+    // 仅返回系统级错误消息，清除原始用户输入
     if (hookResult.blockingError) {
       const blockingMessage = getUserPromptSubmitHookBlockingMessage(
         hookResult.blockingError,
       )
       return {
         messages: [
-          // TODO: Make this an attachment message
+          // 待办：将此设为附件消息
           createSystemMessage(
-            `${blockingMessage}\n\nOriginal prompt: ${input}`,
+            `${blockingMessage}
+
+原始提示：${input}`,
             'warning',
           ),
         ],
@@ -208,12 +200,12 @@ export async function processUserInput({
       }
     }
 
-    // If preventContinuation is set, stop processing but keep the original
-    // prompt in context.
+    // 如果设置了 preventContinuation，则停止处理但将原始提
+    // 示保留在上下文中。
     if (hookResult.preventContinuation) {
       const message = hookResult.stopReason
-        ? `Operation stopped by hook: ${hookResult.stopReason}`
-        : 'Operation stopped by hook'
+        ? `操作被钩子停止：${hookResult.stopReason}`
+        : '操作被钩子停止'
       result.messages.push(
         createUserMessage({
           content: message,
@@ -223,7 +215,7 @@ export async function processUserInput({
       return result
     }
 
-    // Collect additional contexts
+    // 收集额外上下文
     if (
       hookResult.additionalContexts &&
       hookResult.additionalContexts.length > 0
@@ -239,12 +231,12 @@ export async function processUserInput({
       )
     }
 
-    // TODO: Clean this up
+    // 待办：清理此处
     if (hookResult.message) {
       switch (hookResult.message.attachment!.type) {
         case 'hook_success':
           if (!hookResult.message.attachment!.content) {
-            // Skip if there is no content
+            // 若无内容则跳过
             break
           }
           result.messages.push({
@@ -263,9 +255,9 @@ export async function processUserInput({
   }
   queryCheckpoint('query_hooks_end')
 
-  // Happy path: onQuery will clear userInputOnProcessing via startTransition
-  // so it resolves in the same frame as deferredMessages (no flicker gap).
-  // Error paths are handled by handlePromptSubmit's finally block.
+  // 理想情况：onQuery 将通过 startTransition 清除 userInputOnP
+  // rocessing，因此它会在与 deferredMessages 相同的帧中解析（无闪烁间隙
+  // ）。错误路径由 handlePromptSubmit 的 finally 块处理。
   return result
 }
 
@@ -273,7 +265,7 @@ const MAX_HOOK_OUTPUT_LENGTH = 10000
 
 function applyTruncation(content: string): string {
   if (content.length > MAX_HOOK_OUTPUT_LENGTH) {
-    return `${content.substring(0, MAX_HOOK_OUTPUT_LENGTH)}… [output truncated - exceeded ${MAX_HOOK_OUTPUT_LENGTH} characters]`
+    return `${content.substring(0, MAX_HOOK_OUTPUT_LENGTH)}… [输出已截断 - 超过 ${MAX_HOOK_OUTPUT_LENGTH} 个字符]`
   }
   return content
 }
@@ -300,15 +292,15 @@ async function processUserInputBase(
   let inputString: string | null = null
   let precedingInputBlocks: ContentBlockParam[] = []
 
-  // Collect image metadata texts for isMeta message
+  // 为 isMeta 消息收集图像元数据文本
   const imageMetadataTexts: string[] = []
 
-  // Normalized view of `input` with image blocks resized. For string input
-  // this is just `input`; for array input it's the processed blocks. We pass
-  // this (not raw `input`) to processTextPrompt so resized/normalized image
-  // blocks actually reach the API — otherwise the resize work above is
-  // discarded for the regular prompt path. Also normalizes bridge inputs
-  // where iOS may send `mediaType` instead of `media_type` (mobile-apps#5825).
+  // `input` 的规范化视图，其中图像块已调整大小。对于字符串输入，这仅
+  // 是 `input`；对于数组输入，则是处理后的块。我们将此（而非原始 `i
+  // nput`）传递给 processTextPrompt，以便调整大小/规范
+  // 化的图像块实际到达 API——否则上述调整大小的工作将在常规提示路径
+  // 中被丢弃。同时规范化桥接输入，其中 iOS 可能发送 `mediaTy
+  // pe` 而非 `media_type` (mobile-apps#5825)。
   let normalizedInput: string | ContentBlockParam[] = input
 
   if (typeof input === 'string') {
@@ -319,7 +311,7 @@ async function processUserInputBase(
     for (const block of input) {
       if (block.type === 'image') {
         const resized = await maybeResizeAndDownsampleImageBlock(block)
-        // Collect image metadata for isMeta message
+        // 为 isMeta 消息收集图像元数据
         if (resized.dimensions) {
           const metadataText = createImageMetadataText(resized.dimensions)
           if (metadataText) {
@@ -333,8 +325,8 @@ async function processUserInputBase(
     }
     normalizedInput = processedBlocks
     queryCheckpoint('query_image_processing_end')
-    // Extract the input string from the last content block if it is text,
-    // and keep track of the preceding content blocks
+    // 如果最后一个内容块是文本，则从中提取输入
+    // 字符串，并跟踪前面的内容块
     const lastBlock = processedBlocks[processedBlocks.length - 1]
     if (lastBlock?.type === 'text') {
       inputString = lastBlock.text
@@ -345,23 +337,23 @@ async function processUserInputBase(
   }
 
   if (inputString === null && mode !== 'prompt') {
-    throw new Error(`Mode: ${mode} requires a string input.`)
+    throw new Error(`模式：${mode} 需要一个字符串输入。`)
   }
 
-  // Extract and convert image content to content blocks early
-  // Keep track of IDs in order for message storage
+  // 提前提取图像内容并转换为内容块。按
+  // 顺序跟踪 ID 以便消息存储
   const imageContents = pastedContents
     ? Object.values(pastedContents).filter(isValidImagePaste)
     : []
   const imagePasteIds = imageContents.map(img => img.id)
 
-  // Store images to disk so Claude can reference the path in context
-  // (for manipulation with CLI tools, uploading to PRs, etc.)
+  // 将图像存储到磁盘，以便 Claude 可以在上下文中引用
+  // 路径（用于 CLI 工具操作、上传到 PR 等）
   const storedImagePaths = pastedContents
     ? await storeImages(pastedContents)
     : new Map<number, string>()
 
-  // Resize pasted images to ensure they fit within API limits (parallel processing)
+  // 调整粘贴图像的大小以确保符合 API 限制（并行处理）
   queryCheckpoint('query_pasted_image_processing_start')
   const imageProcessingResults = await Promise.all(
     imageContents.map(async pastedImage => {
@@ -386,14 +378,14 @@ async function processUserInputBase(
       }
     }),
   )
-  // Collect results preserving order
+  // 收集结果并保持顺序
   const imageContentBlocks: ContentBlockParam[] = []
   for (const {
     resized,
     originalDimensions,
     sourcePath,
   } of imageProcessingResults) {
-    // Collect image metadata for isMeta message (prefer resized dimensions)
+    // 为 isMeta 消息收集图像元数据（优先使用调整后的尺寸）
     if (resized.dimensions) {
       const metadataText = createImageMetadataText(
         resized.dimensions,
@@ -403,7 +395,7 @@ async function processUserInputBase(
         imageMetadataTexts.push(metadataText)
       }
     } else if (originalDimensions) {
-      // Fall back to original dimensions if resize didn't provide them
+      // 如果调整大小未提供尺寸，则回退到原始尺寸
       const metadataText = createImageMetadataText(
         originalDimensions,
         sourcePath,
@@ -412,19 +404,19 @@ async function processUserInputBase(
         imageMetadataTexts.push(metadataText)
       }
     } else if (sourcePath) {
-      // If we have a source path but no dimensions, still add source info
-      imageMetadataTexts.push(`[Image source: ${sourcePath}]`)
+      // 如果有源路径但无尺寸，仍添加源信息
+      imageMetadataTexts.push(`[图片来源：${sourcePath}]`)
     }
     imageContentBlocks.push(resized.block)
   }
   queryCheckpoint('query_pasted_image_processing_end')
 
-  // Bridge-safe slash command override: mobile/web clients set bridgeOrigin
-  // with skipSlashCommands still true (defense-in-depth against exit words and
-  // immediate-command fast paths). Resolve the command here — if it passes
-  // isBridgeSafeCommand, clear the skip so the gate below opens. If it's a
-  // known-but-unsafe command (local-jsx UI or terminal-only), short-circuit
-  // with a helpful message rather than letting the model see raw "/config".
+  // 桥接安全的斜杠命令覆盖：移动端/Web 客户端设置 bridgeOr
+  // igin 时 skipSlashCommands 仍为 true（针对退
+  // 出词和即时命令快速路径的深度防御）。在此处解析命令——如果通过 is
+  // BridgeSafeCommand 检查，则清除跳过标志，以便下方的
+  // 门打开。如果是已知但不安全的命令（本地 JSX UI 或仅限终端），
+  // 则用有帮助的消息短路，而不是让模型看到原始的 "/config"。
   let effectiveSkipSlash = skipSlashCommands
   if (bridgeOrigin && inputString !== null && inputString.startsWith('/')) {
     const parsed = parseSlashCommand(inputString)
@@ -438,7 +430,7 @@ async function processUserInputBase(
       } else {
         const msg =
           safety.reason ??
-          `/${getCommandName(cmd)} isn't available over Remote Control.`
+          `/${getCommandName(cmd)} 在远程控制中不可用。`
         return {
           messages: [
             createUserMessage({ content: inputString, uuid }),
@@ -451,22 +443,22 @@ async function processUserInputBase(
         }
       }
     }
-    // Unknown /foo or unparseable — fall through to plain text, same as
-    // pre-#19134. A mobile user typing "/shrug" shouldn't see "Unknown skill".
+    // 未知的 /foo 或无法解析——回退到纯文本，与 #1913
+    // 4 之前相同。移动用户输入 "/shrug" 不应看到“未知技能”。
   }
 
-  // Ultraplan keyword — route through /ultraplan. Detect on the
-  // pre-expansion input so pasted content containing the word cannot
-  // trigger a CCR session; replace with "plan" in the expanded input so
-  // the CCR prompt receives paste contents and stays grammatical. See
-  // keyword.ts for the quote/path exclusions. Interactive prompt mode +
-  // non-slash-prefixed only:
-  // headless/print mode filters local-jsx commands out of context.options,
-  // so routing to /ultraplan there yields "Unknown skill" — and there's no
-  // rainbow animation in print mode anyway.
-  // Runs before attachment extraction so this path matches the slash-command
-  // path below (no await between setUserInputOnProcessing and setAppState —
-  // React batches both into one render, no flash).
+  // Ultraplan 关键词——通过 /ultrapla
+  // n 路由。在预扩展输入中检测，以便包含该词的粘贴内容无法触发
+  // CCR 会话；在扩展输入中替换为“plan”，以便 CCR
+  // 提示接收粘贴内容并保持语法正确。有关引号/路径排除，请参阅
+  // keyword.ts。仅限交互式提示模式 + 非斜杠前缀：无头
+  // /打印模式从 cont
+  // ext.options 中过滤掉本地 JSX 命令，因此路由到
+  // /ultraplan 会产生“未知技能”——而且打印模式中也没有
+  // 彩虹动画。在附件提取之前运行，因此此
+  // 路径与下方的斜杠命令路径匹配（setUserInputOnProc
+  // essing 和 setAppState 之间无 await——R
+  // eact 将两者批处理为一次渲染，无闪烁）。
   if (
     feature('ULTRAPLAN') &&
     mode === 'prompt' &&
@@ -495,7 +487,7 @@ async function processUserInputBase(
     return addImageMetadataMessage(slashResult, imageMetadataTexts)
   }
 
-  // For slash commands, attachments will be extracted within getMessagesForSlashCommand
+  // 对于斜杠命令，附件将在 getMessagesForSlashCommand 中提取
   const shouldExtractAttachments =
     !skipAttachments &&
     inputString !== null &&
@@ -516,7 +508,7 @@ async function processUserInputBase(
     : []
   queryCheckpoint('query_attachment_loading_end')
 
-  // Bash commands
+  // Bash 命令
   if (inputString !== null && mode === 'bash') {
     const { processBashCommand } = await import('./processBashCommand.js')
     return addImageMetadataMessage(
@@ -531,8 +523,8 @@ async function processUserInputBase(
     )
   }
 
-  // Slash commands
-  // Skip for remote bridge messages — input from CCR clients is plain text
+  // 斜杠命令
+  // 跳过远程桥接消息——来自 CCR 客户端的输入是纯文本
   if (
     inputString !== null &&
     !effectiveSkipSlash &&
@@ -553,7 +545,7 @@ async function processUserInputBase(
     return addImageMetadataMessage(slashResult, imageMetadataTexts)
   }
 
-  // Log agent mention queries for analysis
+  // 记录代理提及查询以供分析
   if (inputString !== null && mode === 'prompt') {
     const trimmedInput = inputString.trim()
 
@@ -568,7 +560,7 @@ async function processUserInputBase(
       const isPrefix =
         trimmedInput.startsWith(agentMentionString) && !isSubagentOnly
 
-      // Log whenever users use @agent-<name> syntax
+      // 每当用户使用 @agent-<name> 语法时记录
       logEvent('tengu_subagent_at_mention', {
         is_subagent_only: isSubagentOnly,
         is_prefix: isPrefix,
@@ -576,7 +568,7 @@ async function processUserInputBase(
     }
   }
 
-  // Regular user prompt
+  // 常规用户提示
   return addImageMetadataMessage(
     processTextPrompt(
       normalizedInput,
@@ -591,7 +583,7 @@ async function processUserInputBase(
   )
 }
 
-// Adds image metadata texts as isMeta message to result
+// 将图像元数据文本作为 isMeta 消息添加到结果中
 function addImageMetadataMessage(
   result: ProcessUserInputBaseResult,
   imageMetadataTexts: string[],

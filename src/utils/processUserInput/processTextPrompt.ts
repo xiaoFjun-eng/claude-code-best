@@ -37,13 +37,13 @@ export function processTextPrompt(
       : input.find(block => block.type === 'text')?.text || ''
   startInteractionSpan(userPromptText)
 
-  // Emit user_prompt OTEL event for both string (CLI) and array (SDK/VS Code)
-  // input shapes. Previously gated on `typeof input === 'string'`, so VS Code
-  // sessions never emitted user_prompt (anthropics/claude-code#33301).
-  // For array input, use the LAST text block: createUserContent pushes the
-  // user's message last (after any <ide_selection>/attachment context blocks),
-  // so .findLast gets the actual prompt. userPromptText (first block) is kept
-  // unchanged for startInteractionSpan to preserve existing span attributes.
+  // 为字符串（CLI）和数组（SDK/VS Code）两种输入格式均发出 user_prompt
+  // OTEL 事件。之前仅在 `typeof input === 'string'` 条件下触
+  // 发，因此 VS Code 会话从未发出过 user_prompt 事件（anthro
+  // pics/claude-code#33301）。对于数组输入，使用最后一个文本块：cre
+  // ateUserContent 将用户消息推送到最后（在所有 <ide_selection>/附
+  // 件上下文块之后），因此 .findLast 获取的是实际提示。userPromptText（
+  // 第一个块）保持不变，供 startInteractionSpan 使用，以保留现有的跨度属性。
   const otelPromptText =
     typeof input === 'string'
       ? input
@@ -63,9 +63,9 @@ export function processTextPrompt(
     is_keep_going: isKeepGoing,
   })
 
-  // If we have pasted images, create a message with image content
+  // 如果我们已粘贴图像，则创建一条包含图像内容的消息
   if (imageContentBlocks.length > 0) {
-    // Build content: text first, then images below
+    // 构建内容：先文本，后图像
     const textContent =
       typeof input === 'string'
         ? input.trim()

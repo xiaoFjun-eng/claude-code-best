@@ -600,7 +600,7 @@ async function executeUserInput(params: ExecuteUserInputParams): Promise<void> {
             params.onInputChange(nextInput)
           }
         }
-      }) // end runWithWorkload — ALS context naturally scoped, no finally needed
+      }) // end runWithWorkload 结束 — ALS 上下文自然作用域，无需 finally
       if (autonomyRunIds?.length) {
         for (const runId of autonomyRunIds) {
           const nextCommands = await finalizeAutonomyRunCompleted({

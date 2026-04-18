@@ -178,10 +178,10 @@ function isWithheldMaxOutputTokens(
 export type QueryParams = {
   messages: Message[]
   systemPrompt: SystemPrompt
-  userContext: { [k: string]: string }
-  systemContext: { [k: string]: string }
-  canUseTool: CanUseToolFn
-  toolUseContext: ToolUseContext
+  userContext: { [k: string]: string } //例如 CLAUDE.md、项目记忆等。以UserMessage的方式拼进消息列表
+  systemContext: { [k: string]: string } //例如 git 状态、日期等。以SystemMessage的方式拼进消息列表
+  canUseTool: CanUseToolFn //每次模型发起 tool_use 时的权限检查。「能不能用、要不要弹窗、自动批准还是拒绝」
+  toolUseContext: ToolUseContext //本轮 query（含多轮 tool 循环）的「运行时上下文」，是最大、最杂的一个对象
   fallbackModel?: string
   querySource: QuerySource
   maxOutputTokensOverride?: number

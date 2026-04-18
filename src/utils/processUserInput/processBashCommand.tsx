@@ -34,11 +34,11 @@ export async function processBashCommand(
   messages: (UserMessage | AttachmentMessage | SystemMessage)[]
   shouldQuery: boolean
 }> {
-  // Shell routing (docs/design/ps-shell-selection.md §5.2): consult
-  // defaultShell, fall back to bash. isPowerShellToolEnabled() applies the
-  // same platform + env-var gate as tools.ts so input-box routing matches
-  // tool-list visibility. Computed up front so telemetry records the
-  // actual shell, not the raw setting.
+  // Shell 路由（docs/design/ps-shell-selecti
+  // on.md §5.2）：查询 defaultShell，回退到 bash。isPo
+  // werShellToolEnabled() 应用与 tools.ts 相同的平台
+  // + 环境变量门控，以确保输入框路由与工具列表可见性匹配。预先计算，以便遥测记
+  // 录实际使用的 shell，而非原始设置。
   const usePowerShell =
     isPowerShellToolEnabled() && resolveDefaultShell() === 'powershell'
 
@@ -51,10 +51,10 @@ export async function processBashCommand(
     }),
   })
 
-  // ctrl+b to background indicator
+  // ctrl+b 后台运行指示器
   let jsx: React.ReactNode
 
-  // Just show initial UI
+  // 仅显示初始 UI
   setToolJSX({
     jsx: (
       <BashModeProgress
@@ -69,13 +69,13 @@ export async function processBashCommand(
   try {
     const bashModeContext: ProcessUserInputContext = {
       ...context,
-      // TODO: Clean up this hack
+      // TODO: 清理此临时方案
       setToolJSX: _ => {
         jsx = _?.jsx
       },
     }
 
-    // Progress UI — shared across both shell backends (both emit ShellProgress)
+    // 进度 UI — 两个 shell 后端共享（两者均发出 ShellProgress）
     const onProgress = (progress: { data: ShellProgress }) => {
       setToolJSX({
         jsx: (
@@ -93,12 +93,12 @@ export async function processBashCommand(
       })
     }
 
-    // User-initiated `!` commands run outside sandbox. Both shell tools honor
-    // dangerouslyDisableSandbox (checked against areUnsandboxedCommandsAllowed()
-    // in shouldUseSandbox.ts). PS sandbox is Linux/macOS/WSL2 only — on Windows
-    // native, shouldUseSandbox() returns false regardless (unsupported platform).
-    // Lazy-require PowerShellTool so its ~300KB chunk only loads when the
-    // user has actually selected the powershell default shell.
+    // 用户发起的 `!` 命令在沙箱外运行。两个 shell 工具均遵循 dangerouslyDi
+    // sableSandbox（在 shouldUseSandbox.ts 中通过 areUnsandb
+    // oxedCommandsAllowed() 检查）。PS 沙箱仅限 Linux/macOS/WS
+    // L2 — 在原生 Windows 上，无论设置如何，shouldUseSandbox() 均返回 f
+    // alse（平台不支持）。延迟加载 PowerShellTool，使其约 300KB 的代
+    // 码块仅在用户实际选择 powershell 作为默认 shell 时加载。
     type PSMod = typeof import('@claude-code-best/builtin-tools/tools/PowerShellTool/PowerShellTool.js')
     let PowerShellTool: PSMod['PowerShellTool'] | null = null
     if (usePowerShell) {
@@ -131,23 +131,23 @@ export async function processBashCommand(
     const data = response.data
 
     if (!data) {
-      throw new Error('No result received from shell command')
+      throw new Error('未收到 shell 命令结果')
     }
 
     const stderr = data.stderr
-    // Reuse the same formatting pipeline as inline !`cmd` bash (promptShellExecution)
-    // and model-initiated Bash. When BashTool.call() persists large output to disk,
-    // data.persistedOutputPath is set and the formatter wraps in <persisted-output>.
-    // Pass stderr:'' to keep it separate for the <bash-stderr> UI tag.
+    // 复用与内联 !`cmd` bash（promptShellExecution）和模型发起的 Bash 相
+    // 同的格式化流水线。当 BashTool.call() 将大量输出持久化到磁盘时，会设置 data.p
+    // ersistedOutputPath，格式化器将其包装在 <persisted-output> 中。传
+    // 递 stderr:'' 以保持其独立，用于 <bash-stderr> UI 标签。
     const mapped = await processToolResultBlock(
       shellTool,
       { ...data, stderr: '' },
       randomUUID(),
     )
-    // mapped.content may contain our own <persisted-output> wrapper (trusted
-    // XML from buildLargeToolResultMessage). Escaping it would turn structural
-    // tags into &lt;persisted-output&gt;, breaking the model's parse and
-    // UserBashOutputMessage's extractTag. Escape the raw fallback only.
+    // mapped.content 可能包含我们自己的 <persisted-output> 包装
+    // 器（来自 buildLargeToolResultMessage 的可信 XML）。转义它会将
+    // 结构标签变为 &lt;persisted-output&gt;，破坏模型的解析和 Us
+    // erBashOutputMessage 的 extractTag。仅转义原始回退内容。
     const stdout =
       typeof mapped.content === 'string'
         ? mapped.content
@@ -194,7 +194,7 @@ export async function processBashCommand(
         userMessage,
         ...attachmentMessages,
         createUserMessage({
-          content: `<bash-stderr>Command failed: ${escapeXml(errorMessage(e))}</bash-stderr>`,
+          content: `<bash-stderr>命令失败：${escapeXml(errorMessage(e))}</bash-stderr>`,
         }),
       ],
       shouldQuery: false,

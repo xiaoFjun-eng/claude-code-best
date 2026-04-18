@@ -3,30 +3,30 @@ import { queryModelWithStreaming } from '../services/api/claude.js'
 import { autoCompactIfNeeded } from '../services/compact/autoCompact.js'
 import { microcompactMessages } from '../services/compact/microCompact.js'
 
-// -- deps
+// -- 依赖项
 
-// I/O dependencies for query(). Passing a `deps` override into QueryParams
-// lets tests inject fakes directly instead of spyOn-per-module — the most
-// common mocks (callModel, autocompact) are each spied in 6-8 test files
-// today with module-import-and-spy boilerplate.
+// query() 的 I/O 依赖项。将 `deps` 覆盖传递给 QueryPa
+// rams 允许测试直接注入模拟对象，而无需每个模块都使用 spyOn —— 目
+// 前最常见的模拟对象（callModel、autocompact）在 6-8 个
+// 测试文件中都需要模块导入和 spy 的样板代码。
 //
-// Using `typeof fn` keeps signatures in sync with the real implementations
-// automatically. This file imports the real functions for both typing and
-// the production factory — tests that import this file for typing are
-// already importing query.ts (which imports everything), so there's no
-// new module-graph cost.
+// 使用 `typeof fn` 可以自动保持签名与真实
+// 实现同步。此文件导入真实函数既用于类型定义也用于生产
+// 工厂 —— 为类型定义导入此文件的测试已经导入了
+// query.ts（它导入了所有内容），因此不会产生
+// 新的模块图开销。
 //
-// Scope is intentionally narrow (4 deps) to prove the pattern. Followup
-// PRs can add runTools, handleStopHooks, logEvent, queue ops, etc.
+// 范围有意保持狭窄（4 个依赖项）以验证此模式。后续的 PR 可以添加 runT
+// ools、handleStopHooks、logEvent、队列操作等。
 export type QueryDeps = {
-  // -- model
+  // -- 模型
   callModel: typeof queryModelWithStreaming
 
-  // -- compaction
+  // -- 压缩
   microcompact: typeof microcompactMessages
   autocompact: typeof autoCompactIfNeeded
 
-  // -- platform
+  // -- 平台
   uuid: () => string
 }
 

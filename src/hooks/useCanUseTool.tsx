@@ -93,13 +93,13 @@ function useCanUseTool(
 
         return decisionPromise
           .then(async result => {
-            // [ANT-ONLY] Log all tool permission decisions with tool name and args
+            // [仅限 ANT] 记录所有工具权限决策，包含工具名称和参数
             if (process.env.USER_TYPE === 'ant') {
               logEvent('tengu_internal_tool_permission_decision', {
                 toolName: sanitizeToolNameForAnalytics(tool.name),
                 behavior:
                   result.behavior as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-                // Note: input contains code/filepaths, only log for ants
+                // 注意：输入包含代码/文件路径，仅对 ants 记录日志
                 input: jsonStringify(
                   input,
                 ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
@@ -109,10 +109,10 @@ function useCanUseTool(
               })
             }
 
-            // Has permissions to use tool, granted in config
+            // 拥有使用工具的权限，已在配置中授予
             if (result.behavior === 'allow') {
               if (ctx.resolveIfAborted(resolve)) return
-              // Track auto mode classifier approvals for UI display
+              // 跟踪自动模式分类器审批结果，用于 UI 显示
               if (
                 feature('TRANSCRIPT_CLASSIFIER') &&
                 result.decisionReason?.type === 'classifier' &&
@@ -144,7 +144,7 @@ function useCanUseTool(
 
             if (ctx.resolveIfAborted(resolve)) return
 
-            // Does not have permissions to use tool, check the behavior
+            // 没有使用工具的权限，检查行为
             switch (result.behavior) {
               case 'deny': {
                 logPermissionDecision(
@@ -187,8 +187,8 @@ function useCanUseTool(
               }
 
               case 'ask': {
-                // For coordinator workers, await automated checks before showing dialog.
-                // Background workers should only interrupt the user when automated checks can't decide.
+                // 对于协调器工作线程，在显示对话框前等待自动化
+                // 检查。后台工作线程应仅在自动化检查无法决定时中断用户。
                 if (
                   appState.toolPermissionContext
                     .awaitAutomatedChecksBeforeDialog
@@ -211,16 +211,16 @@ function useCanUseTool(
                     resolve(coordinatorDecision)
                     return
                   }
-                  // null means neither automated check resolved -- fall through to dialog below.
-                  // Hooks already ran, classifier already consumed.
+                  // null 表示自动化检查均未解决——回退到下面的对
+                  // 话框。钩子已运行，分类器已消耗。
                 }
 
-                // After awaiting automated checks, verify the request wasn't aborted
-                // while we were waiting. Without this check, a stale dialog could appear.
+                // 等待自动化检查后，验证请求在等待期间未被
+                // 中止。若无此检查，可能会出现过时的对话框。
                 if (ctx.resolveIfAborted(resolve)) return
 
-                // For swarm workers, try classifier auto-approval then
-                // forward permission requests to the leader via mailbox.
+                // 对于群组工作线程，先尝试分类器自动批准
+                // ，然后通过邮箱将权限请求转发给领导者。
                 const swarmDecision = await handleSwarmWorkerPermission({
                   ctx,
                   description,
@@ -237,8 +237,8 @@ function useCanUseTool(
                   return
                 }
 
-                // Grace period: wait up to 2s for speculative classifier
-                // to resolve before showing the dialog (main agent only)
+                // 宽限期：最多等待 2 秒让推测性分类器
+                // 解决，然后再显示对话框（仅限主代理）
                 if (
                   feature('BASH_CLASSIFIER') &&
                   result.pendingClassifierCheck &&
@@ -256,7 +256,7 @@ function useCanUseTool(
                         result: r,
                       })),
                       new Promise<{ type: 'timeout' }>(res =>
-                        // eslint-disable-next-line no-restricted-syntax -- resolves with a value, not void
+                        // eslint-disable-next-line no-restricted-syntax -- 解析为一个值，而非 void
                         setTimeout(res, 2000, { type: 'timeout' as const }),
                       ),
                     ])
@@ -269,7 +269,7 @@ function useCanUseTool(
                       raceResult.result.confidence === 'high' &&
                       feature('BASH_CLASSIFIER')
                     ) {
-                      // Classifier approved within grace period — skip dialog
+                      // 分类器在宽限期内批准——跳过对话框
                       void consumeSpeculativeClassifierCheck(
                         (input as { command: string }).command,
                       )
@@ -292,18 +292,18 @@ function useCanUseTool(
                             decisionReason: {
                               type: 'classifier' as const,
                               classifier: 'bash_allow' as const,
-                              reason: `Allowed by prompt rule: "${raceResult.result.matchedDescription}"`,
+                              reason: `由提示规则允许："${raceResult.result.matchedDescription}"`,
                             },
                           },
                         ),
                       )
                       return
                     }
-                    // Timeout or no match — fall through to show dialog
+                    // 超时或无匹配——回退到显示对话框
                   }
                 }
 
-                // Show dialog and start hooks/classifier in background
+                // 显示对话框并在后台启动钩子/分类器
                 handleInteractivePermission(
                   {
                     ctx,
@@ -333,7 +333,7 @@ function useCanUseTool(
               error instanceof APIUserAbortError
             ) {
               logForDebugging(
-                `Permission check threw ${error.constructor.name} for tool=${tool.name}: ${error.message}`,
+                `权限检查对工具=${tool.name}抛出 ${error.constructor.name}：${error.message}`,
               )
               ctx.logCancelled()
               resolve(ctx.cancelAndAbort(undefined, true))

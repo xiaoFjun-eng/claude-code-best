@@ -50,12 +50,9 @@ type BaseExecutionParams = {
   querySource: QuerySource
   commands: Command[]
   queryGuard: QueryGuard
-  /**
-   * True when external loading (remote session, foregrounded background task)
-   * is active. These don't route through queryGuard, so the queue check must
-   * account for them separately. Omit (defaults to false) for the dequeue path
-   * (executeQueuedInput) — dequeued items were already queued past this check.
-   */
+  /** * 当外部加载（远程会话、前台化的后台任务）处于活动状态时为 true。
+   * 这些不经过 queryGuard 路由，因此队列检查必须单独考虑它们。
+   * 对于出队路径（executeQueuedInput）省略（默认为 false）——出队的项目已经通过了此检查并已入队。 */
   isExternalLoading?: boolean
   setToolJSX: SetToolJSXFn
   getToolUseContext: (
@@ -81,9 +78,7 @@ type BaseExecutionParams = {
   canUseTool?: CanUseToolFn
 }
 
-/**
- * Parameters for core execution logic (no UI concerns).
- */
+/** * 核心执行逻辑的参数（不涉及 UI 问题）。 */
 type ExecuteUserInputParams = BaseExecutionParams & {
   resetHistory: () => void
   onInputChange: (value: string) => void
@@ -96,7 +91,7 @@ export type PromptInputHelpers = {
 }
 
 export type HandlePromptSubmitParams = BaseExecutionParams & {
-  // Direct user input path (set when called from onSubmit, absent for queue processor)
+  // 直接用户输入路径（在从 onSubmit 调用时设置，队列处理器中不存在）
   input?: string
   mode?: PromptInputMode
   pastedContents?: Record<number, PastedContent>
@@ -115,13 +110,10 @@ export type HandlePromptSubmitParams = BaseExecutionParams & {
   streamMode?: SpinnerMode
   hasInterruptibleToolInProgress?: boolean
   uuid?: UUID
-  /**
-   * When true, input starting with `/` is treated as plain text.
-   * Used for remotely-received messages (bridge/CCR) that should not
-   * trigger local slash commands or skills.
-   */
+  /** * 当为 true 时，以 `/` 开头的输入被视为纯文本。
+   * 用于不应触发本地斜杠命令或技能的远程接收消息（桥接/CCR）。 */
   skipSlashCommands?: boolean
-  /** Preserves that the input originated from Remote Control when queued. */
+  /** 保留输入在入队时源自远程控制的信息。 */
   bridgeOrigin?: boolean
 }
 
@@ -154,8 +146,8 @@ export async function handlePromptSubmit(
 
   const { setCursorOffset, clearBuffer, resetHistory } = helpers
 
-  // Queue processor path: commands are pre-validated and ready to execute.
-  // Skip all input validation, reference parsing, and queuing logic.
+  // 队列处理器路径：命令已预先验证并准备执行。
+  // 跳过所有输入验证、引用解析和排队逻辑。
   if (queuedCommands?.length) {
     startQueryProfile()
     await executeUserInput({
@@ -184,8 +176,8 @@ export async function handlePromptSubmit(
   const mode = params.mode ?? 'prompt'
   const rawPastedContents = params.pastedContents ?? {}
 
-  // Images are only sent if their [Image #N] placeholder is still in the text.
-  // Deleting the inline pill drops the image; orphaned entries are filtered here.
+  // 仅当图片的 [Image #N] 占位符仍在文本中时，图片才会被发送。
+  // 删除内联药丸会丢弃图片；孤立的条目在此处被过滤掉。
   const referencedIds = new Set(parseReferences(input).map(r => r.id))
   const pastedContents = Object.fromEntries(
     Object.entries(rawPastedContents).filter(
@@ -198,30 +190,30 @@ export async function handlePromptSubmit(
     return
   }
 
-  // Handle exit commands by triggering the exit command instead of direct process.exit
-  // Skip for remote bridge messages — "exit" typed on iOS shouldn't kill the local session
+  // 通过触发退出命令来处理退出命令，而不是直接调用 process.exit
+  // 跳过远程桥接消息——在 iOS 上输入的 "exit" 不应终止本地会话
   if (
     !skipSlashCommands &&
     ['exit', 'quit', ':q', ':q!', ':wq', ':wq!'].includes(input.trim())
   ) {
-    // Trigger the exit command which will show the feedback dialog
+    // 触发退出命令，该命令将显示反馈对话框
     const exitCommand = commands.find(cmd => cmd.name === 'exit')
     if (exitCommand) {
-      // Submit the /exit command instead - recursive call needs to be handled
+      // 提交 /exit 命令替代 - 需要处理递归调用
       void handlePromptSubmit({
         ...params,
         input: '/exit',
       })
     } else {
-      // Fallback to direct exit if exit command not found
+      // 如果未找到退出命令，则回退到直接退出
       exit()
     }
     return
   }
 
-  // Parse references and replace with actual content early, before queueing
-  // or immediate-command dispatch, so queued commands and immediate commands
-  // both receive the expanded text from when it was submitted.
+  // 在入队之前，尽早解析引用并替换为实际内容
+  // 或立即命令分发，以便排队的命令和立即命令
+  // 都接收到提交时的扩展文本。
   const finalInput = expandPastedTextRefs(input, pastedContents)
   const pastedTextRefs = parseReferences(input).filter(
     r => pastedContents[r.id]?.type === 'text',
@@ -233,8 +225,8 @@ export async function handlePromptSubmit(
   )
   logEvent('tengu_paste_text', { pastedTextCount, pastedTextBytes })
 
-  // Handle local-jsx immediate commands (e.g., /config, /doctor)
-  // Skip for remote bridge messages — slash commands from CCR clients are plain text
+  // 处理本地 JSX 立即命令（例如，/config, /doctor）
+  // 跳过远程桥接消息——来自 CCR 客户端的斜杠命令是纯文本
   if (!skipSlashCommands && finalInput.trim().startsWith('/')) {
     const trimmedInput = finalInput.trim()
     const spaceIndex = trimmedInput.indexOf(' ')
@@ -264,7 +256,7 @@ export async function handlePromptSubmit(
           immediateCommand.name as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       })
 
-      // Clear input
+      // 清空输入
       onInputChange('')
       setCursorOffset(0)
       setPastedContents({})
@@ -280,7 +272,7 @@ export async function handlePromptSubmit(
       let doneWasCalled = false
       const onDone: LocalJSXCommandOnDone = (result, options) => {
         doneWasCalled = true
-        // Use clearLocalJSX to explicitly clear the local JSX command
+        // 使用 clearLocalJSX 来显式清除本地 JSX 命令
         setToolJSX({
           jsx: null,
           shouldHidePromptInput: false,
@@ -305,8 +297,8 @@ export async function handlePromptSubmit(
       const impl = await immediateCommand.load()
       const jsx = await impl.call(onDone, context, commandArgs)
 
-      // Skip if onDone already fired — prevents stuck isLocalJSXCommand
-      // (see processSlashCommand.tsx local-jsx case for full mechanism).
+      // 如果 onDone 已触发则跳过——防止 isLocalJSXCommand 卡住
+      // （完整机制请参见 processSlashCommand.tsx 中的 local-jsx 案例）。
       if (jsx && !doneWasCalled) {
         setToolJSX({
           jsx,
@@ -320,16 +312,16 @@ export async function handlePromptSubmit(
   }
 
   if (queryGuard.isActive || isExternalLoading) {
-    // Only allow prompt and bash mode commands to be queued
+    // 仅允许提示符和 bash 模式命令入队
     if (mode !== 'prompt' && mode !== 'bash') {
       return
     }
 
-    // Interrupt the current turn when all executing tools have
-    // interruptBehavior 'cancel' (e.g. SleepTool).
+    // 当所有正在执行工具的中断行为为 'cancel' 时，中断当前轮次
+    // （例如 SleepTool）。
     if (params.hasInterruptibleToolInProgress) {
       logForDebugging(
-        `[interrupt] Aborting current turn: streamMode=${params.streamMode}`,
+        `[中断] 正在中止当前轮次：streamMode=${params.streamMode}`,
       )
       logEvent('tengu_cancel', {
         source:
@@ -340,8 +332,8 @@ export async function handlePromptSubmit(
       params.abortController?.abort('interrupt')
     }
 
-    // Enqueue with string value + raw pastedContents. Images will be resized
-    // at execution time when processUserInput runs (not baked in here).
+    // 使用字符串值和原始粘贴内容入队。图片将在执行时调整大小
+    // （当 processUserInput 运行时，不在此处预先处理）。
     enqueue({
       value: finalInput.trim(),
       preExpansionValue: input.trim(),
@@ -360,12 +352,12 @@ export async function handlePromptSubmit(
     return
   }
 
-  // Start query profiling for this query
+  // 为此查询启动查询性能分析
   startQueryProfile()
 
-  // Construct a QueuedCommand from the direct user input so both paths
-  // go through the same executeUserInput loop. This ensures images get
-  // resized via processUserInput regardless of how the command arrives.
+  // 根据直接用户输入构建一个 QueuedCommand，使两条路径都经过相同的 executeUserInput 循环。这确保无论命令如何到达，图像都能通过 processUserInput 调整大小。
+  // 通过相同的 executeUserInput 循环。这确保图像能通过 processUserInput 调整大小，无论命令如何到达。
+  // 调整大小，无论命令如何到达。
   const cmd: QueuedCommand = {
     value: finalInput,
     preExpansionValue: input,
@@ -397,13 +389,11 @@ export async function handlePromptSubmit(
   })
 }
 
-/**
- * Core logic for executing user input without UI side effects.
+/** * 执行用户输入且无 UI 副作用的核心逻辑。
  *
- * All commands arrive as `queuedCommands`. First command gets full treatment
- * (attachments, ideSelection, pastedContents with image resizing). Commands 2-N
- * get `skipAttachments` to avoid duplicating turn-level context.
- */
+ * 所有命令都以 `queuedCommands` 形式到达。第一条命令得到完整处理
+ *（附件、ideSelection、带图像调整的粘贴内容）。第 2 到 N 条命令
+ * 使用 `skipAttachments` 以避免重复回合级上下文。 */
 async function executeUserInput(params: ExecuteUserInputParams): Promise<void> {
   const {
     messages,
@@ -423,10 +413,10 @@ async function executeUserInput(params: ExecuteUserInputParams): Promise<void> {
     queuedCommands,
   } = params
 
-  // Note: paste references are already processed before calling this function
-  // (either in handlePromptSubmit before queuing, or before initial execution).
-  // Always create a fresh abort controller — queryGuard guarantees no concurrent
-  // executeUserInput call, so there's no prior controller to inherit.
+  // 注意：粘贴引用在调用此函数前已处理（在排队前的 handlePromptSubmit 中，或在初始执行前）。
+  // （在排队前的 handlePromptSubmit 中，或在初始执行前）。
+  // 始终创建一个新的 abort controller — queryGuard 保证没有并发的 executeUserInput 调用，因此没有先前的 controller 可继承。
+  // executeUserInput 调用，因此没有先前的 controller 可继承。
   const abortController = createAbortController()
   setAbortController(abortController)
 
@@ -434,17 +424,17 @@ async function executeUserInput(params: ExecuteUserInputParams): Promise<void> {
     return getToolUseContext(messages, [], abortController, mainLoopModel)
   }
 
-  // Wrap in try-finally so the guard is released even if processUserInput
-  // throws or onQuery is skipped. onQuery's finally calls queryGuard.end(),
-  // which transitions running→idle; cancelReservation() below is a no-op in
-  // that case (only acts on dispatching state).
+  // 包装在 try-finally 中，这样即使 processUserInput 抛出异常或跳过 onQuery，也能释放 guard。onQuery 的 finally 会调用 queryGuard.end()，
+  // 抛出异常或跳过 onQuery，也能释放 guard。onQuery 的 finally 会调用 queryGuard.end()，
+  // 将状态从 running 转为 idle；下面的 cancelReservation() 在这种情况下是空操作（仅对 dispatching 状态生效）。
+  // （仅对 dispatching 状态生效）。
   try {
-    // Reserve the guard BEFORE processUserInput — processBashCommand awaits
-    // BashTool.call() and processSlashCommand awaits getMessagesForSlashCommand,
-    // so the guard must be active during those awaits to ensure concurrent
-    // handlePromptSubmit calls queue (via the isActive check above) instead
-    // of starting a second executeUserInput. This call is a no-op if the
-    // guard is already in dispatching (legacy queue-processor path).
+    // 在 processUserInput 之前保留 guard — processBashCommand 等待 BashTool.call()，processSlashCommand 等待 getMessagesForSlashCommand，
+    // BashTool.call()，processSlashCommand 等待 getMessagesForSlashCommand，
+    // 因此在这些等待期间 guard 必须处于活动状态，以确保并发的 handlePromptSubmit 调用排队（通过上面的 isActive 检查）
+    // 而不是启动第二个 executeUserInput。如果 guard 已处于 dispatching 状态（传统队列处理器路径），此调用是空操作。
+    // 而不是启动第二个 executeUserInput。如果 guard 已处于 dispatching 状态（传统队列处理器路径），此调用是空操作。
+    // （传统队列处理器路径），此调用是空操作。
     queryGuard.reserve()
     queryCheckpoint('query_process_user_input_start')
 
@@ -456,15 +446,15 @@ async function executeUserInput(params: ExecuteUserInputParams): Promise<void> {
     let nextInput: string | undefined
     let submitNextInput: boolean | undefined
 
-    // Iterate all commands uniformly. First command gets attachments +
-    // ideSelection + pastedContents, rest skip attachments to avoid
-    // duplicating turn-level context (IDE selection, todos, diffs).
+    // 统一迭代所有命令。第一条命令获取附件 + ideSelection + 粘贴内容，其余命令跳过附件以避免
+    // ideSelection + 粘贴内容，其余命令跳过附件以避免
+    // 重复回合级上下文（IDE 选择、待办事项、差异）。
     const commands = queuedCommands ?? []
 
-    // Compute the workload tag for this turn. queueProcessor can batch a
-    // cron prompt with a same-tick human prompt; only tag when EVERY
-    // command agrees on the same non-undefined workload — a human in the
-    // mix is actively waiting.
+    // 计算此回合的工作负载标签。queueProcessor 可以将一个 cron 提示与同一时刻的人工提示批量处理；仅当每条命令都同意相同的非 undefined 工作负载时才标记 — 混合中的人工正在主动等待。
+    // cron 提示与同一时刻的人工提示批量处理；仅当每条命令都同意相同的非 undefined 工作负载时才标记 — 混合中的人工正在主动等待。
+    // 命令都同意相同的非 undefined 工作负载时才标记 — 混合中的人工正在主动等待。
+    // 混合中的人工正在主动等待。
     const firstWorkload = commands[0]?.workload
     const turnWorkload =
       firstWorkload !== undefined &&
@@ -473,14 +463,14 @@ async function executeUserInput(params: ExecuteUserInputParams): Promise<void> {
         : undefined
     let autonomyRunIds: string[] | undefined
 
-    // Wrap the entire turn (processUserInput loop + onQuery) in an
-    // AsyncLocalStorage context. This is the ONLY way to correctly
-    // propagate workload across await boundaries: void-detached bg agents
-    // (executeForkedSlashCommand, AgentTool) capture the ALS context at
-    // invocation time, and every await inside them resumes in that
-    // context — isolated from the parent's continuation. A process-global
-    // mutable slot would be clobbered at the detached closure's first
-    // await by this function's synchronous return path. See state.ts.
+    // 将整个回合（processUserInput 循环 + onQuery）包装在 AsyncLocalStorage 上下文中。这是正确
+    // 在 AsyncLocalStorage 上下文中。这是正确
+    // 跨 await 边界传播工作负载的唯一方式：void-detached 后台代理
+    // （executeForkedSlashCommand、AgentTool）在调用时捕获 ALS 上下文，并且其中的每个 await 都在该上下文中恢复。
+    // 调用时捕获 ALS 上下文，并且其中的每个 await 都在该上下文中恢复。
+    // context — 与父级 continuation 隔离。一个进程全局的可变槽位会在分离闭包首次 await 时被此函数的同步返回路径覆盖。参见 state.ts。
+    // 可变槽位会在分离闭包首次 await 时被此函数的同步返回路径覆盖。参见 state.ts。
+    // 在此处标记 origin，而不是通过 processUserInput → processUserInputBase → processTextPrompt → createUserMessage 传递另一个参数。
     try {
       await runWithWorkload(turnWorkload, async () => {
         for (let i = 0; i < commands.length; i++) {
@@ -511,12 +501,12 @@ async function executeUserInput(params: ExecuteUserInputParams): Promise<void> {
             isMeta: cmd.isMeta,
             skipAttachments: !isFirst,
           })
-          // Stamp origin here rather than threading another arg through
-          // processUserInput → processUserInputBase → processTextPrompt → createUserMessage.
-          // Derive origin from mode for task-notifications — mirrors the origin
-          // derivation at messages.ts (case 'queued_command'); intentionally
-          // does NOT mirror its isMeta:true so idle-dequeued notifications stay
-          // visible in the transcript via UserAgentNotificationMessage.
+          // 从 mode 派生 origin 用于任务通知 — 与 messages.ts 中的 origin 派生逻辑（case 'queued_command'）保持一致；
+          // 特意不复制其 isMeta:true，以便通过 UserAgentNotificationMessage 让空闲出队的通知在记录中保持可见。
+          // 历史记录现在由调用方（onSubmit）为直接用户提交添加。
+          // 这确保队列命令处理（通知、已排队的用户输入）不会添加到历史记录中，因为这些内容要么不应在历史记录中，要么在最初排队时已添加。
+          // 跳过消息的本地斜杠命令（例如 /model、/theme）。
+          // 在清除 toolJSX 之前释放 guard 以防止微调器闪烁 — 微调器公式检查：(!toolJSX || showSpinner) && isLoading。
           const origin =
             cmd.origin ??
             (cmd.mode === 'task-notification'
@@ -556,10 +546,10 @@ async function executeUserInput(params: ExecuteUserInputParams): Promise<void> {
         }
 
         if (newMessages.length) {
-          // History is now added in the caller (onSubmit) for direct user submissions.
-          // This ensures queued command processing (notifications, already-queued user input)
-          // doesn't add to history, since those either shouldn't be in history or were
-          // already added when originally queued.
+          // 如果在 guard 仍被保留时清除 toolJSX，微调器会短暂显示。下面的 finally 也会调用 cancelReservation（如果空闲则无操作）。
+          // 处理希望链式执行的命令的 nextInput（例如 /discover 激活）
+          // 安全网：如果 processUserInput 抛出异常或跳过了 onQuery，则释放 guard 保留。如果 onQuery 已运行则无操作（guard 通过 end() 空闲，或正在运行 — cancelReservation 仅作用于调度中）。
+          // 这是释放保留的唯一真实来源；useQueueProcessor 不再需要自己的 .finally()。
           resetHistory()
           setToolJSX({
             jsx: null,
@@ -587,11 +577,11 @@ async function executeUserInput(params: ExecuteUserInputParams): Promise<void> {
             effort,
           )
         } else {
-          // Local slash commands that skip messages (e.g., /model, /theme).
-          // Release the guard BEFORE clearing toolJSX to prevent spinner flash —
-          // the spinner formula checks: (!toolJSX || showSpinner) && isLoading.
-          // If we clear toolJSX while the guard is still reserved, spinner briefly
-          // shows. The finally below also calls cancelReservation (no-op if idle).
+          // 安全网：如果 processUserInput 未生成消息或抛出异常，则清除占位符 — 否则它将保持可见直到下一轮的 resetLoadingState。当 onQuery 运行时无害：setMessages 使 displayedMessages 超过基线，因此 REPL.tsx 已将其隐藏。
+          // 在清除 toolJSX 之前释放防护锁，防止加载指示器闪烁——
+          // 加载指示器的判断逻辑是：(!toolJSX || showSpinner) && isLoading。
+          // 如果防护锁仍被占用时我们清除了 toolJSX，加载指示器会短暂显示。
+          // 下面的 finally 块也会调用 cancelReservation（如果空闲则无操作）。
           queryGuard.cancelReservation()
           setToolJSX({
             jsx: null,
@@ -602,7 +592,7 @@ async function executeUserInput(params: ExecuteUserInputParams): Promise<void> {
           setAbortController(null)
         }
 
-        // Handle nextInput from commands that want to chain (e.g., /discover activation)
+        // 处理来自希望链式执行的命令的 nextInput（例如，/discover 激活）
         if (nextInput) {
           if (submitNextInput) {
             enqueue({ value: nextInput, mode: 'prompt' })
@@ -635,14 +625,14 @@ async function executeUserInput(params: ExecuteUserInputParams): Promise<void> {
       throw error
     }
   } finally {
-    // Safety net: release the guard reservation if processUserInput threw
-    // or onQuery was skipped. No-op if onQuery already ran (guard is idle
-    // via end(), or running — cancelReservation only acts on dispatching).
-    // This is the single source of truth for releasing the reservation;
-    // useQueueProcessor no longer needs its own .finally().
+    // 安全网：如果 processUserInput 抛出异常或 onQuery 被跳过，则释放防护锁占用。
+    // 如果 onQuery 已运行（通过 end() 防护锁已空闲，或正在运行——cancelReservation 仅作用于调度状态），则无操作。
+    // 这是释放占用的唯一可靠来源；
+    // useQueueProcessor 不再需要自己的 .finally()。
+    // 安全网：如果 processUserInput 未生成消息或抛出异常，则清除占位符——
     queryGuard.cancelReservation()
-    // Safety net: clear the placeholder if processUserInput produced no
-    // messages or threw — otherwise it would stay visible until the next
+    // 否则它将保持可见直到下一轮的 resetLoadingState。当 onQuery 运行时无害：setMessages 使
+    // displayedMessages 超出基线，因此 REPL.tsx 已将其隐藏。
     // turn's resetLoadingState. Harmless when onQuery ran: setMessages grew
     // displayedMessages past the baseline, so REPL.tsx already hid it.
     setUserInputOnProcessing(undefined)

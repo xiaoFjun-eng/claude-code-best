@@ -257,7 +257,7 @@ type Props = {
   ) => void
   submitCount: number
   onShowMessageSelector: () => void
-  /** Fullscreen message actions: shift+↑ enters cursor. */
+  /** 全屏消息操作：shift+↑ 进入光标模式。 */
   onMessageActionsEnter?: () => void
   mcpClients: MCPServerConnection[]
   pastedContents: Record<number, PastedContent>
@@ -306,7 +306,7 @@ type Props = {
   voiceInterimRange?: { start: number; end: number } | null
 }
 
-// Bottom slot has maxHeight="50%"; reserve lines for footer, border, status.
+// 底部插槽设置 maxHeight="50%"；为页脚、边框、状态栏预留行数。
 const PROMPT_FOOTER_LINES = 5
 const MIN_INPUT_VIEWPORT_LINES = 3
 
@@ -355,11 +355,11 @@ function PromptInput({
   voiceInterimRange,
 }: Props): React.ReactNode {
   const mainLoopModel = useMainLoopModel()
-  // A local-jsx command (e.g., /mcp while agent is running) renders a full-
-  // screen dialog on top of PromptInput via the immediate-command path with
-  // shouldHidePromptInput: false. Those dialogs don't register in the overlay
-  // system, so treat them as a modal overlay here to stop navigation keys from
-  // leaking into TextInput/footer handlers and stacking a second dialog.
+  // 本地 jsx 命令（例如，在代理运行时输入 /mcp）会通过即时命令路径
+  // 在 PromptInput 上方渲染一个全屏对话框，并设置 shouldHidePromptInput: false。
+  // 这些对话框未在覆盖层系统中注册，因此在此处将其视为模态覆盖层，以阻止导航键
+  // 泄漏到 TextInput/页脚处理器中并叠加第二个对话框。
+  // 跟踪通过内部处理器设置的最后一个输入值，以便我们能够检测
   const isModalOverlayActive =
     useIsModalOverlayActive() || isLocalJSXCommandActive
   const [isAutoUpdating, setIsAutoUpdating] = useState(false)
@@ -368,15 +368,15 @@ function PromptInput({
     key?: string
   }>({ show: false })
   const [cursorOffset, setCursorOffset] = useState<number>(input.length)
-  // Track the last input value set via internal handlers so we can detect
-  // external input changes (e.g. speech-to-text injection) and move cursor to end.
+  // 外部输入变化（例如语音转文本注入）并将光标移至末尾。
+  // 输入被外部更改（非通过任何内部处理器）——将光标移至末尾
   const lastInternalInputRef = React.useRef(input)
   if (input !== lastInternalInputRef.current) {
-    // Input changed externally (not through any internal handler) — move cursor to end
+    // 包装 onInputChange 以在触发重新渲染前跟踪内部更改
     setCursorOffset(input.length)
     lastInternalInputRef.current = input
   }
-  // Wrap onInputChange to track internal changes before they trigger re-render
+  // 暴露一个 insertText 函数，以便调用者（例如 STT）可以在
   const trackAndSetInput = React.useCallback(
     (value: string) => {
       lastInternalInputRef.current = value
@@ -384,8 +384,8 @@ function PromptInput({
     },
     [onInputChange],
   )
-  // Expose an insertText function so callers (e.g. STT) can splice text at the
-  // current cursor position instead of replacing the entire input.
+  // 当前光标位置拼接文本，而不是替换整个输入。
+  // 必须与 BridgeStatusIndicator 的渲染条件匹配（PromptInputFooter.tsx）——
   if (insertTextRef) {
     insertTextRef.current = {
       cursorOffset,
@@ -414,19 +414,19 @@ function PromptInput({
   const replBridgeConnected = useAppState(s => s.replBridgeConnected)
   const replBridgeExplicit = useAppState(s => s.replBridgeExplicit)
   const replBridgeReconnecting = useAppState(s => s.replBridgeReconnecting)
-  // Must match BridgeStatusIndicator's render condition (PromptInputFooter.tsx) —
-  // the pill returns null for implicit-and-not-reconnecting, so nav must too,
-  // otherwise bridge becomes an invisible selection stop.
+  // 对于隐式且未重新连接的情况，指示器返回 null，因此导航也必须如此，
+  // 否则桥接器将成为一个不可见的选择停止点。
+  // Tmux 指示器（仅限 ant）——当有活动的 tungsten 会话时可见
   const bridgeFooterVisible =
     replBridgeConnected && (replBridgeExplicit || replBridgeReconnecting)
-  // Tmux pill (ant-only) — visible when there's an active tungsten session
+  // WebBrowser 指示器——当浏览器打开时可见
   const hasTungstenSession = useAppState(
     s =>
       process.env.USER_TYPE === 'ant' && s.tungstenActiveSession !== undefined,
   )
   const tmuxFooterVisible =
     process.env.USER_TYPE === 'ant' && hasTungstenSession
-  // WebBrowser pill — visible when a browser is open
+  // 简洁模式：BriefSpinner/BriefIdleStatus 占据输入框上方的两行空间。
   const bagelFooterVisible = useAppState(s =>
         false,
   )
@@ -444,14 +444,14 @@ function PromptInput({
     ? getGlobalConfig()
     : { companion: undefined, companionMuted: undefined }
   const companionFooterVisible = !!_companion && !companionMuted
-  // Brief mode: BriefSpinner/BriefIdleStatus own the 2-row footprint above
-  // the input. Dropping marginTop here lets the spinner sit flush against
-  // the input bar. viewingAgentTaskId mirrors the gate on both (Spinner.tsx,
-  // REPL.tsx) — teammate view falls back to SpinnerWithVerbInner which has
-  // its own marginTop, so the gap stays even without ours.
+  // 在此处移除 marginTop 可使旋转器紧贴输入栏。
+  // viewingAgentTaskId 镜像了两者的门控条件（Spinner.tsx, REPL.tsx）——
+  // 队友视图回退到 SpinnerWithVerbInner，它有自己的 marginTop，因此即使没有我们的设置，间隙也会保持。
+  // biome-ignore lint/correctness/useHookAtTopLevel: feature() 是编译时常量
+  // identity.color 的类型为 `string | undefined`（而非 AgentColorName），因为
   const briefOwnsGap =
     feature('KAIROS') || feature('KAIROS_BRIEF')
-      ? // biome-ignore lint/correctness/useHookAtTopLevel: feature() is a compile-time constant
+      ? // 队友身份来自基于文件的配置。在类型转换前进行验证，
         useAppState(s => s.isBriefOnly) && !viewingAgentTaskId
       : false
   const mainLoopModel_ = useAppState(s => s.mainLoopModel)
@@ -463,25 +463,25 @@ function PromptInput({
   const effortValue = useAppState(s => s.effortValue)
   const viewedTeammate = getViewedTeammateTask(store.getState())
   const viewingAgentName = viewedTeammate?.identity.agentName
-  // identity.color is typed as `string | undefined` (not AgentColorName) because
-  // teammate identity comes from file-based config. Validate before casting to
-  // ensure we only use valid color names (falls back to cyan if invalid).
+  // 以确保仅使用有效的颜色名称（若无效则回退到青色）。
+  // 进程内队友按字母顺序排序，用于页脚团队选择器
+  // 团队模式：所有后台任务都是进程内队友
   const viewingAgentColor =
     viewedTeammate?.identity.color &&
     AGENT_COLORS.includes(viewedTeammate.identity.color as AgentColorName)
       ? (viewedTeammate.identity.color as AgentColorName)
       : undefined
-  // In-process teammates sorted alphabetically for footer team selector
+  // 查看队友时，在页脚显示其权限模式，而非领导者的模式
   const inProcessTeammates = useMemo(
     () => getRunningTeammatesSorted(tasks),
     [tasks],
   )
 
-  // Team mode: all background tasks are in-process teammates
+  // 团队模式：所有后台任务都是进程内队友
   const isTeammateMode =
     inProcessTeammates.length > 0 || viewedTeammate !== undefined
 
-  // When viewing a teammate, show their permission mode in the footer instead of the leader's
+  // 查看队友时，在页脚显示其权限模式而非队长的
   const effectiveToolPermissionContext = useMemo((): ToolPermissionContext => {
     if (viewedTeammate) {
       return {
@@ -508,26 +508,26 @@ function PromptInput({
       setPastedContents,
       pastedContents,
     )
-  // Counter for paste IDs (shared between images and text).
-  // Compute initial value once from existing messages (for --continue/--resume).
-  // useRef(fn()) evaluates fn() on every render and discards the result after
-  // mount — getInitialPasteId walks all messages + regex-scans text blocks,
-  // so guard with a lazy-init pattern to run it exactly once.
+  // 粘贴 ID 计数器（图片和文本之间共享）。
+  // 根据现有消息计算初始值（用于 --continue/--resume 参数）。
+  // useRef(fn()) 会在每次渲染时执行 fn() 并丢弃结果
+  // 挂载后 — getInitialPasteId 会遍历所有消息并对文本块进行正则扫描，
+  // 因此采用惰性初始化模式来确保它只执行一次。
   const nextPasteIdRef = useRef(-1)
   if (nextPasteIdRef.current === -1) {
     nextPasteIdRef.current = getInitialPasteId(messages)
   }
-  // Armed by onImagePaste; if the very next keystroke is a non-space
-  // printable, inputFilter prepends a space before it. Any other input
-  // (arrow, escape, backspace, paste, space) disarms without inserting.
+  // 由 onImagePaste 触发；如果紧接着的按键是非空格
+  // 可打印字符，inputFilter 会在其前添加一个空格。任何其他输入
+  // （方向键、ESC、退格键、粘贴、空格）会解除触发且不插入内容。
   const pendingSpaceAfterPillRef = useRef(false)
 
   const [showTeamsDialog, setShowTeamsDialog] = useState(false)
   const [showBridgeDialog, setShowBridgeDialog] = useState(false)
   const [teammateFooterIndex, setTeammateFooterIndex] = useState(0)
-  // -1 sentinel: tasks pill is selected but no specific agent row is selected yet.
-  // First ↓ selects the pill, second ↓ moves to row 0. Prevents double-select
-  // of pill + row when both bg tasks (pill) and forked agents (rows) are visible.
+  // -1 哨兵值：任务药丸被选中但尚未选中具体的智能体行。
+  // 第一次按 ↓ 选中药丸，第二次按 ↓ 移动到第 0 行。防止当后台任务
+  // （药丸）和派生智能体（行）同时可见时，药丸和行被双重选中。
   const coordinatorTaskIndex = useAppState(s => s.coordinatorTaskIndex)
   const setCoordinatorTaskIndex = useCallback(
     (v: number | ((prev: number) => number)) =>
@@ -539,10 +539,10 @@ function PromptInput({
     [setAppState],
   )
   const coordinatorTaskCount = useCoordinatorTaskCount()
-  // The pill (BackgroundTaskStatus) only renders when non-local_agent bg tasks
-  // exist. When only local_agent tasks are running (coordinator/fork mode), the
-  // pill is absent, so the -1 sentinel would leave nothing visually selected.
-  // In that case, skip -1 and treat 0 as the minimum selectable index.
+  // 药丸（BackgroundTaskStatus）仅在存在非 local_agent 后台任务时
+  // 渲染。当只有 local_agent 任务在运行时（协调器/派生模式），
+  // 药丸不会显示，因此 -1 哨兵值会导致视觉上无选中项。
+  // 在这种情况下，跳过 -1 并将 0 视为最小可选索引。
   const hasBgTaskPill = useMemo(
     () =>
       Object.values(tasks).some(
@@ -553,7 +553,7 @@ function PromptInput({
     [tasks],
   )
   const minCoordinatorIndex = hasBgTaskPill ? -1 : 0
-  // Clamp index when tasks complete and the list shrinks beneath the cursor
+  // 当任务完成且列表在光标下方收缩时，对索引进行钳位
   useEffect(() => {
     if (coordinatorTaskIndex >= coordinatorTaskCount) {
       setCoordinatorTaskIndex(
@@ -576,11 +576,11 @@ function PromptInput({
     useState<PermissionMode | null>(null)
   const autoModeOptInTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Check if cursor is on the first line of input
+  // 检查光标是否在输入框的第一行
   const isCursorOnFirstLine = useMemo(() => {
     const firstNewlineIndex = input.indexOf('\n')
     if (firstNewlineIndex === -1) {
-      return true // No newlines, cursor is always on first line
+      return true // 无换行符，光标始终在第一行
     }
     return cursorOffset <= firstNewlineIndex
   }, [input, cursorOffset])
@@ -588,16 +588,16 @@ function PromptInput({
   const isCursorOnLastLine = useMemo(() => {
     const lastNewlineIndex = input.lastIndexOf('\n')
     if (lastNewlineIndex === -1) {
-      return true // No newlines, cursor is always on last line
+      return true // 无换行符，光标始终在最后一行
     }
     return cursorOffset > lastNewlineIndex
   }, [input, cursorOffset])
 
-  // Derive team info from teamContext (no filesystem I/O needed)
-  // A session can only lead one team at a time
+  // 从 teamContext 派生团队信息（无需文件系统 I/O）
+  // 一个会话一次只能领导一个团队
   const cachedTeams: TeamSummary[] = useMemo(() => {
     if (!isAgentSwarmsEnabled()) return []
-    // In-process mode uses Shift+Down/Up navigation instead of footer menu
+    // 进程内模式使用 Shift+Down/Up 导航，而非页脚菜单
     if (isInProcessEnabled()) return []
     if (!teamContext) {
       return []
@@ -616,17 +616,17 @@ function PromptInput({
     ]
   }, [teamContext])
 
-  // ─── Footer pill navigation ─────────────────────────────────────────────
-  // Which pills render below the input box. Order here IS the nav order
-  // (down/right = forward, up/left = back). Selection lives in AppState so
-  // pills rendered outside PromptInput (CompanionSprite) can read focus.
+  // ─── 页脚药丸导航 ─────────────────────────────────────────────
+  // 哪些药丸在输入框下方渲染。此处的顺序即为导航顺序
+  // （向下/向右 = 前进，向上/向左 = 后退）。选中状态保存在 AppState 中，以便
+  // 在 PromptInput 外部渲染的药丸（CompanionSprite）可以读取焦点。
   const runningTaskCount = useMemo(
     () => count(Object.values(tasks), t => t.status === 'running'),
     [tasks],
   )
-  // Panel shows retained-completed agents too (getVisibleAgentTasks), so the
-  // pill must stay navigable whenever the panel has rows — not just when
-  // something is running.
+  // 面板也会显示保留的已完成智能体（getVisibleAgentTasks），因此
+  // 只要面板中有行（不仅仅是当有任务运行时），药丸就必须保持可导航。
+  // 有效选中状态：如果选中的药丸停止渲染则为 null（桥接
   const tasksFooterVisible =
     (runningTaskCount > 0 ||
       (process.env.USER_TYPE === 'ant' && coordinatorTaskCount > 0)) &&
@@ -653,10 +653,10 @@ function PromptInput({
     ],
   )
 
-  // Effective selection: null if the selected pill stopped rendering (bridge
-  // disconnected, task finished). The derivation makes the UI correct
-  // immediately; the useEffect below clears the raw state so it doesn't
-  // resurrect when the same pill reappears (new task starts → focus stolen).
+  // 有效选择：如果选中的药丸停止渲染则为空（桥接
+  // 已断开连接，任务完成）。推导使 UI 立即正确
+  // 下面的 useEffect 会清除原始状态，防止它在
+  // 相同药丸重新出现时复活（新任务开始 → 焦点被抢占）。
   const rawFooterSelection = useAppState(s => s.footerSelection)
   const footerItemSelected =
     rawFooterSelection && footerItems.includes(rawFooterSelection)
@@ -689,8 +689,8 @@ function PromptInput({
     }
   }
 
-  // delta: +1 = down/right, -1 = up/left. Returns true if nav happened
-  // (including deselecting at the start), false if at a boundary.
+  // delta: +1 = 向下/向右，-1 = 向上/向左。如果导航发生（包括在起始处取消选择）则返回 true
+  // 如果到达边界则返回 false。
   function navigateFooter(delta: 1 | -1, exitAtStart = false): boolean {
     const idx = footerItemSelected
       ? footerItems.indexOf(footerItemSelected)
@@ -707,7 +707,7 @@ function PromptInput({
     return false
   }
 
-  // Prompt suggestion hook - reads suggestions generated by forked agent in query loop
+  // 提示建议钩子 - 读取查询循环中由分叉代理生成的建议
   const {
     suggestion: promptSuggestion,
     markAccepted,
@@ -765,9 +765,9 @@ function PromptInput({
 
   const slashCommandTriggers = useMemo(() => {
     const positions = findSlashCommandPositions(displayedValue)
-    // Only highlight valid commands
+    // 仅高亮显示有效命令
     return positions.filter(pos => {
-      const commandName = displayedValue.slice(pos.start + 1, pos.end) // +1 to skip "/"
+      const commandName = displayedValue.slice(pos.start + 1, pos.end) // +1 以跳过 "/"
       return hasCommand(commandName, commands)
     })
   }, [displayedValue, commands])
@@ -787,11 +787,11 @@ function PromptInput({
       hasSlackMcpServer(store.getState().mcp.clients)
         ? findSlackChannelPositions(displayedValue)
         : [],
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- store is a stable ref
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- store 是一个稳定的引用
     [displayedValue, knownChannelsVersion],
   )
 
-  // Find @name mentions and highlight with team member's color
+  // 查找 @name 提及并使用团队成员的颜色高亮显示
   const memberMentionHighlights = useMemo((): Array<{
     start: number
     end: number
@@ -808,7 +808,7 @@ function PromptInput({
     const members = teamContext.teammates
     if (!members) return highlights
 
-    // Find all @name patterns in the input
+    // 在输入中查找所有 @name 模式
     const regex = /(^|\s)@([\w-]+)/g
     const memberValues = Object.values(members)
     let match
@@ -818,7 +818,7 @@ function PromptInput({
       const fullMatch = match[0].trimStart()
       const name = match[2]
 
-      // Check if this name matches a team member
+      // 检查此名称是否与团队成员匹配
       const member = memberValues.find(t => t.name === name)
       if (member?.color) {
         const themeColor =
@@ -843,15 +843,15 @@ function PromptInput({
     [displayedValue],
   )
 
-  // chip.start is the "selected" state: the inverted chip IS the cursor.
-  // chip.end stays a normal position so you can park the cursor right after
-  // `]` like any other character.
+  // chip.start 是“选中”状态：反转的芯片本身就是光标。
+  // chip.end 保持为正常位置，以便您可以将光标停放在
+  // `]` 之后，就像任何其他字符一样。
   const cursorAtImageChip = imageRefPositions.some(
     r => r.start === cursorOffset,
   )
 
-  // up/down movement or a fullscreen click can land the cursor strictly
-  // inside a chip; snap to the nearer boundary so it's never editable
+  // 向上/向下移动或全屏点击可能使光标严格落在
+  // 芯片内部；吸附到较近的边界，使其永远不可编辑
   // char-by-char.
   useEffect(() => {
     const inside = imageRefPositions.find(
@@ -866,8 +866,8 @@ function PromptInput({
   const combinedHighlights = useMemo((): TextHighlight[] => {
     const highlights: TextHighlight[] = []
 
-    // Invert the [Image #N] chip when the cursor is at chip.start (the
-    // "selected" state) so backspace-to-delete is visually obvious.
+    // 当光标位于 chip.start（“选中”状态）时，反转 [Image #N] 芯片
+    // 以便退格删除在视觉上显而易见。
     for (const ref of imageRefPositions) {
       if (cursorOffset === ref.start) {
         highlights.push({
@@ -889,7 +889,7 @@ function PromptInput({
       })
     }
 
-    // Add "btw" highlighting (solid yellow)
+    // 添加“顺便说一下”高亮（纯黄色）
     for (const trigger of btwTriggers) {
       highlights.push({
         start: trigger.start,
@@ -899,7 +899,7 @@ function PromptInput({
       })
     }
 
-    // Add /command highlighting (blue)
+    // 添加 /command 高亮（蓝色）
     for (const trigger of slashCommandTriggers) {
       highlights.push({
         start: trigger.start,
@@ -909,7 +909,7 @@ function PromptInput({
       })
     }
 
-    // Add token budget highlighting (blue)
+    // 添加令牌预算高亮（蓝色）
     for (const trigger of tokenBudgetTriggers) {
       highlights.push({
         start: trigger.start,
@@ -928,7 +928,7 @@ function PromptInput({
       })
     }
 
-    // Add @name highlighting with team member's color
+    // 使用团队成员的颜色添加 @name 高亮
     for (const mention of memberMentionHighlights) {
       highlights.push({
         start: mention.start,
@@ -938,7 +938,7 @@ function PromptInput({
       })
     }
 
-    // Dim interim voice dictation text
+    // 调暗临时语音听写文本
     if (voiceInterimRange) {
       highlights.push({
         start: voiceInterimRange.start,
@@ -949,7 +949,7 @@ function PromptInput({
       })
     }
 
-    // Rainbow highlighting for ultrathink keyword (per-character cycling colors)
+    // 为 ultrathink 关键字添加彩虹高亮（逐字符循环颜色）
     if (isUltrathinkEnabled()) {
       for (const trigger of thinkTriggers) {
         for (let i = trigger.start; i < trigger.end; i++) {
@@ -964,7 +964,7 @@ function PromptInput({
       }
     }
 
-    // Same rainbow treatment for the ultraplan keyword
+    // 对 ultraplan 关键字应用相同的彩虹处理
     if (feature('ULTRAPLAN')) {
       for (const trigger of ultraplanTriggers) {
         for (let i = trigger.start; i < trigger.end; i++) {
@@ -979,7 +979,7 @@ function PromptInput({
       }
     }
 
-    // Same rainbow treatment for the ultrareview keyword
+    // 对 ultrareview 关键字应用相同的彩虹处理
     for (const trigger of ultrareviewTriggers) {
       for (let i = trigger.start; i < trigger.end; i++) {
         highlights.push({
@@ -992,7 +992,7 @@ function PromptInput({
       }
     }
 
-    // Rainbow for /buddy
+    // 为 /buddy 添加彩虹效果
     for (const trigger of buddyTriggers) {
       for (let i = trigger.start; i < trigger.end; i++) {
         highlights.push({
@@ -1028,12 +1028,12 @@ function PromptInput({
 
   const { addNotification, removeNotification } = useNotifications()
 
-  // Show ultrathink notification
+  // 显示 ultrathink 通知
   useEffect(() => {
     if (thinkTriggers.length && isUltrathinkEnabled()) {
       addNotification({
         key: 'ultrathink-active',
-        text: 'Effort set to high for this turn',
+        text: '本轮努力程度设置为高',
         priority: 'immediate',
         timeoutMs: 5000,
       })
@@ -1046,7 +1046,7 @@ function PromptInput({
     if (feature('ULTRAPLAN') && ultraplanTriggers.length) {
       addNotification({
         key: 'ultraplan-active',
-        text: 'This prompt will launch an ultraplan session in Claude Code on the web',
+        text: '此提示将在网页版 Claude Code 中启动一个 ultraplan 会话',
         priority: 'immediate',
         timeoutMs: 5000,
       })
@@ -1066,36 +1066,36 @@ function PromptInput({
     }
   }, [addNotification, ultrareviewTriggers.length])
 
-  // Track input length for stash hint
+  // 跟踪输入长度以显示暂存提示
   const prevInputLengthRef = useRef(input.length)
   const peakInputLengthRef = useRef(input.length)
 
-  // Dismiss stash hint when user makes any input change
+  // 当用户进行任何输入更改时，关闭暂存提示
   const dismissStashHint = useCallback(() => {
     removeNotification('stash-hint')
   }, [removeNotification])
 
-  // Show stash hint when user gradually clears substantial input
+  // 当用户逐渐清空大量输入时，显示暂存提示
   useEffect(() => {
     const prevLength = prevInputLengthRef.current
     const peakLength = peakInputLengthRef.current
     const currentLength = input.length
     prevInputLengthRef.current = currentLength
 
-    // Update peak when input grows
+    // 输入增长时更新峰值
     if (currentLength > peakLength) {
       peakInputLengthRef.current = currentLength
       return
     }
 
-    // Reset state when input is empty
+    // 输入为空时重置状态
     if (currentLength === 0) {
       peakInputLengthRef.current = 0
       return
     }
 
-    // Detect gradual clear: peak was high, current is low, but this wasn't a single big jump
-    // (rapid clears like esc-esc go from 20+ to 0 in one step)
+    // 检测渐进式清空：峰值很高，当前值很低，但不是一次性大幅跳变
+    // （快速清空操作，如按两次 Esc，会一步从 20+ 变为 0）
     const clearedSubstantialInput = peakLength >= 20 && currentLength <= 5
     const wasRapidClear = prevLength >= 20 && currentLength <= 5
 
@@ -1123,7 +1123,7 @@ function PromptInput({
     }
   }, [input.length, addNotification])
 
-  // Initialize input buffer for undo functionality
+  // 为撤销功能初始化输入缓冲区
   const { pushToBuffer, undo, canUndo, clearBuffer } = useInputBuffer({
     maxBufferSize: 50,
     debounceMs: 1000,
@@ -1152,14 +1152,14 @@ function PromptInput({
       }
       setHelpOpen(false)
 
-      // Dismiss stash hint when user makes any input change
+      // 当用户进行任何输入更改时，关闭暂存提示
       dismissStashHint()
 
-      // Cancel any pending prompt suggestion and speculation when user types
+      // 用户输入时，取消任何待处理的提示建议和推测
       abortPromptSuggestion()
       abortSpeculation(setAppState)
 
-      // Check if this is a single character insertion at the start
+      // 检查这是否为在开头插入单个字符
       const isSingleCharInsertion = value.length === input.length + 1
       const insertedAtStart = cursorOffset === 0
       const mode = getModeFromInput(value)
@@ -1169,7 +1169,7 @@ function PromptInput({
           onModeChange(mode)
           return
         }
-        // Multi-char insertion into empty input (e.g. tab-accepting "! gcloud auth login")
+        // 向空输入中插入多字符（例如，通过 Tab 键接受的 "! gcloud auth login"）
         if (input.length === 0) {
           onModeChange(mode)
           const valueWithoutMode = getValueFromInput(value).replaceAll(
@@ -1185,12 +1185,12 @@ function PromptInput({
 
       const processedValue = value.replaceAll('\t', '    ')
 
-      // Push current state to buffer before making changes
+      // 在进行更改前，将当前状态推送到缓冲区
       if (input !== processedValue) {
         pushToBuffer(input, cursorOffset, pastedContents)
       }
 
-      // Deselect footer items when user types
+      // 用户输入时，取消选中页脚项目
       setAppState(prev =>
         prev.footerSelection === null
           ? prev
@@ -1233,29 +1233,29 @@ function PromptInput({
     mode,
   )
 
-  // Dismiss search hint when user starts searching
+  // 用户开始搜索时，关闭搜索提示
   useEffect(() => {
     if (isSearchingHistory) {
       dismissSearchHint()
     }
   }, [isSearchingHistory, dismissSearchHint])
 
-  // Only use history navigation when there are 0 or 1 slash command suggestions.
-  // Footer nav is NOT here — when a pill is selected, TextInput focus=false so
-  // these never fire. The Footer keybinding context handles ↑/↓ instead.
+  // 仅当有 0 或 1 个斜杠命令建议时，才使用历史记录导航。
+  // 页脚导航不在此处——当选中一个药丸时，TextInput 的 focus=false，所以
+  // 这些永远不会触发。页脚按键绑定上下文会处理 ↑/↓ 键。
   function handleHistoryUp() {
     if (suggestions.length > 1) {
       return
     }
 
-    // Only navigate history when cursor is on the first line.
-    // In multiline inputs, up arrow should move the cursor (handled by TextInput)
-    // and only trigger history when at the top of the input.
+    // 仅当光标在第一行时，才导航历史记录。
+    // 在多行输入中，上箭头应移动光标（由 TextInput 处理）
+    // 并且仅在输入顶部时触发历史记录。
     if (!isCursorOnFirstLine) {
       return
     }
 
-    // If there's an editable queued command, move it to the input for editing when UP is pressed
+    // 如果存在可编辑的排队命令，按下 UP 键时将其移动到输入框进行编辑
     const hasEditableCommand = queuedCommands.some(isQueuedCommandEditable)
     if (hasEditableCommand) {
       void popAllCommandsFromQueue()
@@ -1270,14 +1270,14 @@ function PromptInput({
       return
     }
 
-    // Only navigate history/footer when cursor is on the last line.
-    // In multiline inputs, down arrow should move the cursor (handled by TextInput)
-    // and only trigger navigation when at the bottom of the input.
+    // 仅当光标在最后一行时，才导航历史记录/页脚。
+    // 在多行输入中，下箭头应移动光标（由 TextInput 处理）
+    // 并且仅在输入底部时触发导航。
     if (!isCursorOnLastLine) {
       return
     }
 
-    // At bottom of history → enter footer at first visible pill
+    // 在历史记录底部 → 进入第一个可见药丸的页脚
     if (onHistoryDown() && footerItems.length > 0) {
       const first = footerItems[0]!
       selectFooterItem(first)
@@ -1289,7 +1289,7 @@ function PromptInput({
     }
   }
 
-  // Create a suggestions state directly - we'll sync it with useTypeahead later
+  // 直接创建建议状态——稍后我们将通过 useTypeahead 同步它
   const [suggestionsState, setSuggestionsStateRaw] = useState<{
     suggestions: SuggestionItem[]
     selectedSuggestion: number
@@ -1300,7 +1300,7 @@ function PromptInput({
     commandArgumentHint: undefined,
   })
 
-  // Setter for suggestions state
+  // 建议状态的设置器
   const setSuggestionsState = useCallback(
     (
       updater:
@@ -1318,11 +1318,11 @@ function PromptInput({
     async (inputParam: string, isSubmittingSlashCommand = false) => {
       inputParam = inputParam.trimEnd()
 
-      // Don't submit if a footer indicator is being opened. Read fresh from
-      // store — footer:openSelected calls selectFooterItem(null) then onSubmit
-      // in the same tick, and the closure value hasn't updated yet. Apply the
-      // same "still visible?" derivation as footerItemSelected so a stale
-      // selection (pill disappeared) doesn't swallow Enter.
+      // 如果正在打开页脚指示器，则不提交。从
+      // store — footer:openSelected 调用 selectFooterItem(null) 然后 onSubmit
+      // 在同一时间片内，闭包值尚未更新。应用
+      // 与 footerItemSelected 相同的“是否仍可见？”推导逻辑，这样过时的
+      // 选择项（药丸已消失）就不会吞掉 Enter 键。
       const state = store.getState()
       if (
         state.footerSelection &&
@@ -1331,22 +1331,22 @@ function PromptInput({
         return
       }
 
-      // Enter in selection modes confirms selection (useBackgroundTaskNavigation).
-      // BaseTextInput's useInput registers before that hook (child effects fire first),
-      // so without this guard Enter would double-fire and auto-submit the suggestion.
+      // 在选择模式下，Enter 键确认选择（useBackgroundTaskNavigation）。
+      // BaseTextInput 的 useInput 在该钩子之前注册（子级 effect 先触发），
+      // 因此没有此防护，Enter 键会触发两次并自动提交建议。
       if (state.viewSelectionMode === 'selecting-agent') {
         return
       }
 
-      // Check for images early - we need this for suggestion logic below
+      // 尽早检查图片 - 下面的建议逻辑需要这个
       const hasImages = Object.values(pastedContents).some(
         c => c.type === 'image',
       )
 
-      // If input is empty OR matches the suggestion, submit it
-      // But if there are images attached, don't auto-accept the suggestion -
-      // the user wants to submit just the image(s).
-      // Only in leader view — promptSuggestion is leader-context, not teammate.
+      // 如果输入为空或与建议匹配，则提交它
+      // 但如果附加了图片，不要自动接受建议 -
+      // 用户只想提交图片。
+      // 仅在领导者视图中 — promptSuggestion 是领导者上下文，而非队友。
       const suggestionText = promptSuggestionState.text
       const inputMatchesSuggestion =
         inputParam.trim() === '' || inputParam === suggestionText
@@ -1356,10 +1356,10 @@ function PromptInput({
         !hasImages &&
         !state.viewingAgentTaskId
       ) {
-        // If speculation is active, inject messages immediately as they stream
+        // 如果推测处于活动状态，则在流式传输时立即注入消息
         if (speculation.status === 'active') {
           markAccepted()
-          // skipReset: resetSuggestion would abort the speculation before we accept it
+          // skipReset: resetSuggestion 会在我们接受推测之前中止它
           logOutcomeAtSubmission(suggestionText, { skipReset: true })
 
           void onSubmitProp(
@@ -1375,17 +1375,17 @@ function PromptInput({
               setAppState,
             },
           )
-          return // Skip normal query - speculation handled it
+          return // 跳过正常查询 - 推测已处理
         }
 
-        // Regular suggestion acceptance (requires shownAt > 0)
+        // 常规建议接受（要求 shownAt > 0）
         if (promptSuggestionState.shownAt > 0) {
           markAccepted()
           inputParam = suggestionText
         }
       }
 
-      // Handle @name direct message
+      // 处理 @name 直接消息
       if (isAgentSwarmsEnabled()) {
         const directMessage = parseDirectMemberMessage(inputParam)
         if (directMessage) {
@@ -1399,7 +1399,7 @@ function PromptInput({
           if (result.success) {
             addNotification({
               key: 'direct-message-sent',
-              text: `Sent to @${result.recipientName}`,
+              text: `发送给 @${result.recipientName}`,
               priority: 'immediate',
               timeoutMs: 3000,
             })
@@ -1409,21 +1409,21 @@ function PromptInput({
             resetHistory()
             return
           } else if (!result.success && (result as { error: string }).error === 'no_team_context') {
-            // No team context - fall through to normal prompt submission
+            // 无团队上下文 - 回退至正常提示提交
           } else {
-            // Unknown recipient - fall through to normal prompt submission
-            // This allows e.g. "@utils explain this code" to be sent as a prompt
+            // 未知收件人 - 回退至正常提示提交
+            // 这允许例如 "@utils explain this code" 作为提示发送
           }
         }
       }
 
-      // Allow submission if there are images attached, even without text
+      // 如果附加了图像，即使没有文本也允许提交
       if (inputParam.trim() === '' && !hasImages) {
         return
       }
 
-      // PromptInput UX: Check if suggestions dropdown is showing
-      // For directory suggestions, allow submission (Tab is used for completion)
+      // PromptInput UX: 检查建议下拉列表是否正在显示
+      // 对于目录建议，允许提交（Tab 键用于补全）
       const hasDirectorySuggestions =
         suggestionsState.suggestions.length > 0 &&
         suggestionsState.suggestions.every(s => s.description === 'directory')
@@ -1434,20 +1434,20 @@ function PromptInput({
         !hasDirectorySuggestions
       ) {
         logForDebugging(
-          `[onSubmit] early return: suggestions showing (count=${suggestionsState.suggestions.length})`,
+          `[onSubmit] 提前返回：正在显示建议（数量=${suggestionsState.suggestions.length}）`,
         )
         return // Don't submit, user needs to clear suggestions first
       }
 
-      // Log suggestion outcome if one exists
+      // 如果存在建议，记录建议结果
       if (promptSuggestionState.text && promptSuggestionState.shownAt > 0) {
         logOutcomeAtSubmission(inputParam)
       }
 
-      // Clear stash hint notification on submit
+      // 提交时清除暂存提示通知
       removeNotification('stash-hint')
 
-      // Route input to viewed agent (in-process teammate or named local_agent).
+      // 将输入路由到已查看的代理（进程内队友或命名的 local_agent）。
       const activeAgent = getActiveAgentForInput(store.getState())
       if (activeAgent.type !== 'leader' && onAgentSubmit) {
         logEvent('tengu_transcript_input_to_teammate', {})
@@ -1459,7 +1459,7 @@ function PromptInput({
         return
       }
 
-      // Normal leader submission
+      // 正常领导者提交
       await onSubmitProp(inputParam, {
         setCursorOffset,
         clearBuffer,
@@ -1508,8 +1508,8 @@ function PromptInput({
     onModeChange,
   })
 
-  // Track if prompt suggestion should be shown (computed later with terminal width).
-  // Hidden in teammate view — suggestion is leader-context only.
+  // 跟踪是否应显示提示建议（稍后根据终端宽度计算）。
+  // 在队友视图中隐藏 — 建议仅适用于领导者上下文。
   const showPromptSuggestion =
     mode === 'prompt' &&
     suggestions.length === 0 &&
@@ -1519,9 +1519,9 @@ function PromptInput({
     markShown()
   }
 
-  // If suggestion was generated but can't be shown due to timing, log suppression.
-  // Exclude teammate view: markShown() is gated above, so shownAt stays 0 there —
-  // but that's not a timing failure, the suggestion is valid when returning to leader.
+  // 如果建议已生成但因时机问题无法显示，记录抑制情况。
+  // 排除队友视图：markShown() 已在上面控制，因此 shownAt 在那里保持 0 —
+  // 但这并非时机失败，返回领导者时建议仍然有效。
   if (
     promptSuggestionState.text &&
     !promptSuggestion &&
@@ -1558,31 +1558,31 @@ function PromptInput({
       type: 'image',
       content: image,
       mediaType: mediaType || 'image/png', // default to PNG if not provided
-      filename: filename || 'Pasted image',
+      filename: filename || '粘贴的图片',
       dimensions,
       sourcePath,
     }
 
-    // Cache path immediately (fast) so links work on render
+    // 立即缓存路径（快速）以便渲染时链接生效
     cacheImagePath(newContent)
 
-    // Store image to disk in background
+    // 在后台将图像存储到磁盘
     void storeImage(newContent)
 
-    // Update UI
+    // 更新 UI
     setPastedContents(prev => ({ ...prev, [pasteId]: newContent }))
-    // Multi-image paste calls onImagePaste in a loop. If the ref is already
-    // armed, the previous pill's lazy space fires now (before this pill)
-    // rather than being lost.
+    // 多图像粘贴在循环中调用 onImagePaste。如果引用已
+    // 就绪，前一个药丸的延迟空格现在触发（在此药丸之前）
+    // 而不是丢失。
     const prefix = pendingSpaceAfterPillRef.current ? ' ' : ''
     insertTextAtCursor(prefix + formatImageRef(pasteId))
     pendingSpaceAfterPillRef.current = true
   }
 
-  // Prune images whose [Image #N] placeholder is no longer in the input text.
-  // Covers pill backspace, Ctrl+U, char-by-char deletion — any edit that drops
-  // the ref. onImagePaste batches setPastedContents + insertTextAtCursor in the
-  // same event, so this effect sees the placeholder already present.
+  // 修剪那些 [Image #N] 占位符已不在输入文本中的图像。
+  // 涵盖药丸退格键、Ctrl+U、逐字符删除 — 任何删
+  // 除 引用的编辑。onImagePaste 在同一事件中批量处理 setPastedContents + insertTextAtCursor，
+  // 因此此效果会看到占位符已存在。
   useEffect(() => {
     const referencedIds = new Set(parseReferences(input).map(r => r.id))
     setPastedContents(prev => {
@@ -1598,10 +1598,10 @@ function PromptInput({
 
   function onTextPaste(rawText: string) {
     pendingSpaceAfterPillRef.current = false
-    // Clean up pasted text - strip ANSI escape codes and normalize line endings and tabs
+    // 清理粘贴的文本 - 去除 ANSI 转义码并标准化换行符和制表符
     let text = stripAnsi(rawText).replace(/\r/g, '\n').replaceAll('\t', '    ')
 
-    // Match typed/auto-suggest: `!cmd` pasted into empty input enters bash mode.
+    // 匹配键入/自动建议：将 `!cmd` 粘贴到空输入中会进入 bash 模式。
     if (input.length === 0) {
       const pastedMode = getModeFromInput(text)
       if (pastedMode !== 'prompt') {
@@ -1611,15 +1611,15 @@ function PromptInput({
     }
 
     const numLines = getPastedTextRefNumLines(text)
-    // Limit the number of lines to show in the input
-    // If the overall layout is too high then Ink will repaint
-    // the entire terminal.
-    // The actual required height is dependent on the content, this
-    // is just an estimate.
+    // 限制输入中显示的行数
+    // 如果整体布局过高，Ink 将重新绘制
+    // 整个终端。
+    // 实际所需高度取决于内容，这
+    // 只是一个估计值。
     const maxLines = Math.min(rows - 10, 2)
 
-    // Use special handling for long pasted text (>PASTE_THRESHOLD chars)
-    // or if it exceeds the number of lines we want to show
+    // 对长粘贴文本（>PASTE_THRESHOLD 字符）进行特殊处理
+    // 或者如果它超过了我们想要显示的行数
     if (text.length > PASTE_THRESHOLD || numLines > maxLines) {
       const pasteId = nextPasteIdRef.current++
 
@@ -1633,7 +1633,7 @@ function PromptInput({
 
       insertTextAtCursor(formatPastedTextRef(pasteId, numLines))
     } else {
-      // For shorter pastes, just insert the text normally
+      // 对于较短的粘贴，正常插入文本即可
       insertTextAtCursor(text)
     }
   }
@@ -1649,7 +1649,7 @@ function PromptInput({
   )
 
   function insertTextAtCursor(text: string) {
-    // Push current state to buffer before inserting
+    // 在插入前将当前状态推送到缓冲区
     pushToBuffer(input, cursorOffset, pastedContents)
 
     const newInput =
@@ -1663,7 +1663,7 @@ function PromptInput({
     () => onShowMessageSelector(),
   )
 
-  // Function to get the queued command for editing. Returns true if commands were popped.
+  // 获取待编辑的排队命令的函数。如果弹出了命令则返回 true。
   const popAllCommandsFromQueue = useCallback((): boolean => {
     const result = popAllEditable(input, cursorOffset)
     if (!result) {
@@ -1674,7 +1674,7 @@ function PromptInput({
     onModeChange('prompt') // Always prompt mode for queued commands
     setCursorOffset(result.cursorOffset)
 
-    // Restore images from queued commands to pastedContents
+    // 从排队命令中恢复图像到 pastedContents
     if (result.images.length > 0) {
       setPastedContents(prev => {
         const newContents = { ...prev }
@@ -1688,8 +1688,8 @@ function PromptInput({
     return true
   }, [trackAndSetInput, onModeChange, input, cursorOffset, setPastedContents])
 
-  // Insert the at-mentioned reference (the file and, optionally, a line range) when
-  // we receive an at-mentioned notification the IDE.
+  // 当我们收到 IDE 的 @提及通知时，插
+  // 入 @提及的引用（文件以及可选的代码行范围）
   const onIdeAtMentioned = function (atMentioned: IDEAtMentioned) {
     logEvent('tengu_ext_at_mentioned', {})
     let atMentionedText: string
@@ -1710,7 +1710,7 @@ function PromptInput({
   }
   useIdeAtMentioned(mcpClients, onIdeAtMentioned)
 
-  // Handler for chat:undo - undo last edit
+  // chat:undo 的处理程序 - 撤销上一次编辑
   const handleUndo = useCallback(() => {
     if (canUndo) {
       const previousState = undo()
@@ -1722,7 +1722,7 @@ function PromptInput({
     }
   }, [canUndo, undo, trackAndSetInput, setPastedContents])
 
-  // Handler for chat:newline - insert a newline at the cursor position
+  // chat:newline 的处理程序 - 在光标位置插入换行符
   const handleNewline = useCallback(() => {
     pushToBuffer(input, cursorOffset, pastedContents)
     const newInput =
@@ -1738,13 +1738,13 @@ function PromptInput({
     pastedContents,
   ])
 
-  // Handler for chat:externalEditor - edit in $EDITOR
+  // chat:externalEditor 的处理程序 - 在 $EDITOR 中编辑
   const handleExternalEditor = useCallback(async () => {
     logEvent('tengu_external_editor_used', {})
     setIsExternalEditorActive(true)
 
     try {
-      // Pass pastedContents to expand collapsed text references
+      // 将 pastedContents 传递给展开折叠的文本引用
       const result = await editPromptInEditor(input, pastedContents)
 
       if (result.error) {
@@ -1757,7 +1757,7 @@ function PromptInput({
       }
 
       if (result.content !== null && result.content !== input) {
-        // Push current state to buffer before making changes
+        // 在进行更改前将当前状态推送到缓冲区
         pushToBuffer(input, cursorOffset, pastedContents)
 
         trackAndSetInput(result.content)
@@ -1769,7 +1769,7 @@ function PromptInput({
       }
       addNotification({
         key: 'external-editor-error',
-        text: `External editor failed: ${errorMessage(err)}`,
+        text: `外部编辑器失败：${errorMessage(err)}`,
         color: 'warning',
         priority: 'high',
       })
@@ -1785,21 +1785,21 @@ function PromptInput({
     addNotification,
   ])
 
-  // Handler for chat:stash - stash/unstash prompt
+  // chat:stash 的处理程序 - 暂存/取消暂存提示
   const handleStash = useCallback(() => {
     if (input.trim() === '' && stashedPrompt !== undefined) {
-      // Pop stash when input is empty
+      // 当输入为空时弹出暂存
       trackAndSetInput(stashedPrompt.text)
       setCursorOffset(stashedPrompt.cursorOffset)
       setPastedContents(stashedPrompt.pastedContents)
       setStashedPrompt(undefined)
     } else if (input.trim() !== '') {
-      // Push to stash (save text, cursor position, and pasted contents)
+      // 推送到暂存（保存文本、光标位置和粘贴内容）
       setStashedPrompt({ text: input, cursorOffset, pastedContents })
       trackAndSetInput('')
       setCursorOffset(0)
       setPastedContents({})
-      // Track usage for /discover and stop showing hint
+      // 跟踪 /discover 的使用情况并停止显示提示
       saveGlobalConfig(c => {
         if (c.hasUsedStash) return c
         return { ...c, hasUsedStash: true }
@@ -1815,7 +1815,7 @@ function PromptInput({
     setPastedContents,
   ])
 
-  // Handler for chat:modelPicker - toggle model picker
+  // chat:modelPicker 的处理程序 - 切换模型选择器
   const handleModelPicker = useCallback(() => {
     setShowModelPicker(prev => !prev)
     if (helpOpen) {
@@ -1823,7 +1823,7 @@ function PromptInput({
     }
   }, [helpOpen])
 
-  // Handler for chat:fastMode - toggle fast mode picker
+  // chat:fastMode 的处理程序 - 切换快速模式选择器
   const handleFastModePicker = useCallback(() => {
     setShowFastModePicker(prev => !prev)
     if (helpOpen) {
@@ -1831,7 +1831,7 @@ function PromptInput({
     }
   }, [helpOpen])
 
-  // Handler for chat:thinkingToggle - toggle thinking mode
+  // chat:thinkingToggle 的处理程序 - 切换思考模式
   const handleThinkingToggle = useCallback(() => {
     setShowThinkingToggle(prev => !prev)
     if (helpOpen) {
@@ -1839,15 +1839,15 @@ function PromptInput({
     }
   }, [helpOpen])
 
-  // Handler for chat:cycleMode - cycle through permission modes
+  // chat:cycleMode 的处理程序 - 循环切换权限模式
   const handleCycleMode = useCallback(() => {
-    // When viewing a teammate, cycle their mode instead of the leader's
+    // 当查看队友时，循环切换他们的模式而非队长的模式
     if (isAgentSwarmsEnabled() && viewedTeammate && viewingAgentTaskId) {
       const teammateContext: ToolPermissionContext = {
         ...toolPermissionContext,
         mode: viewedTeammate.permissionMode,
       }
-      // Pass undefined for teamContext (unused but kept for API compatibility)
+      // 为 teamContext 传递 undefined（未使用但为保持 API 兼容性而保留）
       const nextMode = getNextPermissionMode(teammateContext, undefined)
 
       logEvent('tengu_mode_cycle', {
@@ -1881,17 +1881,17 @@ function PromptInput({
       return
     }
 
-    // Compute the next mode without triggering side effects first
+    // 先计算下一个模式，不触发副作用
     logForDebugging(
-      `[auto-mode] handleCycleMode: currentMode=${toolPermissionContext.mode} isAutoModeAvailable=${toolPermissionContext.isAutoModeAvailable} showAutoModeOptIn=${showAutoModeOptIn} timeoutPending=${!!autoModeOptInTimeoutRef.current}`,
+      `[自动模式] handleCycleMode: currentMode=${toolPermissionContext.mode} isAutoModeAvailable=${toolPermissionContext.isAutoModeAvailable} showAutoModeOptIn=${showAutoModeOptIn} timeoutPending=${!!autoModeOptInTimeoutRef.current}`,
     )
     const nextMode = getNextPermissionMode(toolPermissionContext, teamContext)
 
-    // Check if user is entering auto mode for the first time. Gated on the
-    // persistent settings flag (hasAutoModeOptIn) rather than the broader
-    // hasAutoModeOptInAnySource so that --enable-auto-mode users still see
-    // the warning dialog once — the CLI flag should grant carousel access,
-    // not bypass the safety text.
+    // 检查用户是否是首次进入自动模式。此检查基于
+    // 持久化设置标志（hasAutoModeOptIn），而非更宽泛的
+    // hasAutoModeOptInAnySource，以便 --enable-auto-mode 用户仍能
+    // 看到一次警告对话框——CLI 标志应授予轮播访问权限，
+    // 而非绕过安全文本。
     let isEnteringAutoModeFirstTime = false
     if (feature('TRANSCRIPT_CLASSIFIER')) {
       isEnteringAutoModeFirstTime =
@@ -1903,11 +1903,11 @@ function PromptInput({
 
     if (feature('TRANSCRIPT_CLASSIFIER')) {
       if (isEnteringAutoModeFirstTime) {
-        // Store previous mode so we can revert if user declines
+        // 存储上一个模式，以便在用户拒绝时恢复
         setPreviousModeBeforeAuto(toolPermissionContext.mode)
 
-        // Only update the UI mode label — do NOT call transitionPermissionMode
-        // or cyclePermissionMode yet; we haven't confirmed with the user.
+        // 仅更新 UI 模式标签——暂时不要调用 transitionPermissionMode
+        // 或 cyclePermissionMode；我们尚未与用户确认。
         setAppState(prev => ({
           ...prev,
           toolPermissionContext: {
@@ -1920,7 +1920,7 @@ function PromptInput({
           mode: 'auto',
         })
 
-        // Show opt-in dialog after 400ms debounce
+        // 在 400ms 防抖后显示选择加入对话框
         if (autoModeOptInTimeoutRef.current) {
           clearTimeout(autoModeOptInTimeoutRef.current)
         }
@@ -1941,11 +1941,11 @@ function PromptInput({
       }
     }
 
-    // Dismiss auto mode opt-in dialog if showing or pending (user is cycling away).
-    // Do NOT revert to previousModeBeforeAuto here — shift+tab means "advance the
-    // carousel", not "decline". Reverting causes a ping-pong loop: auto reverts to
-    // the prior mode, whose next mode is auto again, forever.
-    // The dialog's own decline button (handleAutoModeOptInDecline) handles revert.
+    // 如果正在显示或待处理（用户正在切换离开），则关闭自动模式选择加入对话框。
+    // 此处不要恢复到 previousModeBeforeAuto——shift+tab 意味着“推进轮播”，
+    // 而非“拒绝”。恢复会导致乒乓循环：自动模式恢复到
+    // 前一个模式，而它的下一个模式又是自动模式，如此循环往复。
+    // 对话框自身的拒绝按钮（handleAutoModeOptInDecline）会处理恢复。
     if (feature('TRANSCRIPT_CLASSIFIER')) {
       if (showAutoModeOptIn || autoModeOptInTimeoutRef.current) {
         if (showAutoModeOptIn) {
@@ -1957,13 +1957,13 @@ function PromptInput({
           autoModeOptInTimeoutRef.current = null
         }
         setPreviousModeBeforeAuto(null)
-        // Fall through — mode is 'auto', cyclePermissionMode below goes to 'default'.
+        // 继续执行——模式为‘auto’，下面的 cyclePermissionMode 会转到‘default’。
       }
     }
 
-    // Now that we know this is NOT the first-time auto mode path,
-    // call cyclePermissionMode to apply side effects (e.g. strip
-    // dangerous permissions, activate classifier)
+    // 既然我们知道这不是首次进入自动模式的路径，
+    // 调用 cyclePermissionMode 以应用副作用（例如，移除
+    // 危险权限，激活分类器）
     const { context: preparedContext } = cyclePermissionMode(
       toolPermissionContext,
       teamContext,
@@ -1973,7 +1973,7 @@ function PromptInput({
       to: nextMode as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
     })
 
-    // Track when user enters plan mode
+    // 追踪用户何时进入计划模式
     if (nextMode === 'plan') {
       saveGlobalConfig(current => ({
         ...current,
@@ -1981,10 +1981,10 @@ function PromptInput({
       }))
     }
 
-    // Set the mode via setAppState directly because setToolPermissionContext
-    // intentionally preserves the existing mode (to prevent coordinator mode
-    // corruption from workers). Then call setToolPermissionContext to trigger
-    // recheck of queued permission prompts.
+    // 通过 setAppState 直接设置模式，因为 setToolPermissionContext
+    // 有意保留现有模式（以防止工作进程破坏协调器模式）。
+    // 然后调用 setToolPermissionContext 以触发
+    // 对排队权限提示的重新检查。
     setAppState(prev => ({
       ...prev,
       toolPermissionContext: {
@@ -1997,10 +1997,10 @@ function PromptInput({
       mode: nextMode,
     })
 
-    // If this is a teammate, update config.json so team lead sees the change
+    // 如果是团队成员，更新 config.json 以便团队负责人看到更改
     syncTeammateMode(nextMode, teamContext?.teamName)
 
-    // Close help tips if they're open when mode is cycled
+    // 在模式切换时，如果帮助提示已打开，则关闭它们
     if (helpOpen) {
       setHelpOpen(false)
     }
@@ -2015,15 +2015,15 @@ function PromptInput({
     showAutoModeOptIn,
   ])
 
-  // Handler for auto mode opt-in dialog acceptance
+  // 自动模式选择加入对话框接受的处理程序
   const handleAutoModeOptInAccept = useCallback(() => {
     if (feature('TRANSCRIPT_CLASSIFIER')) {
       setShowAutoModeOptIn(false)
       setPreviousModeBeforeAuto(null)
 
-      // Now that the user accepted, apply the full transition: activate the
-      // auto mode backend (classifier, beta headers) and strip dangerous
-      // permissions (e.g. Bash(*) always-allow rules).
+      // 既然用户已接受，应用完整转换：激活
+      // 自动模式后端（分类器、Beta 标头）并移除危险
+      // 权限（例如 Bash(*) 始终允许规则）。
       const strippedContext = transitionPermissionMode(
         previousModeBeforeAuto ?? toolPermissionContext.mode,
         'auto',
@@ -2041,7 +2041,7 @@ function PromptInput({
         mode: 'auto',
       })
 
-      // Close help tips if they're open when auto mode is enabled
+      // 如果启用自动模式时帮助提示已打开，则关闭它们
       if (helpOpen) {
         setHelpOpen(false)
       }
@@ -2055,11 +2055,11 @@ function PromptInput({
     setToolPermissionContext,
   ])
 
-  // Handler for auto mode opt-in dialog decline
+  // 自动模式选择对话框拒绝的处理程序
   const handleAutoModeOptInDecline = useCallback(() => {
     if (feature('TRANSCRIPT_CLASSIFIER')) {
       logForDebugging(
-        `[auto-mode] handleAutoModeOptInDecline: reverting to ${previousModeBeforeAuto}, setting isAutoModeAvailable=false`,
+        `[自动模式] handleAutoModeOptInDecline: 恢复到 ${previousModeBeforeAuto}，设置 isAutoModeAvailable=false`,
       )
       setShowAutoModeOptIn(false)
       if (autoModeOptInTimeoutRef.current) {
@@ -2067,8 +2067,8 @@ function PromptInput({
         autoModeOptInTimeoutRef.current = null
       }
 
-      // Revert to previous mode and remove auto from the carousel
-      // for the rest of this session
+      // 恢复到之前的模式并从轮播中移除自动模式
+      // 在当前会话的剩余时间内
       if (previousModeBeforeAuto) {
         setAutoModeActive(false)
         setAppState(prev => ({
@@ -2094,7 +2094,7 @@ function PromptInput({
     setToolPermissionContext,
   ])
 
-  // Handler for chat:imagePaste - paste image from clipboard
+  // 处理 chat:imagePaste - 从剪贴板粘贴图像
   const handleImagePaste = useCallback(() => {
     void getImageFromClipboard().then(imageData => {
       if (imageData) {
@@ -2107,7 +2107,7 @@ function PromptInput({
         )
         const message = env.isSSH()
           ? "No image found in clipboard. You're SSH'd; try scp?"
-          : `No image found in clipboard. Use ${shortcutDisplay} to paste images.`
+          : `剪贴板中未找到图片。使用 ${shortcutDisplay} 粘贴图片。`
         addNotification({
           key: 'no-image-in-clipboard',
           text: message,
@@ -2118,12 +2118,12 @@ function PromptInput({
     })
   }, [addNotification, onImagePaste])
 
-  // Register chat:submit handler directly in the handler registry (not via
-  // useKeybindings) so that only the ChordInterceptor can invoke it for chord
-  // completions (e.g., "ctrl+e s"). The default Enter binding for submit is
-  // handled by TextInput directly (via onSubmit prop) and useTypeahead (for
-  // autocomplete acceptance). Using useKeybindings would cause
-  // stopImmediatePropagation on Enter, blocking autocomplete from seeing the key.
+  // 直接在处理程序注册表中注册 chat:submit 处理程序（而非通过
+  // useKeybindings），以便只有 ChordInterceptor 可以为其调用和
+  // 弦补全（例如 "ctrl+e s"）。提交的默认 Enter 绑定
+  // 由 TextInput 直接处理（通过 onSubmit 属性）和 useTypeahead（
+  // 用于自动补全接受）。使用 useKeybindings 会
+  // 导致在 Enter 上触发 stopImmediatePropagation，阻止自动补全检测到该按键。
   const keybindingContext = useOptionalKeybindingContext()
   useEffect(() => {
     if (!keybindingContext || isModalOverlayActive) return
@@ -2136,11 +2136,11 @@ function PromptInput({
     })
   }, [keybindingContext, isModalOverlayActive, onSubmit, input])
 
-  // Chat context keybindings for editing shortcuts
-  // Note: history:previous/history:next are NOT handled here. They are passed as
-  // onHistoryUp/onHistoryDown props to TextInput, so that useTextInput's
-  // upOrHistoryUp/downOrHistoryDown can try cursor movement first and only
-  // fall through to history when the cursor can't move further.
+  // 用于编辑快捷方式的聊天上下文键绑定
+  // 注意：history:previous/history:next 不在此处处理。它们作为
+  // onHistoryUp/onHistoryDown 属性传递给 TextInput，以便 useTextInput 的
+  // upOrHistoryUp/downOrHistoryDown 可以先尝试光标移动，仅当
+  // 光标无法进一步移动时才回退到历史记录。
   const chatHandlers = useMemo(
     () => ({
       'chat:undo': handleUndo,
@@ -2169,23 +2169,23 @@ function PromptInput({
     isActive: !isModalOverlayActive,
   })
 
-  // Shift+↑ enters message-actions cursor. Separate isActive so ctrl+r search
-  // doesn't leave stale isSearchingHistory on cursor-exit remount.
+  // Shift+↑ 进入消息操作光标。使用单独的 isActive，以便 ctrl+r 搜索
+  // 在光标退出重新挂载时不会留下陈旧的 isSearchingHistory。
   useKeybinding('chat:messageActions', () => onMessageActionsEnter?.(), {
     context: 'Chat',
     isActive: !isModalOverlayActive && !isSearchingHistory,
   })
 
-  // Fast mode keybinding is only active when fast mode is enabled and available
+  // 快速模式键绑定仅在快速模式启用且可用时激活
   useKeybinding('chat:fastMode', handleFastModePicker, {
     context: 'Chat',
     isActive:
       !isModalOverlayActive && isFastModeEnabled() && isFastModeAvailable(),
   })
 
-  // Handle help:dismiss keybinding (ESC closes help menu)
-  // This is registered separately from Chat context so it has priority over
-  // CancelRequestHandler when help menu is open
+  // 处理 help:dismiss 键绑定（ESC 关闭帮助菜单）
+  // 这是与聊天上下文分开注册的，以便在帮助菜单打开时
+  // 其优先级高于 CancelRequestHandler
   useKeybinding(
     'help:dismiss',
     () => {
@@ -2194,9 +2194,9 @@ function PromptInput({
     { context: 'Help', isActive: helpOpen },
   )
 
-  // Quick Open / Global Search. Hook calls are unconditional (Rules of Hooks);
-  // the handler body is feature()-gated so the setState calls and component
-  // references get tree-shaken in external builds.
+  // 快速打开 / 全局搜索。钩子调用是无条件的（钩子规则）；
+  // 处理程序主体受 feature() 门控，因此 setState 调用和组件
+  // 引用在外部构建中会被 tree-shaken 移除。
   const quickSearchActive = feature('QUICK_SEARCH')
     ? !isModalOverlayActive
     : false
@@ -2235,8 +2235,8 @@ function PromptInput({
     },
   )
 
-  // Handle Ctrl+C to abort speculation when idle (not loading)
-  // CancelRequestHandler only handles Ctrl+C during active tasks
+  // 处理 Ctrl+C 以在空闲（非加载）时中止推测
+  // CancelRequestHandler 仅处理活动任务期间的 Ctrl+C
   useKeybinding(
     'app:interrupt',
     () => {
@@ -2248,13 +2248,13 @@ function PromptInput({
     },
   )
 
-  // Footer indicator navigation keybindings. ↑/↓ live here (not in
-  // handleHistoryUp/Down) because TextInput focus=false when a pill is
-  // selected — its useInput is inactive, so this is the only path.
+  // 页脚指示器导航键绑定。↑/↓ 在此处处理（不在
+  // 处理历史记录上/下导航，因为当药丸被选中时 TextInput 焦点=false
+  // ——其 useInput 处于非活动状态，所以这是唯一的路径。
   useKeybindings(
     {
       'footer:up': () => {
-        // ↑ scrolls within the coordinator task list before leaving the pill
+        // ↑ 在离开药丸前，在协调员任务列表内滚动
         if (
           tasksSelected &&
           process.env.USER_TYPE === 'ant' &&
@@ -2267,7 +2267,7 @@ function PromptInput({
         navigateFooter(-1, true)
       },
       'footer:down': () => {
-        // ↓ scrolls within the coordinator task list, never leaves the pill
+        // ↓ 在协调员任务列表内滚动，永不离开药丸
         if (
           tasksSelected &&
           process.env.USER_TYPE === 'ant' &&
@@ -2286,7 +2286,7 @@ function PromptInput({
         navigateFooter(1)
       },
       'footer:next': () => {
-        // Teammate mode: ←/→ cycles within the team member list
+        // 队友模式：←/→ 在团队成员列表中循环
         if (tasksSelected && isTeammateMode) {
           const totalAgents = 1 + inProcessTeammates.length
           setTeammateFooterIndex(prev => (prev + 1) % totalAgents)
@@ -2315,7 +2315,7 @@ function PromptInput({
             break
           case 'tasks':
             if (isTeammateMode) {
-              // Enter switches to the selected agent's view
+              // Enter 切换到所选智能体的视图
               if (teammateFooterIndex === 0) {
                 exitTeammateView(setAppState)
               } else {
@@ -2368,8 +2368,8 @@ function PromptInput({
         if (tasksSelected && coordinatorTaskIndex >= 1) {
           const task = getVisibleAgentTasks(tasks)[coordinatorTaskIndex - 1]
           if (!task) return false
-          // When the selected row IS the viewed agent, 'x' types into the
-          // steering input. Any other row — dismiss it.
+          // 当所选行就是当前查看的智能体时，'x' 会输入到
+          // 转向输入中。任何其他行——则关闭它。
           if (
             viewSelectionMode === 'viewing-agent' &&
             task.id === viewingAgentTaskId
@@ -2386,7 +2386,7 @@ function PromptInput({
           }
           return
         }
-        // Not handled — let 'x' fall through to type-to-exit
+        // 不处理——让 'x' 穿透以执行输入退出
         return false
       },
     },
@@ -2397,9 +2397,9 @@ function PromptInput({
   )
 
   useInput((char, key) => {
-    // Skip all input handling when a full-screen dialog is open. These dialogs
-    // render via early return, but hooks run unconditionally — so without this
-    // guard, Escape inside a dialog leaks to the double-press message-selector.
+    // 当全屏对话框打开时，跳过所有输入处理。这些对话框
+    // 通过提前返回来渲染，但钩子无条件运行——因此没有此
+    // 防护，对话框内的 Escape 会泄漏到双击消息选择器。
     if (
       showTeamsDialog ||
       showQuickOpen ||
@@ -2409,7 +2409,7 @@ function PromptInput({
       return
     }
 
-    // Detect failed Alt shortcuts on macOS (Option key produces special characters)
+    // 检测 macOS 上失败的 Alt 快捷键（Option 键产生特殊字符）
     if (getPlatform() === 'macos' && isMacosOptionChar(char)) {
       const shortcut = MACOS_OPTION_SPECIAL_CHARS[char]
       const terminalName = getNativeCSIuTerminalDisplayName()
@@ -2427,17 +2427,17 @@ function PromptInput({
         priority: 'immediate',
         timeoutMs: 5000,
       })
-      // Don't return - let the character be typed so user sees the issue
+      // 不要返回——让字符被输入，以便用户看到问题
     }
 
-    // Footer navigation is handled via useKeybindings above (Footer context)
+    // 页脚导航通过上方的 useKeybindings 处理（页脚上下文）
 
-    // NOTE: ctrl+_, ctrl+g, ctrl+s are handled via Chat context keybindings above
+    // 注意：ctrl+_、ctrl+g、ctrl+s 通过上方的聊天上下文快捷键处理
 
-    // Type-to-exit footer: printable chars while a pill is selected refocus
-    // the input and type the char. Nav keys are captured by useKeybindings
-    // above, so anything reaching here is genuinely not a footer action.
-    // onChange clears footerSelection, so no explicit deselect.
+    // 输入退出页脚：当药丸被选中时，可打印字符会重新聚焦
+    // 输入框并输入该字符。导航键被上方的 useKeybindings 捕获，
+    // 所以到达这里的任何内容确实不是页脚操作。
+    // onChange 会清除 footerSelection，因此无需显式取消选择。
     if (
       footerItemSelected &&
       char &&
@@ -2451,7 +2451,7 @@ function PromptInput({
       return
     }
 
-    // Exit special modes when backspace/escape/delete/ctrl+u is pressed at cursor position 0
+    // 当在光标位置 0 按下退格键/escape/delete/ctrl+u 时，退出特殊模式
     if (
       cursorOffset === 0 &&
       (key.escape || key.backspace || key.delete || (key.ctrl && char === 'u'))
@@ -2460,45 +2460,45 @@ function PromptInput({
       setHelpOpen(false)
     }
 
-    // Exit help mode when backspace is pressed and input is empty
+    // 当按下退格键且输入为空时，退出帮助模式
     if (helpOpen && input === '' && (key.backspace || key.delete)) {
       setHelpOpen(false)
     }
 
-    // esc is a little overloaded:
-    // - when we're loading a response, it's used to cancel the request
-    // - otherwise, it's used to show the message selector
-    // - when double pressed, it's used to clear the input
-    // - when input is empty, pop from command queue
+    // esc 键有点超载：
+    // - 当我们正在加载响应时，它用于取消请求
+    // - 否则，它用于显示消息选择器
+    // - 当双击时，它用于清除输入
+    // - 当输入为空时，从命令队列中弹出
 
-    // Handle ESC key press
+    // 处理 ESC 键按下
     if (key.escape) {
-      // Abort active speculation
+      // 中止活跃的推测
       if (speculation.status === 'active') {
         abortSpeculation(setAppState)
         return
       }
 
-      // Dismiss side question response if visible
+      // 如果可见，关闭侧边问题响应
       if (isSideQuestionVisible && onDismissSideQuestion) {
         onDismissSideQuestion()
         return
       }
 
-      // Close help menu if open
+      // 如果帮助菜单已打开，则关闭它
       if (helpOpen) {
         setHelpOpen(false)
         return
       }
 
-      // Footer selection clearing is now handled via Footer context keybindings
-      // (footer:clearSelection action bound to escape)
-      // If a footer item is selected, let the Footer keybinding handle it
+      // 页脚选择清除现在通过页脚上下文快捷键处理
+      // (footer:clearSelection 操作绑定到 escape 键)
+      // 如果选中了页脚项，让页脚快捷键处理它
       if (footerItemSelected) {
         return
       }
 
-      // If there's an editable queued command, move it to the input for editing when ESC is pressed
+      // 如果存在可编辑的排队命令，按下 ESC 时将其移至输入框进行编辑
       const hasEditableCommand = queuedCommands.some(isQueuedCommandEditable)
       if (hasEditableCommand) {
         void popAllCommandsFromQueue()
@@ -2524,9 +2524,9 @@ function PromptInput({
 
   const showFastIconHint = useShowFastIconHint(showFastIcon ?? false)
 
-  // Show effort notification on startup and when effort changes.
-  // Suppressed in brief/assistant mode — the value reflects the local
-  // client's effort, not the connected agent's.
+  // 在启动时及工作量变化时显示工作量通知。
+  // 在简洁/助手模式下被抑制 — 该值反映的是本地
+  // 客户端的工作量，而非已连接代理的工作量。
   const effortNotificationText = briefOwnsGap
     ? undefined
     : getEffortNotificationText(effortValue, mainLoopModel)
@@ -2553,12 +2553,12 @@ function PromptInput({
   const textInputColumns =
     columns - 3 - companionReservedColumns(columns, companionSpeaking)
 
-  // POC: click-to-position-cursor. Mouse tracking is only enabled inside
-  // <AlternateScreen>, so this is dormant in the normal main-screen REPL.
-  // localCol/localRow are relative to the onClick Box's top-left; the Box
-  // tightly wraps the text input so they map directly to (column, line)
-  // in the Cursor wrap model. MeasuredText.getOffsetFromPosition handles
-  // wide chars, wrapped lines, and clamps past-end clicks to line end.
+  // 概念验证：点击定位光标。鼠标跟踪仅在
+  // <AlternateScreen> 内部启用，因此在普通主屏幕 REPL 中此功能处于休眠状态。
+  // localCol/localRow 相对于 onClick 方框的左上角；该方框
+  // 紧密包裹文本输入，因此它们直接映射到 Cursor 包装模型中的
+  // (列, 行)。MeasuredText.getOffsetFromPosition 处理
+  // 宽字符、换行，并将超出末尾的点击限制在行尾。
   const maxVisibleLines = isFullscreenEnvEnabled()
     ? Math.max(
         MIN_INPUT_VIEWPORT_LINES,
@@ -2568,9 +2568,9 @@ function PromptInput({
 
   const handleInputClick = useCallback(
     (e: ClickEvent) => {
-      // During history search the displayed text is historyMatch, not
-      // input, and showCursor is false anyway — skip rather than
-      // compute an offset against the wrong string.
+      // 在历史记录搜索期间，显示的文本是 historyMatch，而非
+      // input，且 showCursor 无论如何都为 false — 跳过而非
+      // 针对错误的字符串计算偏移量。
       if (!input || isSearchingHistory) return
       const c = Cursor.fromText(input, textInputColumns, cursorOffset)
       const viewportStart = c.getViewportStartLine(maxVisibleLines)
@@ -2599,12 +2599,12 @@ function PromptInput({
       ? promptSuggestion
       : defaultPlaceholder
 
-  // Calculate if input has multiple lines
+  // 计算输入是否有多行
   const isInputWrapped = useMemo(() => input.includes('\n'), [input])
 
-  // Memoized callbacks for model picker to prevent re-renders when unrelated
-  // state (like notifications) changes. This prevents the inline model picker
-  // from visually "jumping" when notifications arrive.
+  // 模型选择器的记忆化回调，防止不相关
+  // 状态（如通知）变化时重新渲染。这可以防止内联模型选择器
+  // 在通知到达时视觉上“跳动”。
   const handleModelSelect = useCallback(
     (model: string | null, _effort: EffortLevel | undefined) => {
       let wasFastModeDisabled = false
@@ -2617,13 +2617,13 @@ function PromptInput({
           ...prev,
           mainLoopModel: model,
           mainLoopModelForSession: null,
-          // Turn off fast mode if switching to a model that doesn't support it
+          // 如果切换到不支持快速模式的模型，则关闭快速模式
           ...(wasFastModeDisabled && { fastMode: false }),
         }
       })
       setShowModelPicker(false)
       const effectiveFastMode = (isFastMode ?? false) && !wasFastModeDisabled
-      let message = `Model set to ${modelDisplayString(model)}`
+      let message = `模型设置为 ${modelDisplayString(model)}`
       if (
         isBilledAsExtraUsage(model, effectiveFastMode, isOpus1mMergeEnabled())
       ) {
@@ -2650,8 +2650,8 @@ function PromptInput({
     setShowModelPicker(false)
   }, [])
 
-  // Memoize the model picker element to prevent unnecessary re-renders
-  // when AppState changes for unrelated reasons (e.g., notifications arriving)
+  // 记忆化模型选择器元素，防止因不相关原因（例如，通知到达）
+  // 导致 AppState 变化时不必要的重新渲染
   const modelPickerElement = useMemo(() => {
     if (!showModelPicker) return null
     return (
@@ -2694,7 +2694,7 @@ function PromptInput({
     [addNotification],
   )
 
-  // Memoize the fast mode picker element
+  // 记忆化快速模式选择器元素
   const fastModePickerElement = useMemo(() => {
     if (!showFastModePicker) return null
     return (
@@ -2707,7 +2707,7 @@ function PromptInput({
     )
   }, [showFastModePicker, handleFastModeSelect])
 
-  // Memoized callbacks for thinking toggle
+  // 思考切换的记忆化回调
   const handleThinkingSelect = useCallback(
     (enabled: boolean) => {
       setAppState(prev => ({
@@ -2734,7 +2734,7 @@ function PromptInput({
     setShowThinkingToggle(false)
   }, [])
 
-  // Memoize the thinking toggle element
+  // 记忆化思考切换元素
   const thinkingToggleElement = useMemo(() => {
     if (!showThinkingToggle) return null
     return (
@@ -2755,10 +2755,10 @@ function PromptInput({
     messages.length,
   ])
 
-  // Portal dialog to DialogOverlay in fullscreen so it escapes the bottom
-  // slot's overflowY:hidden clip (same pattern as SuggestionsOverlay).
-  // Must be called before early returns below to satisfy rules-of-hooks.
-  // Memoized so the portal useEffect doesn't churn on every PromptInput render.
+  // 将门户对话框传送到全屏的 DialogOverlay，使其脱离底部
+  // 插槽的 overflowY:hidden 裁剪（与 SuggestionsOverlay 模式相同）。
+  // 必须在下面的提前返回之前调用，以满足 hooks 规则。
+  // 已进行记忆化处理，避免 portal 的 useEffect 在每次 PromptInput 渲染时频繁触发。
   const autoModeOptInDialog = useMemo(
     () =>
       feature('TRANSCRIPT_CLASSIFIER') && showAutoModeOptIn ? (
@@ -2842,7 +2842,7 @@ function PromptInput({
     )
   }
 
-  // Show loop mode menu when requested (ant-only, eliminated from external builds)
+  // 仅在请求时显示循环模式菜单（仅限 ant 内部版本，外部构建中已移除）
   if (modelPickerElement) {
     return modelPickerElement
   }
@@ -2877,10 +2877,10 @@ function PromptInput({
             : historyMatch.display,
         )
       : input,
-    // History navigation is handled via TextInput props (onHistoryUp/onHistoryDown),
-    // NOT via useKeybindings. This allows useTextInput's upOrHistoryUp/downOrHistoryDown
-    // to try cursor movement first and only fall through to history navigation when the
-    // cursor can't move further (important for wrapped text and multi-line input).
+    // 历史记录导航通过 TextInput 属性（onHistoryUp/onHistoryDown）处理，
+    // 而非通过 useKeybindings。这使得 useTextInput 的 upOrHistoryUp/downOrHistoryDown
+    // 能够先尝试移动光标，仅当光标无法继续移动时才回退到历史记录导航
+    // （这对于换行文本和多行输入尤为重要）。
     onHistoryUp: handleHistoryUp,
     onHistoryDown: handleHistoryDown,
     onHistoryReset: resetHistory,
@@ -2921,17 +2921,17 @@ function PromptInput({
       bash: 'bashBorder',
     }
 
-    // Mode colors take priority, then teammate color, then default
+    // 模式颜色优先级最高，其次是队友颜色，最后是默认颜色
     if (modeColors[mode]) {
       return modeColors[mode]
     }
 
-    // In-process teammates run headless - don't apply teammate colors to leader UI
+    // 进程内队友以无头模式运行 - 不将队友颜色应用于领导者 UI
     if (isInProcessTeammate()) {
       return 'promptBorder'
     }
 
-    // Check for teammate color from environment
+    // 从环境中检查队友颜色
     const teammateColorName = getTeammateColor()
     if (
       teammateColorName &&
@@ -3079,22 +3079,13 @@ function PromptInput({
       />
       {isFullscreenEnvEnabled() ? null : autoModeOptInDialog}
       {isFullscreenEnvEnabled() ? (
-        // position=absolute takes zero layout height so the spinner
-        // doesn't shift when a notification appears/disappears. Yoga
-        // anchors absolute children at the parent's content-box origin;
-        // marginTop=-1 pulls it into the marginTop=1 gap row above the
-        // prompt border. In brief mode there is no such gap (briefOwnsGap
-        // strips our marginTop) and BriefSpinner sits flush against the
-        // border — marginTop=-2 skips over the spinner content into
-        // BriefSpinner's own marginTop=1 blank row. height=1 +
-        // overflow=hidden clips multi-line notifications to a single row.
-        // flex-end anchors the bottom line so the visible row is always
-        // the most recent. Suppressed while the slash overlay or
-        // auto-mode opt-in dialog is up by height=0 (NOT unmount) — this
-        // Box renders later in tree order so it would paint over their
-        // bottom row. Keeping Notifications mounted prevents AutoUpdater's
-        // initial-check effect from re-firing on every slash-completion
-        // toggle (PR#22413).
+// position=absolute 不占布局高度，因此当通知出现/消失时，旋转器不会移动位置。
+// Yoga 将绝对定位的子元素锚定在父元素内容框的原点；marginTop=-1 将其拉入提示边框上方的 marginTop=1 间隙行。
+// 在简洁模式下，没有这样的间隙（briefOwnsGap 会移除我们的 marginTop），BriefSpinner 紧贴边框放置 — marginTop=-2 会跳过旋转器内容进入 BriefSpinner 自己的 marginTop=1 空白行。
+// height=1 + overflow=hidden 将多行通知裁剪为单行。
+// flex-end 锚定底部行，因此可见行始终是最新的一条。
+// 当斜杠覆盖层或自动模式选择对话框出现时，通过 height=0（而非卸载）来抑制通知 — 这个 Box 在树顺序中渲染较晚，因此会覆盖它们的底部行。
+// 保持 Notifications 挂载可以防止 AutoUpdater 的初始检查 effect 在每次斜杠命令完成切换时重新触发（PR#22413）。
         <Box
           position="absolute"
           marginTop={briefOwnsGap ? -2 : -1}
@@ -3133,13 +3124,13 @@ function getInitialPasteId(messages: Message[]): number {
   let maxId = 0
   for (const message of messages) {
     if (message.type === 'user') {
-      // Check image paste IDs
+      // 检查图像粘贴 ID
       if (message.imagePasteIds) {
         for (const id of message.imagePasteIds as number[]) {
           if (id > maxId) maxId = id
         }
       }
-      // Check text paste references in message content
+      // 检查消息内容中的文本粘贴引用
       if (Array.isArray(message.message!.content)) {
         for (const block of message.message!.content) {
           if (block.type === 'text') {

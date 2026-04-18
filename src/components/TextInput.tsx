@@ -12,24 +12,24 @@ import type { TextHighlight } from '../utils/textHighlighting.js'
 import { BaseTextInput } from './BaseTextInput.js'
 import { hueToRgb } from './Spinner/utils.js'
 
-// Block characters for waveform bars: space (silent) + 8 rising block elements.
+// 波形条使用的字符块：空格（静音） + 8 个递增的块元素。
 const BARS = ' \u2581\u2582\u2583\u2584\u2585\u2586\u2587\u2588'
 
-// Mini waveform cursor width
+// 迷你波形光标宽度
 const CURSOR_WAVEFORM_WIDTH = 1
 
-// Smoothing factor (0 = instant, 1 = frozen). Applied as EMA to
-// smooth both rises and falls for a steady, non-jittery bar.
+// 平滑因子（0 = 即时，1 = 冻结）。作为指数移动平均应用于
+// 上升和下降过程，以获得稳定、无抖动的波形条。
 const SMOOTH = 0.7
 
-// Boost factor for audio levels — computeLevel normalizes with a
-// conservative divisor (rms/2000), so normal speech sits around
-// 0.3-0.5. This multiplier lets the bar use the full range.
+// 音频电平的增强因子 — computeLevel 使用保守的除数（rms/2000）进行归一化，因此正常语音的电平大约在
+// 0.3-0.5 之间。此乘数使波形条能利用整个动态范围。
+// 原始音频电平阈值（增强前），低于此阈值光标显示为
 const LEVEL_BOOST = 1.8
 
-// Raw audio level threshold (pre-boost) below which the cursor is
-// grey. computeLevel returns sqrt(rms/2000), so ambient mic noise
-// typically sits at 0.05-0.15. Speech starts around 0.2+.
+// 灰色。computeLevel 返回 sqrt(rms/2000)，因此环境麦克风噪声
+// 通常位于 0.05-0.15。语音大约从 0.2+ 开始。
+// 提升至挂载时 — 此组件在每次按键时都会重新渲染。
 const SILENCE_THRESHOLD = 0.15
 
 export type Props = BaseTextInputProps & {
@@ -39,7 +39,7 @@ export type Props = BaseTextInputProps & {
 export default function TextInput(props: Props): React.ReactNode {
   const [theme] = useTheme()
   const isTerminalFocused = useTerminalFocus()
-  // Hoisted to mount-time — this component re-renders on every keystroke.
+  // 当终端重新获得焦点且剪贴板中有图像时显示提示
   const accessibilityEnabled = useMemo(
     () => isEnvTruthy(process.env.CLAUDE_CODE_ACCESSIBILITY),
     [],
@@ -65,20 +65,20 @@ export default function TextInput(props: Props): React.ReactNode {
       useAnimationFrame(needsAnimation ? 50 : null)
     : [() => {}, 0]
 
-  // Show hint when terminal regains focus and clipboard has an image
+  // 光标反色函数：语音录制期间使用迷你波形，
   useClipboardImageHint(isTerminalFocused, !!props.onImagePaste)
 
-  // Cursor invert function: mini waveform during voice recording,
-  // standard chalk.inverse otherwise. No warmup pulse — the ~120ms
-  // warmup window is too short for a 1s-period pulse to register, and
-  // driving TextInput re-renders at 50ms during warmup (while spaces
-  // are simultaneously arriving every 30-80ms) causes visible stutter.
+  // 其他情况使用标准 chalk.inverse。无预热脉冲 — 约 120ms
+  // 的预热窗口太短，无法让周期为 1s 的脉冲被识别，并且
+  // 在预热期间以 50ms 间隔驱动 TextInput 重新渲染（同时空格
+  // 字符正以每 30-80ms 的间隔到达）会导致明显的卡顿。
+  // 基于最新音频电平的单条波形
   const canShowCursor = isTerminalFocused && !accessibilityEnabled
   let invert: (text: string) => string
   if (!canShowCursor) {
     invert = (text: string) => text
   } else if (isVoiceRecording && !reducedMotion) {
-    // Single-bar waveform from the latest audio level
+    // 最新音频电平的单柱波形
     const smoothed = smoothedRef.current
     const raw =
       audioLevels.length > 0 ? (audioLevels[audioLevels.length - 1] ?? 0) : 0

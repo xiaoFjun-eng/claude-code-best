@@ -75,7 +75,7 @@ export type Task = {
 
 // 任务 ID 前缀
 const TASK_ID_PREFIXES: Record<string, string> = {
-  local_bash: 'b', // Keep as 'b' for backward compatibility
+  local_bash: 'b', // 为保持向后兼容性，请保留为 'b'
   local_agent: 'a',
   remote_agent: 'r',
   in_process_teammate: 't',

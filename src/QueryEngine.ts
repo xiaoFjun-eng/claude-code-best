@@ -327,7 +327,7 @@ export class QueryEngine {
       // 查询循环的其余部分（在 :389 处推送，在 :392 处快照）会看到
       // 结果。下面的第二个 processUserInputContext（在
       // 斜杠命令处理之后）保持无操作状态——在此之后没有其他代码会调用
-      // setMessages。
+      // 设置消息。
       setMessages: fn => {
         this.mutableMessages = fn(this.mutableMessages)
       },
@@ -335,7 +335,7 @@ export class QueryEngine {
       handleElicitation: this.config.handleElicitation,
       options: {
         commands,
-        debug: false, // we use stdout, so don't want to clobber it
+        debug: false, // 我们使用标准输出，所以不想破坏它
         tools,
         verbose,
         mainLoopModel: initialMainLoopModel,
@@ -453,10 +453,10 @@ export class QueryEngine {
     const replayableMessages = messagesFromUserInput.filter(
       msg =>
         (msg.type === 'user' &&
-          !msg.isMeta && // Skip synthetic caveat messages
-          !msg.toolUseResult && // Skip tool results (they'll be acked from query)
-          messageSelector().selectableUserMessagesFilter(msg)) || // Skip non-user-authored messages (task notifications, etc.)
-        (msg.type === 'system' && msg.subtype === 'compact_boundary'), // Always ack compact boundaries
+          !msg.isMeta && // 跳过合成的警告消息
+          !msg.toolUseResult && // 跳过工具结果（它们将通过查询确认）
+          messageSelector().selectableUserMessagesFilter(msg)) || // 跳过非用户撰写的消息（任务通知等）
+        (msg.type === 'system' && msg.subtype === 'compact_boundary'), // 始终确认紧凑边界
     )
     const messagesToAck = replayUserMessages ? replayableMessages : []
 
@@ -529,7 +529,7 @@ export class QueryEngine {
       mcpClients,
       model: mainLoopModel,
       permissionMode: initialAppState.toolPermissionContext
-        .mode as PermissionMode, // TODO: avoid the cast
+        .mode as PermissionMode, // 待办：避免类型转换
       commands,
       agents,
       skills,
@@ -841,7 +841,7 @@ export class QueryEngine {
           if (attachment.type === 'structured_output') {
             structuredOutputFromTool = attachment.data
           }
-          // Handle max turns reached signal from query.ts
+          // 处理来自 query.ts 的最大轮次达到信号
           else if (attachment.type === 'max_turns_reached') {
             if (persistSession) {
               if (
@@ -875,7 +875,7 @@ export class QueryEngine {
             }
             return
           }
-          // Yield queued_command attachments as SDK user message replays
+          // 将 queued_command 附件作为 SDK 用户消息重放生成
           else if (
             replayUserMessages &&
             attachment.type === 'queued_command'

@@ -25,14 +25,14 @@ export function getSteps(): Step[] {
   return [
     {
       key: 'workspace',
-      text: 'Ask Claude to create a new app or clone a repository',
+      text: '请 Claude 创建一个新应用或克隆一个仓库',
       isComplete: false,
       isCompletable: true,
       isEnabled: isWorkspaceDirEmpty,
     },
     {
       key: 'claudemd',
-      text: 'Run /init to create a CLAUDE.md file with instructions for Claude',
+      text: '运行 /init 来创建一个包含 Claude 使用说明的 CLAUDE.md 文件',
       isComplete: hasClaudeMd,
       isCompletable: true,
       isEnabled: !isWorkspaceDirEmpty,
@@ -47,8 +47,8 @@ export function isProjectOnboardingComplete(): boolean {
 }
 
 export function maybeMarkProjectOnboardingComplete(): void {
-  // Short-circuit on cached config — isProjectOnboardingComplete() hits
-  // the filesystem, and REPL.tsx calls this on every prompt submit.
+  // 在缓存配置上短路处理 —— isProjectOnboardingComplet
+  // e() 会访问文件系统，而 REPL.tsx 在每次提交提示时都会调用它。
   if (getCurrentProjectConfig().hasCompletedProjectOnboarding) {
     return
   }
@@ -62,8 +62,8 @@ export function maybeMarkProjectOnboardingComplete(): void {
 
 export const shouldShowProjectOnboarding = memoize((): boolean => {
   const projectConfig = getCurrentProjectConfig()
-  // Short-circuit on cached config before isProjectOnboardingComplete()
-  // hits the filesystem — this runs during first render.
+  // 在 isProjectOnboardingComplete() 访问文件系统
+  // 之前，先在缓存配置上短路处理 —— 这会在首次渲染期间运行。
   if (
     projectConfig.hasCompletedProjectOnboarding ||
     projectConfig.projectOnboardingSeenCount >= 4 ||

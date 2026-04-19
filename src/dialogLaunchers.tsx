@@ -105,17 +105,15 @@ export async function launchAssistantInstallWizard(
       onInstalled={dir => done(dir)}
       onCancel={() => done(null)}
       onError={message =>
-        rejectWithError(new Error(`Installation failed: ${message}`))
+        rejectWithError(new Error(`安装失败：${message}`))
       }
     />
   ))
   return Promise.race([resultPromise, errorPromise])
 }
 
-/**
- * Site ~4549: TeleportResumeWrapper (interactive teleport session picker).
- * Original callback wiring: onComplete={done}, onCancel={() => done(null)}, source="cliArg".
- */
+/** 站点 ~4549：TeleportResumeWrapper（交互式传送会话选择器）。
+原始回调连接：onComplete={done}，onCancel={() => done(null)}，source="cliArg"。 */
 export async function launchTeleportResumeWrapper(
   root: Root,
 ): Promise<TeleportRemoteResponse | null> {
@@ -131,10 +129,8 @@ export async function launchTeleportResumeWrapper(
   ))
 }
 
-/**
- * Site ~4597: TeleportRepoMismatchDialog (pick a local checkout of the target repo).
- * Original callback wiring: onSelectPath={done}, onCancel={() => done(null)}.
- */
+/** 站点 ~4597：TeleportRepoMismatchDialog（选择目标仓库的本地检出）。
+原始回调连接：onSelectPath={done}，onCancel={() => done(null)}。 */
 export async function launchTeleportRepoMismatchDialog(
   root: Root,
   props: {
@@ -155,11 +151,9 @@ export async function launchTeleportRepoMismatchDialog(
   ))
 }
 
-/**
- * Site ~4903: ResumeConversation mount (interactive session picker).
- * Wraps in <App><KeybindingSetup> and uses renderAndRun.
- * Preserves original Promise.all parallelism between getWorktreePaths and imports.
- */
+/** 站点 ~4903：ResumeConversation 挂载（交互式会话选择器）。
+包装在 <App><KeybindingSetup> 中并使用 renderAndRun。
+保留 getWorktreePaths 和 imports 之间原始的 Promise.all 并行性。 */
 export async function launchResumeChooser(
   root: Root,
   appProps: {

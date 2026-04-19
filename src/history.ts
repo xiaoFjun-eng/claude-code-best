@@ -23,8 +23,8 @@ const MAX_PASTED_CONTENT_LENGTH = 1024
 type StoredPastedContent = {
   id: number
   type: 'text' | 'image'
-  content?: string // Inline content for small pastes
-  contentHash?: string // Hash reference for large pastes stored externally
+  content?: string // 小型粘贴内容的行内内容
+  contentHash?: string // 外部存储的大型粘贴内容的哈希引用
   mediaType?: string
   filename?: string
 }
@@ -34,22 +34,22 @@ type StoredPastedContent = {
  *   图片：[Image #2]
  * 这些编号在单个提示内应是唯一的，但跨提示则不必。我们选择数字、自动递增的 ID，因为它们比其他 ID 选项对用户更友好。 */
 
-// Note: The original text paste implementation would consider input like
-// "line1\nline2\nline3" to have +2 lines, not 3 lines. We preserve that
-// behavior here.
+// 注意：原始文本粘贴实现会将类似 "line1\nline2\n
+// line3" 的输入视为有 +2 行，而非 3 行。我们在此
+// 保留该行为。
 export function getPastedTextRefNumLines(text: string): number {
   return (text.match(/\r\n|\r|\n/g) || []).length
 }
 
 export function formatPastedTextRef(id: number, numLines: number): string {
   if (numLines === 0) {
-    return `[Pasted text #${id}]`
+    return `[粘贴文本 #${id}]`
   }
-  return `[Pasted text #${id} +${numLines} lines]`
+  return `[粘贴文本 #${id} +${numLines} 行]`
 }
 
 export function formatImageRef(id: number): string {
-  return `[Image #${id}]`
+  return `[图片 #${id}]`
 }
 
 export function parseReferences(

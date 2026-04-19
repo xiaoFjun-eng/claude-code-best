@@ -2,23 +2,23 @@ export const BROWSER_TOOLS = [
   {
     name: "javascript_tool",
     description:
-      "Execute JavaScript code in the context of the current page. The code runs in the page's context and can interact with the DOM, window object, and page variables. Returns the result of the last expression or any thrown errors. If you don't have a valid tab ID, use tabs_context_mcp first to get available tabs.",
+      "在当前页面上下文中执行 JavaScript 代码。代码将在页面上下文中运行，并可与 DOM、window 对象和页面变量交互。返回最后一个表达式的结果或任何抛出的错误。如果没有有效的标签页 ID，请先使用 tabs_context_mcp 获取可用标签页。",
     inputSchema: {
       type: "object",
       properties: {
         action: {
           type: "string",
-          description: "Must be set to 'javascript_exec'",
+          description: "必须设置为 'javascript_exec'",
         },
         text: {
           type: "string",
           description:
-            "The JavaScript code to execute. The code will be evaluated in the page context. The result of the last expression will be returned automatically. Do NOT use 'return' statements - just write the expression you want to evaluate (e.g., 'window.myData.value' not 'return window.myData.value'). You can access and modify the DOM, call page functions, and interact with page variables.",
+            "要执行的 JavaScript 代码。代码将在页面上下文中求值。最后一个表达式的结果将自动返回。请勿使用 'return' 语句——只需编写要计算的表达式（例如，使用 'window.myData.value' 而不是 'return window.myData.value'）。您可以访问和修改 DOM、调用页面函数以及与页面变量交互。",
         },
         tabId: {
           type: "number",
           description:
-            "Tab ID to execute the code in. Must be a tab in the current group. Use tabs_context_mcp first if you don't have a valid tab ID.",
+            "要在其中执行代码的标签页 ID。必须是当前分组中的一个标签页。如果没有有效的标签页 ID，请先使用 tabs_context_mcp。",
         },
       },
       required: ["action", "text", "tabId"],
@@ -27,7 +27,7 @@ export const BROWSER_TOOLS = [
   {
     name: "read_page",
     description:
-      "Get an accessibility tree representation of elements on the page. By default returns all elements including non-visible ones. Output is limited to 50000 characters by default. If the output exceeds this limit, you will receive an error asking you to specify a smaller depth or focus on a specific element using ref_id. Optionally filter for only interactive elements. If you don't have a valid tab ID, use tabs_context_mcp first to get available tabs.",
+      "获取页面上元素的可访问性树表示。默认返回所有元素，包括不可见的元素。输出默认限制为 50000 个字符。如果输出超过此限制，您将收到错误提示，要求您指定较小的深度或使用 ref_id 专注于特定元素。可选地仅筛选交互式元素。如果没有有效的标签页 ID，请先使用 tabs_context_mcp 获取可用标签页。",
     inputSchema: {
       type: "object",
       properties: {
@@ -35,27 +35,27 @@ export const BROWSER_TOOLS = [
           type: "string",
           enum: ["interactive", "all"],
           description:
-            'Filter elements: "interactive" for buttons/links/inputs only, "all" for all elements including non-visible ones (default: all elements)',
+            '筛选元素："interactive" 仅用于按钮/链接/输入框，"all" 用于所有元素包括不可见的元素（默认：所有元素）',
         },
         tabId: {
           type: "number",
           description:
-            "Tab ID to read from. Must be a tab in the current group. Use tabs_context_mcp first if you don't have a valid tab ID.",
+            "要读取的标签页 ID。必须是当前分组中的一个标签页。如果没有有效的标签页 ID，请先使用 tabs_context_mcp。",
         },
         depth: {
           type: "number",
           description:
-            "Maximum depth of the tree to traverse (default: 15). Use a smaller depth if output is too large.",
+            "要遍历的树的最大深度（默认：15）。如果输出过大，请使用较小的深度。",
         },
         ref_id: {
           type: "string",
           description:
-            "Reference ID of a parent element to read. Will return the specified element and all its children. Use this to focus on a specific part of the page when output is too large.",
+            "要读取的父元素的引用 ID。将返回指定元素及其所有子元素。当输出过大时，使用此参数可专注于页面的特定部分。",
         },
         max_chars: {
           type: "number",
           description:
-            "Maximum characters for output (default: 50000). Set to a higher value if your client can handle large outputs.",
+            "输出的最大字符数（默认：50000）。如果您的客户端可以处理大量输出，请设置为更高的值。",
         },
       },
       required: ["tabId"],
@@ -64,19 +64,19 @@ export const BROWSER_TOOLS = [
   {
     name: "find",
     description:
-      'Find elements on the page using natural language. Can search for elements by their purpose (e.g., "search bar", "login button") or by text content (e.g., "organic mango product"). Returns up to 20 matching elements with references that can be used with other tools. If more than 20 matches exist, you\'ll be notified to use a more specific query. If you don\'t have a valid tab ID, use tabs_context_mcp first to get available tabs.',
+      '使用自然语言查找页面上的元素。可以根据元素用途（例如，“搜索栏”、“登录按钮”）或文本内容（例如，“有机芒果产品”）进行搜索。返回最多 20 个匹配元素及其引用，这些引用可用于其他工具。如果存在超过 20 个匹配项，您将收到通知，要求使用更具体的查询。如果没有有效的标签页 ID，请先使用 tabs_context_mcp 获取可用标签页。',
     inputSchema: {
       type: "object",
       properties: {
         query: {
           type: "string",
           description:
-            'Natural language description of what to find (e.g., "search bar", "add to cart button", "product title containing organic")',
+            '要查找内容的自然语言描述（例如，“搜索栏”、“添加到购物车按钮”、“包含有机字样的产品标题”）',
         },
         tabId: {
           type: "number",
           description:
-            "Tab ID to search in. Must be a tab in the current group. Use tabs_context_mcp first if you don't have a valid tab ID.",
+            "要在其中搜索的标签页 ID。必须是当前分组中的一个标签页。如果没有有效的标签页 ID，请先使用 tabs_context_mcp。",
         },
       },
       required: ["query", "tabId"],
@@ -85,24 +85,24 @@ export const BROWSER_TOOLS = [
   {
     name: "form_input",
     description:
-      "Set values in form elements using element reference ID from the read_page tool. If you don't have a valid tab ID, use tabs_context_mcp first to get available tabs.",
+      "使用来自 read_page 工具的元素引用 ID 设置表单元素的值。如果没有有效的标签页 ID，请先使用 tabs_context_mcp 获取可用标签页。",
     inputSchema: {
       type: "object",
       properties: {
         ref: {
           type: "string",
           description:
-            'Element reference ID from the read_page tool (e.g., "ref_1", "ref_2")',
+            '来自 read_page 工具的元素引用 ID（例如，“ref_1”、“ref_2”）',
         },
         value: {
           type: ["string", "boolean", "number"],
           description:
-            "The value to set. For checkboxes use boolean, for selects use option value or text, for other inputs use appropriate string/number",
+            "要设置的值。对于复选框使用布尔值，对于选择框使用选项值或文本，对于其他输入框使用适当的字符串/数字",
         },
         tabId: {
           type: "number",
           description:
-            "Tab ID to set form value in. Must be a tab in the current group. Use tabs_context_mcp first if you don't have a valid tab ID.",
+            "要在其中设置表单值的标签页 ID。必须是当前分组中的一个标签页。如果没有有效的标签页 ID，请先使用 tabs_context_mcp。",
         },
       },
       required: ["ref", "value", "tabId"],
@@ -110,7 +110,10 @@ export const BROWSER_TOOLS = [
   },
   {
     name: "computer",
-    description: `Use a mouse and keyboard to interact with a web browser, and take screenshots. If you don't have a valid tab ID, use tabs_context_mcp first to get available tabs.\n* Whenever you intend to click on an element like an icon, you should consult a screenshot to determine the coordinates of the element before moving the cursor.\n* If you tried clicking on a program or link but it failed to load, even after waiting, try adjusting your click location so that the tip of the cursor visually falls on the element that you want to click.\n* Make sure to click any buttons, links, icons, etc with the cursor tip in the center of the element. Don't click boxes on their edges unless asked.`,
+    description: `使用鼠标和键盘与网页浏览器交互，并截取屏幕截图。如果没有有效的标签页 ID，请先使用 tabs_context_mcp 获取可用标签页。
+* 每当您打算点击图标等元素时，应在移动光标前查看截图以确定元素的坐标。
+* 如果您尝试点击程序或链接但加载失败，即使在等待后，请尝试调整点击位置，使光标尖端视觉上落在您想要点击的元素上。
+* 确保点击任何按钮、链接、图标等时，光标尖端位于元素的中心。除非被要求，否则不要点击框的边缘。`,
     inputSchema: {
       type: "object",
       properties: {
@@ -132,7 +135,7 @@ export const BROWSER_TOOLS = [
             "hover",
           ],
           description:
-            "The action to perform:\n* `left_click`: Click the left mouse button at the specified coordinates.\n* `right_click`: Click the right mouse button at the specified coordinates to open context menus.\n* `double_click`: Double-click the left mouse button at the specified coordinates.\n* `triple_click`: Triple-click the left mouse button at the specified coordinates.\n* `type`: Type a string of text.\n* `screenshot`: Take a screenshot of the screen.\n* `wait`: Wait for a specified number of seconds.\n* `scroll`: Scroll up, down, left, or right at the specified coordinates.\n* `key`: Press a specific keyboard key.\n* `left_click_drag`: Drag from start_coordinate to coordinate.\n* `zoom`: Take a screenshot of a specific region for closer inspection.\n* `scroll_to`: Scroll an element into view using its element reference ID from read_page or find tools.\n* `hover`: Move the mouse cursor to the specified coordinates or element without clicking. Useful for revealing tooltips, dropdown menus, or triggering hover states.",
+            "要执行的操作：\n* `left_click`：在指定坐标处点击鼠标左键。\n* `right_click`：在指定坐标处点击鼠标右键以打开上下文菜单。\n* `double_click`：在指定坐标处双击鼠标左键。\n* `triple_click`：在指定坐标处三击鼠标左键。\n* `type`：输入一串文本。\n* `screenshot`：截取屏幕截图。\n* `wait`：等待指定的秒数。\n* `scroll`：在指定坐标处向上、向下、向左或向右滚动。\n* `key`：按下特定的键盘按键。\n* `left_click_drag`：从 start_coordinate 拖拽到 coordinate。\n* `zoom`：截取特定区域的截图以便更仔细地检查。\n* `scroll_to`：使用来自 read_page 或 find 工具的元素引用 ID 将元素滚动到视图中。\n* `hover`：将鼠标光标移动到指定坐标或元素上而不点击。用于显示工具提示、下拉菜单或触发悬停状态。",
         },
         coordinate: {
           type: "array",
@@ -140,31 +143,31 @@ export const BROWSER_TOOLS = [
           minItems: 2,
           maxItems: 2,
           description:
-            "(x, y): The x (pixels from the left edge) and y (pixels from the top edge) coordinates. Required for `left_click`, `right_click`, `double_click`, `triple_click`, and `scroll`. For `left_click_drag`, this is the end position.",
+            "(x, y)：x（距离左侧边缘的像素数）和 y（距离顶部边缘的像素数）坐标。`left_click`、`right_click`、`double_click`、`triple_click` 和 `scroll` 操作需要此参数。对于 `left_click_drag`，这是结束位置。",
         },
         text: {
           type: "string",
           description:
-            'The text to type (for `type` action) or the key(s) to press (for `key` action). For `key` action: Provide space-separated keys (e.g., "Backspace Backspace Delete"). Supports keyboard shortcuts using the platform\'s modifier key (use "cmd" on Mac, "ctrl" on Windows/Linux, e.g., "cmd+a" or "ctrl+a" for select all).',
+            '要输入的文本（用于 `type` 操作）或要按下的按键（用于 `key` 操作）。对于 `key` 操作：提供以空格分隔的按键（例如，“Backspace Backspace Delete”）。支持使用平台的修饰键进行键盘快捷键（在 Mac 上使用“cmd”，在 Windows/Linux 上使用“ctrl”，例如，“cmd+a”或“ctrl+a”表示全选）。',
         },
         duration: {
           type: "number",
           minimum: 0,
           maximum: 30,
           description:
-            "The number of seconds to wait. Required for `wait`. Maximum 30 seconds.",
+            "要等待的秒数。`wait` 操作需要此参数。最多 30 秒。",
         },
         scroll_direction: {
           type: "string",
           enum: ["up", "down", "left", "right"],
-          description: "The direction to scroll. Required for `scroll`.",
+          description: "滚动的方向。`scroll` 操作需要此参数。",
         },
         scroll_amount: {
           type: "number",
           minimum: 1,
           maximum: 10,
           description:
-            "The number of scroll wheel ticks. Optional for `scroll`, defaults to 3.",
+            "滚轮滚动的刻度数。`scroll` 操作可选，默认为 3。",
         },
         start_coordinate: {
           type: "array",
@@ -172,7 +175,7 @@ export const BROWSER_TOOLS = [
           minItems: 2,
           maxItems: 2,
           description:
-            "(x, y): The starting coordinates for `left_click_drag`.",
+            "(x, y)：`left_click_drag` 操作的起始坐标。",
         },
         region: {
           type: "array",
@@ -180,29 +183,29 @@ export const BROWSER_TOOLS = [
           minItems: 4,
           maxItems: 4,
           description:
-            "(x0, y0, x1, y1): The rectangular region to capture for `zoom`. Coordinates define a rectangle from top-left (x0, y0) to bottom-right (x1, y1) in pixels from the viewport origin. Required for `zoom` action. Useful for inspecting small UI elements like icons, buttons, or text.",
+            "(x0, y0, x1, y1)：`zoom` 操作要捕获的矩形区域。坐标定义了从左上角 (x0, y0) 到右下角 (x1, y1) 的矩形，单位为相对于视口原点的像素数。`zoom` 操作需要此参数。适用于检查小 UI 元素，如图标、按钮或文本。",
         },
         repeat: {
           type: "number",
           minimum: 1,
           maximum: 100,
           description:
-            "Number of times to repeat the key sequence. Only applicable for `key` action. Must be a positive integer between 1 and 100. Default is 1. Useful for navigation tasks like pressing arrow keys multiple times.",
+            "重复按键序列的次数。仅适用于 `key` 操作。必须是 1 到 100 之间的正整数。默认为 1。适用于导航任务，如多次按下箭头键。",
         },
         ref: {
           type: "string",
           description:
-            'Element reference ID from read_page or find tools (e.g., "ref_1", "ref_2"). Required for `scroll_to` action. Can be used as alternative to `coordinate` for click actions.',
+            '来自 read_page 或 find 工具的元素引用 ID（例如，“ref_1”、“ref_2”）。`scroll_to` 操作需要此参数。也可用作点击操作中 `coordinate` 的替代方案。',
         },
         modifiers: {
           type: "string",
           description:
-            'Modifier keys for click actions. Supports: "ctrl", "shift", "alt", "cmd" (or "meta"), "win" (or "windows"). Can be combined with "+" (e.g., "ctrl+shift", "cmd+alt"). Optional.',
+            '点击操作的修饰键。支持：“ctrl”、“shift”、“alt”、“cmd”（或“meta”）、“win”（或“windows”）。可以使用“+”组合（例如，“ctrl+shift”、“cmd+alt”）。可选。',
         },
         tabId: {
           type: "number",
           description:
-            "Tab ID to execute the action on. Must be a tab in the current group. Use tabs_context_mcp first if you don't have a valid tab ID.",
+            "要在其上执行操作的标签页 ID。必须是当前分组中的一个标签页。如果没有有效的标签页 ID，请先使用 tabs_context_mcp。",
         },
       },
       required: ["action", "tabId"],
@@ -211,19 +214,19 @@ export const BROWSER_TOOLS = [
   {
     name: "navigate",
     description:
-      "Navigate to a URL, or go forward/back in browser history. If you don't have a valid tab ID, use tabs_context_mcp first to get available tabs.",
+      "导航到指定 URL，或在浏览器历史记录中前进/后退。如果没有有效的标签页 ID，请先使用 tabs_context_mcp 获取可用标签页。",
     inputSchema: {
       type: "object",
       properties: {
         url: {
           type: "string",
           description:
-            'The URL to navigate to. Can be provided with or without protocol (defaults to https://). Use "forward" to go forward in history or "back" to go back in history.',
+            '要导航到的 URL。可提供带或不带协议（默认为 https://）。使用 "forward" 在历史记录中前进，或使用 "back" 后退。',
         },
         tabId: {
           type: "number",
           description:
-            "Tab ID to navigate. Must be a tab in the current group. Use tabs_context_mcp first if you don't have a valid tab ID.",
+            "要导航的标签页 ID。必须是当前分组内的标签页。如果没有有效的标签页 ID，请先使用 tabs_context_mcp。",
         },
       },
       required: ["url", "tabId"],
@@ -232,22 +235,22 @@ export const BROWSER_TOOLS = [
   {
     name: "resize_window",
     description:
-      "Resize the current browser window to specified dimensions. Useful for testing responsive designs or setting up specific screen sizes. If you don't have a valid tab ID, use tabs_context_mcp first to get available tabs.",
+      "将当前浏览器窗口调整为指定尺寸。适用于测试响应式设计或设置特定屏幕尺寸。如果没有有效的标签页 ID，请先使用 tabs_context_mcp 获取可用标签页。",
     inputSchema: {
       type: "object",
       properties: {
         width: {
           type: "number",
-          description: "Target window width in pixels",
+          description: "目标窗口宽度（像素）",
         },
         height: {
           type: "number",
-          description: "Target window height in pixels",
+          description: "目标窗口高度（像素）",
         },
         tabId: {
           type: "number",
           description:
-            "Tab ID to get the window for. Must be a tab in the current group. Use tabs_context_mcp first if you don't have a valid tab ID.",
+            "要获取其窗口的标签页 ID。必须是当前分组内的标签页。如果没有有效的标签页 ID，请先使用 tabs_context_mcp。",
         },
       },
       required: ["width", "height", "tabId"],
@@ -256,7 +259,7 @@ export const BROWSER_TOOLS = [
   {
     name: "gif_creator",
     description:
-      "Manage GIF recording and export for browser automation sessions. Control when to start/stop recording browser actions (clicks, scrolls, navigation), then export as an animated GIF with visual overlays (click indicators, action labels, progress bar, watermark). All operations are scoped to the tab's group. When starting recording, take a screenshot immediately after to capture the initial state as the first frame. When stopping recording, take a screenshot immediately before to capture the final state as the last frame. For export, either provide 'coordinate' to drag/drop upload to a page element, or set 'download: true' to download the GIF.",
+      "管理浏览器自动化会话的 GIF 录制和导出。控制何时开始/停止录制浏览器操作（点击、滚动、导航），然后导出为带有视觉叠加层（点击指示器、操作标签、进度条、水印）的动画 GIF。所有操作都限定在标签页分组内。开始录制时，立即截取一张屏幕截图以捕获初始状态作为第一帧。停止录制时，立即截取一张屏幕截图以捕获最终状态作为最后一帧。对于导出，可提供 'coordinate' 以拖放上传到页面元素，或设置 'download: true' 以下载 GIF。",
     inputSchema: {
       type: "object",
       properties: {
@@ -264,54 +267,54 @@ export const BROWSER_TOOLS = [
           type: "string",
           enum: ["start_recording", "stop_recording", "export", "clear"],
           description:
-            "Action to perform: 'start_recording' (begin capturing), 'stop_recording' (stop capturing but keep frames), 'export' (generate and export GIF), 'clear' (discard frames)",
+            "要执行的操作：'start_recording'（开始捕获）、'stop_recording'（停止捕获但保留帧）、'export'（生成并导出 GIF）、'clear'（丢弃帧）",
         },
         tabId: {
           type: "number",
           description:
-            "Tab ID to identify which tab group this operation applies to",
+            "标签页 ID，用于标识此操作适用于哪个标签页分组",
         },
         download: {
           type: "boolean",
           description:
-            "Always set this to true for the 'export' action only. This causes the gif to be downloaded in the browser.",
+            "仅针对 'export' 操作，请始终将此设置为 true。这将导致 GIF 在浏览器中被下载。",
         },
         filename: {
           type: "string",
           description:
-            "Optional filename for exported GIF (default: 'recording-[timestamp].gif'). For 'export' action only.",
+            "导出 GIF 的可选文件名（默认：'recording-[timestamp].gif'）。仅适用于 'export' 操作。",
         },
         options: {
           type: "object",
           description:
-            "Optional GIF enhancement options for 'export' action. Properties: showClickIndicators (bool), showDragPaths (bool), showActionLabels (bool), showProgressBar (bool), showWatermark (bool), quality (number 1-30). All default to true except quality (default: 10).",
+            "针对 'export' 操作的可选 GIF 增强选项。属性：showClickIndicators (bool)、showDragPaths (bool)、showActionLabels (bool)、showProgressBar (bool)、showWatermark (bool)、quality (number 1-30)。除 quality 外，其余默认均为 true（quality 默认值：10）。",
           properties: {
             showClickIndicators: {
               type: "boolean",
               description:
-                "Show orange circles at click locations (default: true)",
+                "在点击位置显示橙色圆圈（默认：true）",
             },
             showDragPaths: {
               type: "boolean",
-              description: "Show red arrows for drag actions (default: true)",
+              description: "为拖拽操作显示红色箭头（默认：true）",
             },
             showActionLabels: {
               type: "boolean",
               description:
-                "Show black labels describing actions (default: true)",
+                "显示描述操作的黑色标签（默认：true）",
             },
             showProgressBar: {
               type: "boolean",
-              description: "Show orange progress bar at bottom (default: true)",
+              description: "在底部显示橙色进度条（默认：true）",
             },
             showWatermark: {
               type: "boolean",
-              description: "Show Claude logo watermark (default: true)",
+              description: "显示 Claude 徽标水印（默认：true）",
             },
             quality: {
               type: "number",
               description:
-                "GIF compression quality, 1-30 (lower = better quality, slower encoding). Default: 10",
+                "GIF 压缩质量，1-30（数值越低，质量越好，编码越慢）。默认：10",
             },
           },
         },
@@ -322,19 +325,19 @@ export const BROWSER_TOOLS = [
   {
     name: "upload_image",
     description:
-      "Upload a previously captured screenshot or user-uploaded image to a file input or drag & drop target. Supports two approaches: (1) ref - for targeting specific elements, especially hidden file inputs, (2) coordinate - for drag & drop to visible locations like Google Docs. Provide either ref or coordinate, not both.",
+      "将先前捕获的屏幕截图或用户上传的图片上传到文件输入框或拖放目标。支持两种方法：(1) ref - 用于定位特定元素，尤其是隐藏的文件输入框；(2) coordinate - 用于拖放到可见位置（如 Google Docs）。请提供 ref 或 coordinate 之一，不要同时提供。",
     inputSchema: {
       type: "object",
       properties: {
         imageId: {
           type: "string",
           description:
-            "ID of a previously captured screenshot (from the computer tool's screenshot action) or a user-uploaded image",
+            "先前捕获的屏幕截图（来自 computer 工具的截图操作）或用户上传图片的 ID",
         },
         ref: {
           type: "string",
           description:
-            'Element reference ID from read_page or find tools (e.g., "ref_1", "ref_2"). Use this for file inputs (especially hidden ones) or specific elements. Provide either ref or coordinate, not both.',
+            '来自 read_page 或 find 工具的元素引用 ID（例如 "ref_1"、"ref_2"）。用于文件输入框（尤其是隐藏的）或特定元素。请提供 ref 或 coordinate 之一，不要同时提供。',
         },
         coordinate: {
           type: "array",
@@ -342,17 +345,17 @@ export const BROWSER_TOOLS = [
             type: "number",
           },
           description:
-            "Viewport coordinates [x, y] for drag & drop to a visible location. Use this for drag & drop targets like Google Docs. Provide either ref or coordinate, not both.",
+            "用于拖放到可见位置的视口坐标 [x, y]。用于 Google Docs 等拖放目标。请提供 ref 或 coordinate 之一，不要同时提供。",
         },
         tabId: {
           type: "number",
           description:
-            "Tab ID where the target element is located. This is where the image will be uploaded to.",
+            "目标元素所在的标签页 ID。图片将上传到此标签页。",
         },
         filename: {
           type: "string",
           description:
-            'Optional filename for the uploaded file (default: "image.png")',
+            '上传文件的可选文件名（默认："image.png"）',
         },
       },
       required: ["imageId", "tabId"],
@@ -361,14 +364,14 @@ export const BROWSER_TOOLS = [
   {
     name: "get_page_text",
     description:
-      "Extract raw text content from the page, prioritizing article content. Ideal for reading articles, blog posts, or other text-heavy pages. Returns plain text without HTML formatting. If you don't have a valid tab ID, use tabs_context_mcp first to get available tabs.",
+      "从页面提取原始文本内容，优先提取文章内容。适用于阅读文章、博客帖子或其他文本密集型页面。返回纯文本，不含 HTML 格式。如果没有有效的标签页 ID，请先使用 tabs_context_mcp 获取可用标签页。",
     inputSchema: {
       type: "object",
       properties: {
         tabId: {
           type: "number",
           description:
-            "Tab ID to extract text from. Must be a tab in the current group. Use tabs_context_mcp first if you don't have a valid tab ID.",
+            "要从中提取文本的标签页 ID。必须是当前分组内的标签页。如果没有有效的标签页 ID，请先使用 tabs_context_mcp。",
         },
       },
       required: ["tabId"],
@@ -376,16 +379,16 @@ export const BROWSER_TOOLS = [
   },
   {
     name: "tabs_context_mcp",
-    title: "Tabs Context",
+    title: "标签页上下文",
     description:
-      "Get context information about the current MCP tab group. Returns all tab IDs inside the group if it exists. CRITICAL: You must get the context at least once before using other browser automation tools so you know what tabs exist. Each new conversation should create its own new tab (using tabs_create_mcp) rather than reusing existing tabs, unless the user explicitly asks to use an existing tab.",
+      "获取当前 MCP 标签页分组的上下文信息。如果分组存在，则返回组内所有标签页 ID。关键提示：在使用其他浏览器自动化工具之前，必须至少获取一次上下文，以便了解存在哪些标签页。每次新对话都应创建自己的新标签页（使用 tabs_create_mcp），而不是重用现有标签页，除非用户明确要求使用现有标签页。",
     inputSchema: {
       type: "object",
       properties: {
         createIfEmpty: {
           type: "boolean",
           description:
-            "Creates a new MCP tab group if none exists, creates a new Window with a new tab group containing an empty tab (which can be used for this conversation). If a MCP tab group already exists, this parameter has no effect.",
+            "如果不存在 MCP 标签页分组，则创建一个新的 MCP 标签页分组，创建一个包含新标签页分组（其中包含一个空标签页）的新窗口（可用于此对话）。如果 MCP 标签页分组已存在，则此参数无效。",
         },
       },
       required: [],
@@ -393,9 +396,9 @@ export const BROWSER_TOOLS = [
   },
   {
     name: "tabs_create_mcp",
-    title: "Tabs Create",
+    title: "标签页创建",
     description:
-      "Creates a new empty tab in the MCP tab group. CRITICAL: You must get the context using tabs_context_mcp at least once before using other browser automation tools so you know what tabs exist.",
+      "在 MCP 标签页组中创建一个新的空白标签页。重要提示：在使用其他浏览器自动化工具之前，你必须至少使用一次 tabs_context_mcp 来获取上下文，以便了解存在哪些标签页。",
     inputSchema: {
       type: "object",
       properties: {},
@@ -405,7 +408,7 @@ export const BROWSER_TOOLS = [
   {
     name: "update_plan",
     description:
-      "Present a plan to the user for approval before taking actions. The user will see the domains you intend to visit and your approach. Once approved, you can proceed with actions on the approved domains without additional permission prompts.",
+      "在采取行动之前，向用户展示一个计划以获取批准。用户将看到你打算访问的域名以及你的方法。一旦获得批准，你就可以对已批准的域名执行操作，无需额外的权限提示。",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -413,13 +416,13 @@ export const BROWSER_TOOLS = [
           type: "array" as const,
           items: { type: "string" as const },
           description:
-            "List of domains you will visit (e.g., ['github.com', 'stackoverflow.com']). These domains will be approved for the session when the user accepts the plan.",
+            "你将访问的域名列表（例如，['github.com', 'stackoverflow.com']）。当用户接受计划时，这些域名将在会话中被批准。",
         },
         approach: {
           type: "array" as const,
           items: { type: "string" as const },
           description:
-            "High-level description of what you will do. Focus on outcomes and key actions, not implementation details. Be concise - aim for 3-7 items.",
+            "关于你将做什么的高级描述。专注于结果和关键行动，而不是实现细节。保持简洁——目标是 3-7 个项目。",
         },
       },
       required: ["domains", "approach"],
@@ -428,34 +431,34 @@ export const BROWSER_TOOLS = [
   {
     name: "read_console_messages",
     description:
-      "Read browser console messages (console.log, console.error, console.warn, etc.) from a specific tab. Useful for debugging JavaScript errors, viewing application logs, or understanding what's happening in the browser console. Returns console messages from the current domain only. If you don't have a valid tab ID, use tabs_context_mcp first to get available tabs. IMPORTANT: Always provide a pattern to filter messages - without a pattern, you may get too many irrelevant messages.",
+      "从特定标签页读取浏览器控制台消息（console.log、console.error、console.warn 等）。用于调试 JavaScript 错误、查看应用程序日志或了解浏览器控制台中发生的情况。仅返回来自当前域的控制台消息。如果你没有有效的标签页 ID，请先使用 tabs_context_mcp 获取可用的标签页。重要提示：始终提供一个模式来过滤消息——没有模式，你可能会收到太多不相关的消息。",
     inputSchema: {
       type: "object",
       properties: {
         tabId: {
           type: "number",
           description:
-            "Tab ID to read console messages from. Must be a tab in the current group. Use tabs_context_mcp first if you don't have a valid tab ID.",
+            "要从中读取控制台消息的标签页 ID。必须是当前组中的一个标签页。如果你没有有效的标签页 ID，请先使用 tabs_context_mcp。",
         },
         onlyErrors: {
           type: "boolean",
           description:
-            "If true, only return error and exception messages. Default is false (return all message types).",
+            "如果为 true，则仅返回错误和异常消息。默认为 false（返回所有消息类型）。",
         },
         clear: {
           type: "boolean",
           description:
-            "If true, clear the console messages after reading to avoid duplicates on subsequent calls. Default is false.",
+            "如果为 true，则在读取后清除控制台消息，以避免后续调用中出现重复。默认为 false。",
         },
         pattern: {
           type: "string",
           description:
-            "Regex pattern to filter console messages. Only messages matching this pattern will be returned (e.g., 'error|warning' to find errors and warnings, 'MyApp' to filter app-specific logs). You should always provide a pattern to avoid getting too many irrelevant messages.",
+            "用于过滤控制台消息的正则表达式模式。只有匹配此模式的消息才会被返回（例如，'error|warning' 用于查找错误和警告，'MyApp' 用于过滤特定于应用程序的日志）。你应该始终提供一个模式，以避免收到太多不相关的消息。",
         },
         limit: {
           type: "number",
           description:
-            "Maximum number of messages to return. Defaults to 100. Increase only if you need more results.",
+            "要返回的最大消息数。默认为 100。仅在需要更多结果时增加。",
         },
       },
       required: ["tabId"],
@@ -464,29 +467,29 @@ export const BROWSER_TOOLS = [
   {
     name: "read_network_requests",
     description:
-      "Read HTTP network requests (XHR, Fetch, documents, images, etc.) from a specific tab. Useful for debugging API calls, monitoring network activity, or understanding what requests a page is making. Returns all network requests made by the current page, including cross-origin requests. Requests are automatically cleared when the page navigates to a different domain. If you don't have a valid tab ID, use tabs_context_mcp first to get available tabs.",
+      "从特定标签页读取 HTTP 网络请求（XHR、Fetch、文档、图像等）。用于调试 API 调用、监控网络活动或了解页面正在发出哪些请求。返回当前页面发出的所有网络请求，包括跨域请求。当页面导航到不同域时，请求会自动清除。如果你没有有效的标签页 ID，请先使用 tabs_context_mcp 获取可用的标签页。",
     inputSchema: {
       type: "object",
       properties: {
         tabId: {
           type: "number",
           description:
-            "Tab ID to read network requests from. Must be a tab in the current group. Use tabs_context_mcp first if you don't have a valid tab ID.",
+            "要从中读取网络请求的标签页 ID。必须是当前组中的一个标签页。如果你没有有效的标签页 ID，请先使用 tabs_context_mcp。",
         },
         urlPattern: {
           type: "string",
           description:
-            "Optional URL pattern to filter requests. Only requests whose URL contains this string will be returned (e.g., '/api/' to filter API calls, 'example.com' to filter by domain).",
+            "用于过滤请求的可选 URL 模式。仅返回 URL 包含此字符串的请求（例如，'/api/' 用于过滤 API 调用，'example.com' 用于按域名过滤）。",
         },
         clear: {
           type: "boolean",
           description:
-            "If true, clear the network requests after reading to avoid duplicates on subsequent calls. Default is false.",
+            "如果为 true，则在读取后清除网络请求，以避免后续调用中出现重复。默认为 false。",
         },
         limit: {
           type: "number",
           description:
-            "Maximum number of requests to return. Defaults to 100. Increase only if you need more results.",
+            "要返回的最大请求数。默认为 100。仅在需要更多结果时增加。",
         },
       },
       required: ["tabId"],
@@ -495,14 +498,14 @@ export const BROWSER_TOOLS = [
   {
     name: "shortcuts_list",
     description:
-      "List all available shortcuts and workflows (shortcuts and workflows are interchangeable). Returns shortcuts with their commands, descriptions, and whether they are workflows. Use shortcuts_execute to run a shortcut or workflow.",
+      "列出所有可用的快捷方式和流程（快捷方式和流程可互换使用）。返回包含其命令、描述以及是否为流程的快捷方式。使用 shortcuts_execute 来运行快捷方式或流程。",
     inputSchema: {
       type: "object",
       properties: {
         tabId: {
           type: "number",
           description:
-            "Tab ID to list shortcuts from. Must be a tab in the current group. Use tabs_context_mcp first if you don't have a valid tab ID.",
+            "要从中列出快捷方式的标签页 ID。必须是当前组中的一个标签页。如果你没有有效的标签页 ID，请先使用 tabs_context_mcp。",
         },
       },
       required: ["tabId"],
@@ -511,23 +514,23 @@ export const BROWSER_TOOLS = [
   {
     name: "shortcuts_execute",
     description:
-      "Execute a shortcut or workflow by running it in a new sidepanel window using the current tab (shortcuts and workflows are interchangeable). Use shortcuts_list first to see available shortcuts. This starts the execution and returns immediately - it does not wait for completion.",
+      "通过在当前标签页的新侧面板窗口中运行来执行快捷方式或流程（快捷方式和流程可互换使用）。先使用 shortcuts_list 查看可用的快捷方式。这会开始执行并立即返回——它不会等待完成。",
     inputSchema: {
       type: "object",
       properties: {
         tabId: {
           type: "number",
           description:
-            "Tab ID to execute the shortcut on. Must be a tab in the current group. Use tabs_context_mcp first if you don't have a valid tab ID.",
+            "要在其上执行快捷方式的标签页 ID。必须是当前组中的一个标签页。如果你没有有效的标签页 ID，请先使用 tabs_context_mcp。",
         },
         shortcutId: {
           type: "string",
-          description: "The ID of the shortcut to execute",
+          description: "要执行的快捷方式的 ID",
         },
         command: {
           type: "string",
           description:
-            "The command name of the shortcut to execute (e.g., 'debug', 'summarize'). Do not include the leading slash.",
+            "要执行的快捷方式的命令名称（例如，'debug'、'summarize'）。不要包含前导斜杠。",
         },
       },
       required: ["tabId"],
@@ -536,7 +539,7 @@ export const BROWSER_TOOLS = [
   {
     name: "switch_browser",
     description:
-      "Switch which Chrome browser is used for browser automation. Call this when the user wants to connect to a different Chrome browser. Broadcasts a connection request to all Chrome browsers with the extension installed — the user clicks 'Connect' in the desired browser.",
+      "切换用于浏览器自动化的 Chrome 浏览器。当用户想要连接到不同的 Chrome 浏览器时调用此功能。向所有安装了扩展程序的 Chrome 浏览器广播连接请求——用户在所需的浏览器中点击“连接”。",
     inputSchema: {
       type: "object",
       properties: {},

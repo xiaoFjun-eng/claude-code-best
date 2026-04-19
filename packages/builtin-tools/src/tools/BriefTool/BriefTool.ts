@@ -21,27 +21,27 @@ const inputSchema = lazySchema(() =>
   z.strictObject({
     message: z
       .string()
-      .describe('The message for the user. Supports markdown formatting.'),
+      .describe('给用户的消息。支持 Markdown 格式。'),
     attachments: z
       .array(z.string())
       .optional()
       .describe(
-        'Optional file paths (absolute or relative to cwd) to attach. Use for photos, screenshots, diffs, logs, or any file the user should see alongside your message.',
+        '可选的要附加的文件路径（绝对路径或相对于当前工作目录）。用于附加照片、截图、差异文件、日志或任何用户应随消息一同查看的文件。',
       ),
     status: z
       .enum(['normal', 'proactive'])
       .describe(
-        "Use 'proactive' when you're surfacing something the user hasn't asked for and needs to see now — task completion while they're away, a blocker you hit, an unsolicited status update. Use 'normal' when replying to something the user just said.",
+        "当您主动呈现用户未要求但需要立即查看的内容时（例如用户离开时的任务完成情况、您遇到的阻碍、未经请求的状态更新），请使用 'proactive'。当回复用户刚刚提到的内容时，请使用 'normal'。",
       ),
   }),
 )
 type InputSchema = ReturnType<typeof inputSchema>
 
-// attachments MUST remain optional — resumed sessions replay pre-attachment
-// outputs verbatim and a required field would crash the UI renderer on resume.
+// 附件必须保持可选 — 恢复的会话会逐字重放附加附件之前的
+// 输出，如果设为必填字段，会在恢复时导致 UI 渲染器崩溃。
 const outputSchema = lazySchema(() =>
   z.object({
-    message: z.string().describe('The message'),
+    message: z.string().describe('消息'),
     attachments: z
       .array(
         z.object({
@@ -52,12 +52,12 @@ const outputSchema = lazySchema(() =>
         }),
       )
       .optional()
-      .describe('Resolved attachment metadata'),
+      .describe('已解析的附件元数据'),
     sentAt: z
       .string()
       .optional()
       .describe(
-        'ISO timestamp captured at tool execution on the emitting process. Optional — resumed sessions replay pre-sentAt outputs verbatim.',
+        '在发送进程执行工具时捕获的 ISO 时间戳。可选 — 恢复的会话会逐字重放发送前（pre-sentAt）的输出。',
       ),
   }),
 )
@@ -66,28 +66,16 @@ export type Output = z.infer<OutputSchema>
 
 const KAIROS_BRIEF_REFRESH_MS = 5 * 60 * 1000
 
-/**
- * Entitlement check — is the user ALLOWED to use Brief? Combines build-time
- * flags with runtime GB gate + assistant-mode passthrough. No opt-in check
- * here — this decides whether opt-in should be HONORED, not whether the user
- * has opted in.
- *
- * Build-time OR-gated on KAIROS || KAIROS_BRIEF (same pattern as
- * PROACTIVE || KAIROS): assistant mode depends on Brief, so KAIROS alone
- * must bundle it. KAIROS_BRIEF lets Brief ship independently.
- *
- * Use this to decide whether `--brief` / `defaultView: 'chat'` / `--tools`
- * listing should be honored. Use `isBriefEnabled()` to decide whether the
- * tool is actually active in the current session.
- *
- * CLAUDE_CODE_BRIEF env var force-grants entitlement for dev/testing —
- * bypasses the GB gate so you can test without being enrolled. Still
- * requires an opt-in action to activate (--brief, defaultView, etc.), but
- * the env var alone also sets userMsgOptIn via maybeActivateBrief().
- */
+/** 权限检查 — 用户是否被允许使用 Brief？结合了构建时标志、运行时 GB 门控以及助手模式直通。此处不检查用户是否选择启用 — 这决定是否应尊重用户的启用选择，而不是用户是否已选择启用。
+
+构建时通过 KAIROS || KAIROS_BRIEF 进行 OR 门控（与 PROACTIVE || KAIROS 模式相同）：助手模式依赖于 Brief，因此仅 KAIROS 也必须捆绑它。KAIROS_BRIEF 允许 Brief 独立发布。
+
+使用此函数来决定是否应尊重 `--brief` / `defaultView: 'chat'` / `--tools` 列表。使用 `isBriefEnabled()` 来决定工具在当前会话中是否实际处于活动状态。
+
+CLAUDE_CODE_BRIEF 环境变量强制授予开发/测试权限 — 绕过 GB 门控，以便您可以在未注册的情况下进行测试。仍然需要用户执行启用操作（--brief、defaultView 等）来激活，但仅设置该环境变量也会通过 maybeActivateBrief() 设置 userMsgOptIn。 */
 export function isBriefEntitled(): boolean {
-  // Positive ternary — see docs/feature-gating.md. Negative early-return
-  // would not eliminate the GB gate string from external builds.
+  // 正向三元表达式 — 参见 docs/feature-gating.
+  // md。负向提前返回不会从外部构建中消除 GB 门控字符串。
   return feature('KAIROS') || feature('KAIROS_BRIEF')
     ? getKairosActive() ||
         isEnvTruthy(process.env.CLAUDE_CODE_BRIEF) ||
@@ -99,35 +87,25 @@ export function isBriefEntitled(): boolean {
     : false
 }
 
-/**
- * Unified activation gate for the Brief tool. Governs model-facing behavior
- * as a unit: tool availability, system prompt section (getBriefSection),
- * tool-deferral bypass (isDeferredTool), and todo-nag suppression.
- *
- * Activation requires explicit opt-in (userMsgOptIn) set by one of:
- *   - `--brief` CLI flag (maybeActivateBrief in main.tsx)
- *   - `defaultView: 'chat'` in settings (main.tsx init)
- *   - `/brief` slash command (brief.ts)
- *   - `/config` defaultView picker (Config.tsx)
- *   - SendUserMessage in `--tools` / SDK `tools` option (main.tsx)
- *   - CLAUDE_CODE_BRIEF env var (maybeActivateBrief — dev/testing bypass)
- * Assistant mode (kairosActive) bypasses opt-in since its system prompt
- * hard-codes "you MUST use SendUserMessage" (systemPrompt.md:14).
- *
- * The GB gate is re-checked here as a kill-switch AND — flipping
- * tengu_kairos_brief off mid-session disables the tool on the next 5-min
- * refresh even for opted-in sessions. No opt-in → always false regardless
- * of GB (this is the fix for "brief defaults on for enrolled ants").
- *
- * Called from Tool.isEnabled() (lazy, post-init), never at module scope.
- * getKairosActive() and getUserMsgOptIn() are set in main.tsx before any
- * caller reaches here.
- */
+/** Brief 工具的统一激活门控。作为一个单元来管理面向模型的行为：工具可用性、系统提示部分（getBriefSection）、工具延迟绕过（isDeferredTool）以及待办事项提醒抑制。
+
+激活需要明确的用户选择启用（userMsgOptIn），由以下方式之一设置：
+  - `--brief` CLI 标志（main.tsx 中的 maybeActivateBrief）
+  - 设置中的 `defaultView: 'chat'`（main.tsx 初始化）
+  - `/brief` 斜杠命令（brief.ts）
+  - `/config` defaultView 选择器（Config.tsx）
+  - `--tools` / SDK `tools` 选项中的 SendUserMessage（main.tsx）
+  - CLAUDE_CODE_BRIEF 环境变量（maybeActivateBrief — 开发/测试绕过）
+助手模式（kairosActive）绕过选择启用，因为其系统提示硬编码了“你必须使用 SendUserMessage”（systemPrompt.md:14）。
+
+此处重新检查 GB 门控，既作为紧急停止开关，也 — 在会话中途关闭 tengu_kairos_brief 会在下一次 5 分钟刷新时禁用该工具，即使对于已选择启用的会话也是如此。未选择启用 → 无论 GB 状态如何，始终为 false（这是修复“已注册蚂蚁默认启用 brief”问题的方案）。
+
+从 Tool.isEnabled()（惰性，初始化后）调用，绝不在模块作用域调用。getKairosActive() 和 getUserMsgOptIn() 在任何调用者到达此处之前已在 main.tsx 中设置。 */
 export function isBriefEnabled(): boolean {
-  // Top-level feature() guard is load-bearing for DCE: Bun can constant-fold
-  // the ternary to `false` in external builds and then dead-code the BriefTool
-  // object. Composing isBriefEntitled() alone (which has its own guard) is
-  // semantically equivalent but defeats constant-folding across the boundary.
+  // 顶层的 feature() 守卫对于 DCE（死代码消除）至关重要：B
+  // un 可以在外部构建中将三元表达式常量折叠为 `false`，然后消除
+  // BriefTool 对象的死代码。仅组合 isBriefEntitl
+  // ed()（它有自己的守卫）在语义上是等效的，但会破坏跨边界的常量折叠。
   return feature('KAIROS') || feature('KAIROS_BRIEF')
     ? (getKairosActive() || getUserMsgOptIn()) && isBriefEntitled()
     : false
@@ -137,7 +115,7 @@ export const BriefTool = buildTool({
   name: BRIEF_TOOL_NAME,
   aliases: [LEGACY_BRIEF_TOOL_NAME],
   searchHint:
-    'send a message to the user — your primary visible output channel',
+    '向用户发送消息 — 您主要的可见输出通道',
   maxResultSizeChars: 100_000,
   userFacingName() {
     return ''
@@ -174,11 +152,11 @@ export const BriefTool = buildTool({
   },
   mapToolResultToToolResultBlockParam(output, toolUseID) {
     const n = output.attachments?.length ?? 0
-    const suffix = n === 0 ? '' : ` (${n} ${plural(n, 'attachment')} included)`
+    const suffix = n === 0 ? '' : `（包含 ${n} ${plural(n, 'attachment')}）`
     return {
       tool_use_id: toolUseID,
       type: 'tool_result',
-      content: `Message delivered to user.${suffix}`,
+      content: `消息已送达用户。${suffix}`,
     }
   },
   renderToolUseMessage,

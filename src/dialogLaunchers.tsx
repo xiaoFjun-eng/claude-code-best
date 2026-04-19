@@ -1,11 +1,9 @@
-/**
- * Thin launchers for one-off dialog JSX sites in main.tsx.
- * Each launcher dynamically imports its component and wires the `done` callback
- * identically to the original inline call site. Zero behavior change.
+/** * 为主入口文件 main.tsx 中的一次性对话框 JSX 站点提供精简启动器。
+ * 每个启动器动态导入其组件，并以与原始内联调用点完全相同的方式连接 `done` 回调。
+ * 零行为变更。
  *
- * Part of the main.tsx React/JSX extraction effort. See sibling PRs
- * perf/extract-interactive-helpers and perf/launch-repl.
- */
+ * 这是 main.tsx React/JSX 提取工作的一部分。请参阅相关 PR：
+ * perf/extract-interactive-helpers 和 perf/launch-repl。 */
 import React from 'react'
 import type { AssistantSession } from './assistant/sessionDiscovery.js'
 import type { StatsStore } from './context/stats.js'
@@ -18,16 +16,14 @@ import type { TeleportRemoteResponse } from './utils/conversationRecovery.js'
 import type { FpsMetrics } from './utils/fpsTracker.js'
 import type { ValidationError } from './utils/settings/validation.js'
 
-// Type-only access to ResumeConversation's Props via the module type.
-// No runtime cost - erased at compile time.
+// 通过模块类型实现对 ResumeConversation 组件 Props
+// 的仅类型访问。无运行时开销——在编译时被擦除。
 type ResumeConversationProps = React.ComponentProps<
   typeof import('./screens/ResumeConversation.js').ResumeConversation
 >
 
-/**
- * Site ~3173: SnapshotUpdateDialog (agent memory snapshot update prompt).
- * Original callback wiring: onComplete={done}, onCancel={() => done('keep')}.
- */
+/** * 站点 ~3173：SnapshotUpdateDialog（代理记忆快照更新提示）。
+ * 原始回调连接方式：onComplete={done}, onCancel={() => done('keep')}。 */
 export async function launchSnapshotUpdateDialog(
   root: Root,
   props: {
@@ -50,10 +46,8 @@ export async function launchSnapshotUpdateDialog(
   ))
 }
 
-/**
- * Site ~3250: InvalidSettingsDialog (settings validation errors).
- * Original callback wiring: onContinue={done}, onExit passed through from caller.
- */
+/** * 站点 ~3250：InvalidSettingsDialog（设置验证错误）。
+ * 原始回调连接方式：onContinue={done}, onExit 由调用方传入。 */
 export async function launchInvalidSettingsDialog(
   root: Root,
   props: {
@@ -73,10 +67,8 @@ export async function launchInvalidSettingsDialog(
   ))
 }
 
-/**
- * Site ~4229: AssistantSessionChooser (pick a bridge session to attach to).
- * Original callback wiring: onSelect={id => done(id)}, onCancel={() => done(null)}.
- */
+/** * 站点 ~4229：AssistantSessionChooser（选择要附加到的桥接会话）。
+ * 原始回调连接方式：onSelect={id => done(id)}, onCancel={() => done(null)}。 */
 export async function launchAssistantSessionChooser(
   root: Root,
   props: { sessions: AssistantSession[] },
@@ -93,12 +85,9 @@ export async function launchAssistantSessionChooser(
   ))
 }
 
-/**
- * `claude assistant` found zero sessions — show the same install wizard
- * as `/assistant` when daemon.json is empty. Resolves to the installed dir on
- * success, null on cancel. Rejects on install failure so the caller can
- * distinguish errors from user cancellation.
- */
+/** * `claude assistant` 未找到任何会话——当 daemon.json 为空时，显示与 `/assistant` 相同的安装向导。
+ * 成功时解析为安装目录，取消时解析为 null。
+ * 安装失败时拒绝，以便调用方能够区分错误与用户取消操作。 */
 export async function launchAssistantInstallWizard(
   root: Root,
 ): Promise<string | null> {

@@ -567,7 +567,7 @@ function TranscriptModeFooter({
       <Text dimColor>
         Showing detailed transcript · {toggleShortcut} to toggle
         {searchBadge
-          ? ' · n/N to navigate'
+          ? ' · 按 n/N 键导航'
           : virtualScroll
             ? ` · ${figures.arrowUp}${figures.arrowDown} 滚动 · home/end 顶部/底部`
             : suppressShowAll
@@ -643,7 +643,7 @@ function TranscriptSearchBar({
     let alive = true;
     const warm = jumpRef.current?.warmSearchIndex;
     if (!warm) {
-      setIndexStatus(null); // VML not mounted yet — rare, skip indicator
+      setIndexStatus(null); // VML 尚未挂载 — 罕见情况，跳过指示器
       return;
     }
     setIndexStatus('building');
@@ -661,7 +661,7 @@ function TranscriptSearchBar({
       alive = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // mount-only: bar opens once per /
+  }, []); // 仅挂载：每个 / 路径条只打开一次
   // 根据预热完成情况门控查询副作用。setHighlight 保持即时性
   // （屏幕空间覆盖，无需索引）。setSearchQuery（扫描）等待。
   const warmDone = indexStatus !== 'building';
@@ -683,12 +683,12 @@ function TranscriptSearchBar({
       marginTop={1}
       paddingLeft={2}
       width="100%"
-      // applySearchHighlight scans the whole screen buffer. The query
-      // text rendered here IS on screen — /foo matches its own 'foo' in
-      // the bar. With no content matches that's the ONLY visible match →
-      // gets CURRENT → underlined. noSelect makes searchHighlight.ts:76
-      // skip these cells (same exclusion as gutters). You can't text-
-      // select the bar either; it's transient chrome, fine.
+      // applySearchHighlight 会扫描整个屏幕缓冲区。这
+      // 里渲染的查询文本确实在屏幕上 — /foo 匹配其自身在条中的 'f
+      // oo'。如果没有内容匹配，这就是唯一可见的匹配项 → 获得 CURR
+      // ENT 状态 → 带下划线。noSelect 使 searchHig
+      // hlight.ts:76 跳过这些单元格（与边栏采用相同的排除规则
+      // ）。你也不能文本选中该条；它是临时的界面装饰，没问题。
       noSelect
     >
       <Text>/</Text>
@@ -703,10 +703,10 @@ function TranscriptSearchBar({
       ) : count === 0 && query ? (
         <Text color="error">no matches </Text>
       ) : count > 0 ? (
-        // Engine-counted (indexOf on extractSearchText). May drift from
-        // render-count for ghost/phantom messages — badge is a rough
-        // location hint. scanElement gives exact per-message positions
-        // but counting ALL would cost ~1-3ms × matched-messages.
+        // 引擎计数（基于 extractSearchText 的 inde
+        // xOf）。可能与渲染计数因幽灵/幻影消息产生偏差 — 徽章仅作
+        // 为大致位置提示。scanElement 能给出每条消息的精确位置
+        // ，但统计所有消息的成本约为 ~1-3ms × 匹配消息数。
         <Text dimColor>
           {current}/{count}
           {'  '}
@@ -994,7 +994,7 @@ export function REPL({
   const [showEffortCallout, setShowEffortCallout] = useState(() => shouldShowEffortCallout(mainLoopModel));
   const showRemoteCallout = useAppState(s => s.showRemoteCallout);
   const [showDesktopUpsellStartup, setShowDesktopUpsellStartup] = useState(() => shouldShowDesktopUpsellStartup());
-  // notifications
+  // 通知
   useModelMigrationNotifications();
   useCanSwitchToExistingSubscription();
   useIDEStatusIndicator({ ideSelection, mcpClients, ideInstallationStatus });
@@ -1372,7 +1372,7 @@ export function REPL({
   const [haikuTitle, setHaikuTitle] = useState<string>();
   // 控制生成标签标题的一次性 Haiku 调用。恢复时
   // 设为 true（存在 initialMessages），避免从对话中途的上下文重新标题化已恢复的会话。
-  // session from mid-conversation context.
+  // 来自对话中途上下文的会话。
   const haikuTitleAttemptedRef = useRef((initialMessages?.length ?? 0) > 0);
   const agentTitle = mainThreadAgentDefinition?.agentType;
   const terminalTitle = sessionTitle ?? agentTitle ?? haikuTitle ?? 'Claude Code';
@@ -1502,7 +1502,7 @@ export function REPL({
   // 将滚动重新固定到底部并清除未读消息基线。在
   const unseenDivider = useMemo(
     () => computeUnseenDivider(messages, dividerIndex),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- length change covers appends; useUnseenDivider's count-drop guard clears dividerIndex on replace/rewind
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 长度变化覆盖追加操作；useUnseenDivider 的计数下降保护会在替换/回退时清除 dividerIndex
     [dividerIndex, messages.length],
   );
   // 任何用户驱动的返回实时操作（提交、在空输入框中键入、
@@ -1880,11 +1880,11 @@ export function REPL({
         createTurnDurationMessage(
           totalMs,
           deferredBudget,
-          // Count only what recordTranscript will persist — ephemeral
-          // progress ticks and non-ant attachments are filtered by
-          // isLoggableMessage and never reach disk. Using raw prev.length
-          // would make checkResumeConsistency report false delta<0 for
-          // every turn that ran a progress-emitting tool.
+          // 仅统计 recordTranscript 将持久化的内容 — 临
+          // 时的进度标记和非 ant 附件会被 isLoggableMe
+          // ssage 过滤，永远不会写入磁盘。使用原始的 prev.lengt
+          // h 会导致 checkResumeConsistency 为每个
+          // 运行了产生进度工具的回合报告错误的 delta<0。
           count(prev, isLoggableMessage),
         ),
       ]);
@@ -1978,21 +1978,21 @@ export function REPL({
     (!toolJSX || toolJSX.showSpinner === true) &&
     toolUseConfirmQueue.length === 0 &&
     promptQueue.length === 0 &&
-    // Show spinner during input processing, API call, while teammates are running,
-    // or while pending task notifications are queued (prevents spinner bounce between consecutive notifications)
+    // 在输入处理、API 调用、队友运行期间或待处
+    // 理任务通知排队时显示加载指示器（防止连续通知间的指示器跳动）
     (isLoading ||
       userInputOnProcessing ||
       hasRunningTeammates ||
-      // Keep spinner visible while task notifications are queued for processing.
-      // Without this, the spinner briefly disappears between consecutive notifications
-      // (e.g., multiple background agents completing in rapid succession) because
-      // isLoading goes false momentarily between processing each one.
+      // 当任务通知排队等待处理时，保持加载指示器可见。没有
+      // 此逻辑，指示器会在连续通知之间短暂消失（例如，多个后台
+      // 智能体快速连续完成），因为 isLoading 在
+      // 处理每个通知的间隙会短暂变为 false。
       getCommandQueueLength() > 0) &&
-    // Hide spinner when waiting for leader to approve permission request
+    // 等待负责人批准权限请求时隐藏加载指示器
     !pendingWorkerRequest &&
     !onlySleepToolActive &&
-    // Hide spinner when streaming text is visible (the text IS the feedback),
-    // but keep it when isBriefOnly suppresses the streaming text display
+    // 当流式文本可见时隐藏加载指示器（文本本身就是反馈），但当
+    // isBriefOnly 抑制流式文本显示时保持指示器
     (!visibleStreamingText || isBriefOnly);
 
   // 检查当前是否有任何权限请求或询问提示可见
@@ -2239,7 +2239,7 @@ export function REPL({
         // 恢复会话的 tool-results 目录。受 ref.current 门控：
         // 初始挂载已读取功能标志，因此我们不在此处
         // 重新读取它（会话中标志翻转在两者中均不可观察）
-        // directions).
+        // 方向）。
         //
         // 为会话内 /branch 跳过：现有的 ref 已经是正确的
         // （分支保留 tool_use_ids），因此无需重建。
@@ -3312,9 +3312,9 @@ export function REPL({
 
       queryCheckpoint('query_context_loading_start');
       const [, , defaultSystemPrompt, baseUserContext, systemContext] = await Promise.all([
-        // IMPORTANT: do this after setMessages() above, to avoid UI jank
+        // 重要提示：请在上述 setMessages() 之后执行此操作，以避免 UI 卡顿
         checkAndDisableBypassPermissionsIfNeeded(toolPermissionContext, setAppState),
-        // Gated on TRANSCRIPT_CLASSIFIER so GrowthBook kill switch runs wherever auto mode is built in
+        // 受 TRANSCRIPT_CLASSIFIER 控制，以便 GrowthBook 功能开关在自动模式构建的任何地方都能生效
         feature('TRANSCRIPT_CLASSIFIER')
           ? checkAndDisableAutoModeIfNeeded(toolPermissionContext, setAppState, store.getState().fastMode)
           : undefined,
@@ -3334,7 +3334,7 @@ export function REPL({
         proactiveModule?.isProactiveActive() &&
         !terminalFocusRef.current
           ? {
-              terminalFocus: 'The terminal is unfocused \u2014 the user is not actively watching.',
+              terminalFocus: '终端未获得焦点 — 用户未在主动查看。',
             }
           : {}),
       };
@@ -3986,7 +3986,7 @@ export function REPL({
             }
           };
           void executeImmediateCommand();
-          return; // Always return early - don't add to history or queue
+          return; // 始终提前返回 — 不要添加到历史记录或队列中
         }
       }
 
@@ -4246,9 +4246,9 @@ export function REPL({
     },
     [
       queryGuard,
-      // isLoading is read at the !isLoading checks above for input-clearing
-      // and submitCount gating. It's derived from isQueryActive || isExternalLoading,
-      // so including it here ensures the closure captures the fresh value.
+      // isLoading 在用于清除输入和 submitCount 门控的 !isLoading 检查中被读取。
+      // 它由 isQueryActive || isExternalLoading 派生而来，
+      // 因此将其包含在此处可确保闭包捕获到最新值。
       isLoading,
       isExternalLoading,
       inputMode,
@@ -4260,13 +4260,13 @@ export function REPL({
       setIDESelection,
       setToolJSX,
       getToolUseContext,
-      // messages is read via messagesRef.current inside the callback to
-      // keep onSubmit stable across message updates (see L2384/L2400/L2662).
-      // Without this, each setMessages call (~30× per turn) recreates
-      // onSubmit, pinning the REPL render scope (1776B) + that render's
-      // messages array in downstream closures (PromptInput, handleAutoRunIssue).
-      // Heap analysis showed ~9 REPL scopes and ~15 messages array versions
-      // accumulating after #20174/#20175, all traced to this dep.
+      // messages 通过回调内部的 messagesRef.current 读取，以保持 onSubmit 
+      // 在消息更新时稳定（参见 L2384/L2400/L2662）。如果没有这一点，
+      // 每次 setMessages 调用（每轮约 30 次）都会重新创建 onSubmit，
+      // 将 REPL 渲染作用域（1776B）以及该次渲染的 messages 
+      // 数组固定在下游闭包（PromptInput、handleAutoRunIssue）中。
+      // 堆分析显示，在 #20174/#20175 之后，累计了约 9 个 REPL 作用域和
+      // 约 15 个 messages 数组版本，都可追溯到该依赖项。
       mainLoopModel,
       pastedContents,
       ideSelection,
@@ -4321,7 +4321,7 @@ export function REPL({
   // 用于自动运行 /issue 或 /good-claude 的处理程序（在 onSubmit 之后定义）
   const handleAutoRunIssue = useCallback(() => {
     const command = autoRunIssueReason ? getAutoRunCommand(autoRunIssueReason) : '/issue';
-    setAutoRunIssueReason(null); // Clear the state
+    setAutoRunIssueReason(null); // 清除状态
     onSubmit(command, {
       setCursorOffset: () => {},
       clearBuffer: () => {},
@@ -4518,7 +4518,7 @@ export function REPL({
   };
   const messageActionCaps: MessageActionCaps = {
     copy: text =>
-      // setClipboard RETURNS OSC 52 — caller must stdout.write (tmux side-effects load-buffer, but that's tmux-only).
+      // setClipboard 返回 OSC 52 — 调用方必须执行 stdout.write（tmux 副作用 load-buffer，但这仅限于 tmux）。
       void setClipboard(text).then(raw => {
         if (raw) process.stdout.write(raw);
         addNotification({
@@ -4569,7 +4569,7 @@ export function REPL({
       logForDebugging(`已加载 ${memoryFiles.length} 个 CLAUDE.md/rules 文件：
 ${fileList}`);
     } else {
-      logForDebugging('No CLAUDE.md/rules files found');
+      logForDebugging('未找到 CLAUDE.md/rules 文件');
     }
     for (const file of memoryFiles) {
       // 当注入的内容与磁盘内容不匹配时（已去除 HTML 注释、
@@ -4594,7 +4594,7 @@ ${fileList}`);
   // 本地记录对话记录，用于调试和对话恢复
   // 如果只有初始消息，则不记录对话；这优化了
   // 用户恢复对话后，在未进行任何其他操作前就退出的情况
-  // anything else
+  // 其他任何内容
   useLogMessages(messages, messages.length === initialMessages?.length);
 
   // REPL Bridge：将用户/助手消息复制到 bridge 会话
@@ -4721,7 +4721,7 @@ ${fileList}`);
         if (
           !isLoading &&
           !toolJSX &&
-          // Use ref to get current dialog state, avoiding stale closure
+          // 使用 ref 获取当前对话框状态，避免闭包过时
           focusedInputDialogRef.current === undefined &&
           idleTimeSinceResponse >= getGlobalConfig().messageIdleNotifThresholdMs
         ) {
@@ -5153,8 +5153,8 @@ Claude Code 已被挂起。运行 \`fg\` 以恢复 Claude Code。
         event.stopImmediatePropagation();
       }
     },
-    // Search needs virtual scroll (jumpRef drives VirtualMessageList). [
-    // kills it, so !dumpMode — after [ there's nothing to jump in.
+    // 搜索需要虚拟滚动（jumpRef 驱动 VirtualMessageList）。
+    // [ 会终止它，所以 !dumpMode — 在 [ 之后没有内容可供跳转。
     {
       isActive: screen === 'transcript' && virtualScrollActive && !searchOpen && !dumpMode,
     },
@@ -5246,9 +5246,9 @@ Claude Code 已被挂起。运行 \`fg\` 以恢复 Claude Code。
         })();
       }
     },
-    // !searchOpen: typing 'v' or '[' in the search bar is search input, not
-    // a command. No !dumpMode here — v should work after [ (the [ handler
-    // guards itself inline).
+    // !searchOpen: 在搜索栏中输入 'v' 或 '[' 是搜索输入，而
+    // 非命令。此处没有 !dumpMode — v 应在 [ 之后生效（[ 的处
+    // 理程序在行内自行防护）。
     { isActive: screen === 'transcript' && virtualScrollActive && !searchOpen },
   );
 
@@ -5380,22 +5380,19 @@ Claude Code 已被挂起。运行 \`fg\` 以恢复 Claude Code。
         ) : null}
         <CommandKeybindingHandlers onSubmit={onSubmit} isActive={!toolJSX?.isLocalJSXCommand} />
         {transcriptScrollRef ? (
-          // ScrollKeybindingHandler must mount before CancelRequestHandler so
-          // ctrl+c-with-selection copies instead of cancelling the active task.
-          // Its raw useInput handler only stops propagation when a selection
-          // exists — without one, ctrl+c falls through to CancelRequestHandler.
+          // ScrollKeybindingHandler 必须在 CancelRequestHandler 之前挂载，这样
+          // ctrl+c（有选中内容时）会复制而不是取消活动任务。
+          // 其原始 useInput 处理程序仅在存在选中内容时阻止传播 — 如果没有选中内容，
+          // ctrl+c 会穿透到 CancelRequestHandler。
           <ScrollKeybindingHandler
             scrollRef={scrollRef}
-            // Yield wheel/ctrl+u/d to UltraplanChoiceDialog's own scroll
-            // handler while the modal is showing.
+            // 当模态框显示时，将 wheel/ctrl+u/d 让给 UltraplanChoiceDialog 自己的滚动处理程序
             isActive={focusedInputDialog !== 'ultraplan-choice'}
-            // g/G/j/k/ctrl+u/ctrl+d would eat keystrokes the search bar
-            // wants. Off while searching.
+            // g/G/j/k/ctrl+u/ctrl+d 会吞噬搜索栏想要的按键。搜索时关闭。
             isModal={!searchOpen}
-            // Manual scroll exits the search context — clear the yellow
-            // current-match marker. Positions are (msg, rowOffset)-keyed;
-            // j/k changes scrollTop so rowOffset is stale → wrong row
-            // gets yellow. Next n/N re-establishes via step()→jump().
+            // 手动滚动会退出搜索上下文 — 清除黄色的当前匹配标记。
+            // 位置以（消息，行偏移）为键；j/k 会改变 scrollTop，因此行偏移过时 → 错误行被标记为黄色。
+            // 下一次按 n/N 会通过 step()→jump() 重新建立。
             onScroll={() => jumpRef.current?.disarmSearch()}
           />
         ) : null}
@@ -5414,10 +5411,10 @@ Claude Code 已被挂起。运行 \`fg\` 以恢复 Claude Code。
               searchOpen ? (
                 <TranscriptSearchBar
                   jumpRef={jumpRef}
-                  // Seed was tried (c01578c8) — broke /hello muscle
-                  // memory (cursor lands after 'foo', /hello → foohello).
-                  // Cancel-restore handles the 'don't lose prior search'
-                  // concern differently (onCancel re-applies searchQuery).
+                  // 已尝试 Seed（c01578c8）— 破坏了 /hello
+                  // 的肌肉记忆（光标落在 'foo' 之后，/hello → foohe
+                  // llo）。Cancel-restore 以不同方式处理了“不丢失先前
+                  // 搜索”的问题（onCancel 会重新应用 searchQuery）。
                   initialQuery=""
                   count={searchCount}
                   current={searchCurrent}
@@ -5521,7 +5518,7 @@ Claude Code 已被挂起。运行 \`fg\` 以恢复 Claude Code。
   // displayedMessages 增长超过提交时捕获的基线后隐藏它。
   // 覆盖两个间隙：在调用 setMessages 之前（processUserInput），以及
   // 当 deferredMessages 滞后于 messages 时。在查看智能体时被抑制。
-  // while deferredMessages lags behind messages. Suppressed when viewing an
+  // 而 deferredMessages 滞后于 messages。在查看时被抑制
   // agent — displayedMessages 是另一个不同的数组，并且 onAgentSubmit
   // 反正没有使用占位符。
   const placeholderText =
@@ -6163,7 +6160,7 @@ Claude Code 已被挂起。运行 \`fg\` 以恢复 Claude Code。
                         inputValue={inputValue}
                         setInputValue={setInputValue}
                         onRequestFeedback={handleSurveyRequestFeedback}
-                        message="How well did Claude use its memory? (optional)"
+                        message="Claude 使用其记忆的效果如何？（可选）"
                       />
                     ) : (
                       <FeedbackSurvey
@@ -6226,7 +6223,7 @@ Claude Code 已被挂起。运行 \`fg\` 以恢复 Claude Code。
                       submitCount={submitCount}
                       onShowMessageSelector={handleShowMessageSelector}
                       onMessageActionsEnter={
-                        // Works during isLoading — edit cancels first; uuid selection survives appends.
+                        // 在 isLoading 期间有效 — 编辑会先取消；uuid 选择在追加后保留。
                         feature('MESSAGE_ACTIONS') && isFullscreenEnvEnabled() && !disableMessageActions
                           ? enterMessageActions
                           : undefined
@@ -6251,7 +6248,7 @@ Claude Code 已被挂起。运行 \`fg\` 以恢复 Claude Code。
                   </>
                 )}
                 {cursor && (
-                  // inputValue is REPL state; typed text survives the round-trip.
+                  // inputValue 是 REPL 状态；输入的文本在往返过程中保留。
                   <MessageActionsBar cursor={cursor} />
                 )}
                 {focusedInputDialog === 'message-selector' && (
@@ -6285,7 +6282,7 @@ Claude Code 已被挂起。运行 \`fg\` 以恢复 Claude Code。
                         setMessages(prev => [
                           ...prev,
                           createSystemMessage(
-                            'That message is no longer in the active context (snipped or pre-compact). Choose a more recent message.',
+                            '该消息已不在活动上下文中（被截断或预压缩）。请选择一条更近期的消息。',
                             'warning',
                           ),
                         ]);

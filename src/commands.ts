@@ -614,9 +614,9 @@ export const getSkillToolCommands = memoize(
         cmd.type === 'prompt' &&
         !cmd.disableModelInvocation &&
         cmd.source !== 'builtin' &&
-        // Always include skills from /skills/ dirs, bundled skills, and legacy /commands/ entries
-        // (they all get an auto-derived description from the first line if frontmatter is missing).
-        // Plugin/MCP commands still require an explicit description to appear in the listing.
+        // 始终包含来自 /skills/ 目录的技能、捆绑的技能以及旧的 /commands/ 条目
+        // （如果缺少 frontmatter，它们都会从第一行自动派生描述）。
+        // 插件/MCP 命令仍然需要显式描述才能出现在列表中。
         (cmd.loadedFrom === 'bundled' ||
           cmd.loadedFrom === 'skills' ||
           cmd.loadedFrom === 'commands_DEPRECATED' ||
@@ -652,51 +652,54 @@ export const getSlashCommandToolSkills = memoize(
     }
   },
 )
-
-/** * 在远程模式（--remote）下可安全使用的命令。
+/**
+ * 在远程模式（--remote）下可安全使用的命令。
  * 这些命令仅影响本地 TUI 状态，不依赖本地文件系统、
  * git、shell、IDE、MCP 或其他本地执行上下文。
  *
  * 在两个地方使用：
  * 1. 在 REPL 渲染前，于 main.tsx 中预过滤命令（防止与 CCR 初始化竞争）
- * 2. 在 CCR 过滤后，于 REPL 的 handleRemoteInit 中保留仅限本地的命令 */
+ * 2. 在 CCR 过滤后，于 REPL 的 handleRemoteInit 中保留仅限本地的命令
+ */
 export const REMOTE_SAFE_COMMANDS: Set<Command> = new Set([
-  session, // Shows QR code / URL for remote session
-  exit, // Exit the TUI
-  clear, // Clear screen
-  help, // Show help
-  theme, // Change terminal theme
-  color, // Change agent color
-  vim, // Toggle vim mode
-  cost, // Show session cost (local cost tracking)
-  usage, // Show usage info
-  copy, // Copy last message
-  btw, // Quick note
-  feedback, // Send feedback
-  plan, // Plan mode toggle
-  proactive, // Toggle proactive mode
-  keybindings, // Keybinding management
-  statusline, // Status line toggle
-  stickers, // Stickers
-  mobile, // Mobile QR code
+  session, // 显示远程会话的二维码 / URL
+  exit, // 退出 TUI
+  clear, // 清屏
+  help, // 显示帮助
+  theme, // 更改终端主题
+  color, // 更改代理颜色
+  vim, // 切换 Vim 模式
+  cost, // 显示会话成本（本地成本跟踪）
+  usage, // 显示使用信息
+  copy, // 复制最后一条消息
+  btw, // 快速备注
+  feedback, // 发送反馈
+  plan, // 切换计划模式
+  proactive, // 切换主动模式
+  keybindings, // 按键绑定管理
+  statusline, // 状态行切换
+  stickers, // 贴纸
+  mobile, // 移动端二维码
 ])
 
-/** * 通过远程控制桥接收时，可安全执行的 'local' 类型内置命令。
+/**
+ * 通过远程控制桥接收时，可安全执行的 'local' 类型内置命令。
  * 这些命令产生流式传输回移动端/Web 客户端的文本输出，且没有仅限终端的副作用。
  *
  * 'local-jsx' 命令按类型被阻止（它们渲染 Ink UI），而
  * 'prompt' 命令按类型被允许（它们扩展为发送给模型的文本）— 此集合仅控制 'local' 命令。
  *
  * 当添加一个应在移动端工作的新 'local' 命令时，请在此处添加。
- * 默认情况下是被阻止的。 */
+ * 默认情况下是被阻止的。
+ */
 export const BRIDGE_SAFE_COMMANDS: Set<Command> = new Set(
   [
-    compact, // Shrink context — useful mid-session from a phone
-    clear, // Wipe transcript
-    cost, // Show session cost
-    summary, // Summarize conversation
-    releaseNotes, // Show changelog
-    files, // List tracked files
+    compact, // 压缩上下文 — 在手机上中途使用很有用
+    clear, // 清空记录
+    cost, // 显示会话成本
+    summary, // 总结对话
+    releaseNotes, // 显示更新日志
+    files, // 列出跟踪的文件
   ].filter((c): c is Command => c !== null),
 )
 
@@ -754,16 +757,16 @@ export function getCommand(commandName: string, commands: Command[]): Command {
           return _.aliases ? `${name} (aliases: ${_.aliases.join(', ')})` : name
         })
         .sort((a, b) => a.localeCompare(b))
-        .join(', ')}`
+        .join(', ')}`)
   }
 
   return command
 }
 
-/** * 格式化命令的描述，并附上其来源标注，用于面向用户的 UI。
- * 在自动补全、帮助屏幕和其他用户需要查看命令来源的地方使用。
- *
- * 对于面向模型的提示（如 SkillTool），直接使用 cmd.description。 */
+/** 格式化命令的描述，并附上其来源标注，用于面向用户的 UI。
+在自动补全、帮助屏幕和其他用户需要查看命令来源的地方使用。
+
+对于面向模型的提示（如 SkillTool），直接使用 cmd.description。 */
 export function formatDescriptionWithSource(cmd: Command): string {
   if (cmd.type !== 'prompt') {
     return cmd.description

@@ -1,5 +1,5 @@
-// System prompt branded type.
-// Dependency-free so it can be imported from anywhere without circular imports.
+// 系统提示的品牌化类
+// 型。无依赖设计，可从任何位置导入，避免循环依赖问题。
 
 export type SystemPrompt = readonly string[] & {
   readonly __brand: 'SystemPrompt'

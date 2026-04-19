@@ -2,8 +2,8 @@
 import { feature } from 'bun:bundle'
 import { isEnvTruthy } from '../utils/envUtils.js'
 
-// Runtime fallback for MACRO.* when not injected by build/dev defines.
-// This happens when running cli.tsx directly (not via `bun run dev` or built dist/).
+// 当未通过构建/开发定义注入时，为 MACRO.* 提供运行时回退。这发生在直
+// 接运行 cli.tsx 时（而非通过 `bun run dev` 或构建后的 dist/）。
 if (typeof globalThis.MACRO === 'undefined') {
   ;(globalThis as any).MACRO = {
     VERSION: process.env.CLAUDE_CODE_VERSION || '2.1.888',
@@ -25,18 +25,18 @@ if (isEnvTruthy(process.env.CLAUDE_CODE_FORCE_INTERACTIVE)) {
           configurable: true,
         })
       } catch {
-        // Best-effort dev-only override for nested bun launch on Windows.
+        // 针对 Windows 上嵌套 bun 启动的尽力而为的仅开发环境覆盖。
       }
     }
   }
 }
 
-// Bugfix for corepack auto-pinning, which adds yarnpkg to peoples' package.jsons
-// eslint-disable-next-line custom-rules/no-top-level-side-effects
+// 修复 corepack 自动锁定功能的 bug，该功能会将 yarnpkg 添加到用户的 package.json 中 eslint-d
+// isable-next-line custom-rules/no-top-level-side-effects
 process.env.COREPACK_ENABLE_AUTO_PIN = '0'
 
-// Set max heap size for child processes in CCR environments (containers have 16GB)
-// eslint-disable-next-line custom-rules/no-top-level-side-effects, custom-rules/no-process-env-top-level, custom-rules/safe-env-boolean-check
+// 为 CCR 环境中的子进程设置最大堆大小（容器有 16GB） eslint-disable-next-line custom
+// -rules/no-top-level-side-effects, custom-rules/no-process-env-top-level, custom-rules/safe-env-boolean-check
 if (process.env.CLAUDE_CODE_REMOTE === 'true') {
   // eslint-disable-next-line custom-rules/no-top-level-side-effects, custom-rules/no-process-env-top-level
   const existing = process.env.NODE_OPTIONS || ''
@@ -46,11 +46,11 @@ if (process.env.CLAUDE_CODE_REMOTE === 'true') {
     : '--max-old-space-size=8192'
 }
 
-// Harness-science L0 ablation baseline. Inlined here (not init.ts) because
-// BashTool/AgentTool/PowerShellTool capture DISABLE_BACKGROUND_TASKS into
-// module-level consts at import time — init() runs too late. feature() gate
-// DCEs this entire block from external builds.
-// eslint-disable-next-line custom-rules/no-top-level-side-effects, custom-rules/no-process-env-top-level
+// Harness-science L0 消融基线。内联在此处（而非 init.ts）是因为 BashTool/
+// AgentTool/PowerShellTool 在导入时会将 DISABLE_BACKGROUND_TA
+// SKS 捕获到模块级常量中 —— init() 运行得太晚。feature() 门控将此整个代码块从外部构建
+// 中死代码消除。eslint-disable-next-line c
+// ustom-rules/no-top-level-side-effects, custom-rules/no-process-env-top-level
 if (feature('ABLATION_BASELINE') && process.env.CLAUDE_CODE_ABLATION_BASELINE) {
   for (const k of [
     'CLAUDE_CODE_SIMPLE',
@@ -66,32 +66,30 @@ if (feature('ABLATION_BASELINE') && process.env.CLAUDE_CODE_ABLATION_BASELINE) {
   }
 }
 
-/**
- * Bootstrap entrypoint - checks for special flags before loading the full CLI.
- * All imports are dynamic to minimize module evaluation for fast paths.
- * Fast-path for --version has zero imports beyond this file.
- */
+/** 引导入口点 - 在加载完整 CLI 前检查特殊标志。
+所有导入都是动态的，以最小化快速路径的模块求值。
+--version 的快速路径在此文件之外零导入。 */
 async function main(): Promise<void> {
   const args = process.argv.slice(2)
 
-  // Fast-path for --version/-v: zero module loading needed
+  // --version/-v 的快速路径：无需加载任何模块
   if (
     args.length === 1 &&
     (args[0] === '--version' || args[0] === '-v' || args[0] === '-V')
   ) {
-    // MACRO.VERSION is inlined at build time
-    // biome-ignore lint/suspicious/noConsole:: intentional console output
+    // MACRO.VERSION 在构建时内联 biom
+    // e-ignore lint/suspicious/noConsole:: 故意的控制台输出
     console.log(`${MACRO.VERSION} (Claude Code)`)
     return
   }
 
-  // For all other paths, load the startup profiler
+  // 对于所有其他路径，加载启动性能分析器
   const { profileCheckpoint } = await import('../utils/startupProfiler.js')
   profileCheckpoint('cli_entry')
 
-  // Fast-path for --dump-system-prompt: output the rendered system prompt and exit.
-  // Used by prompt sensitivity evals to extract the system prompt at a specific commit.
-  // Ant-only: eliminated from external builds via feature flag.
+  // --dump-system-prompt 的快速路径：输出渲染
+  // 后的系统提示并退出。用于提示词敏感性评估，以在特定提交处提取系统
+  // 提示。仅限内部：通过功能标志从外部构建中消除。
   if (feature('DUMP_SYSTEM_PROMPT') && args[0] === '--dump-system-prompt') {
     profileCheckpoint('cli_dump_system_prompt_path')
     const { enableConfigs } = await import('../utils/config.js')
@@ -101,7 +99,7 @@ async function main(): Promise<void> {
     const model = (modelIdx !== -1 && args[modelIdx + 1]) || getMainLoopModel()
     const { getSystemPrompt } = await import('../constants/prompts.js')
     const prompt = await getSystemPrompt([], model)
-    // biome-ignore lint/suspicious/noConsole:: intentional console output
+    // biome-ignore lint/suspicious/noConsole:: 故意的控制台输出
     console.log(prompt.join('\n'))
     return
   }
@@ -132,7 +130,7 @@ async function main(): Promise<void> {
     return
   }
 
-  // Fast-path for `--acp` — ACP (Agent Client Protocol) agent mode over stdio.
+  // `--acp` 的快速路径 —— 通过标准输入/输出的 ACP（Agent Client Protocol）代理模式。
   if (feature('ACP') && process.argv[2] === '--acp') {
     profileCheckpoint('cli_acp_path')
     const { runAcpAgent } = await import('../services/acp/entry.js')
@@ -140,11 +138,11 @@ async function main(): Promise<void> {
     return
   }
 
-  // Fast-path for `--daemon-worker=<kind>` (internal — supervisor spawns this).
-  // Must come before the daemon subcommand check: spawned per-worker, so
-  // perf-sensitive. No enableConfigs(), no analytics sinks at this layer —
-  // workers are lean. If a worker kind needs configs/auth (assistant will),
-  // it calls them inside its run() fn.
+  // `--daemon-worker=<kind>` 的快速路径（内部 —— 由监
+  // 督进程生成）。必须在守护进程子命令检查之前：每个工作进程单独生成，因此
+  // 对性能敏感。此层不调用 enableConfigs()，没有分析接收器
+  // —— 工作进程是精简的。如果某种工作进程需要配置/认证（助手会需要），它在
+  // 其 run() 函数内部调用它们。
   if (feature('DAEMON') && (args[0] === '--daemon-worker' || args[0]?.startsWith('--daemon-worker='))) {
     const kind = args[0] === '--daemon-worker' ? args[1] : args[0].split('=')[1]
     const { runDaemonWorker } = await import('../daemon/workerRegistry.js')
@@ -152,10 +150,10 @@ async function main(): Promise<void> {
     return
   }
 
-  // Fast-path for `claude remote-control` (also accepts legacy `claude remote` / `claude sync` / `claude bridge`):
-  // serve local machine as bridge environment.
-  // feature() must stay inline for build-time dead code elimination;
-  // isBridgeEnabled() checks the runtime GrowthBook gate.
+  // `claude remote-control` 的快速路径（也接受旧的 `claude remote` / `claude sync` /
+  // `claude bridge`）：将本地机器作为桥接环
+  // 境提供服务。feature() 必须保持内联以便进行构建时死代码消除；isBrid
+  // geEnabled() 检查运行时的 GrowthBook 门控。
   if (
     feature('BRIDGE_MODE') &&
     (args[0] === 'remote-control' ||
@@ -175,10 +173,10 @@ async function main(): Promise<void> {
     const { bridgeMain } = await import('../bridge/bridgeMain.js')
     const { exitWithError } = await import('../utils/process.js')
 
-    // Auth check must come before the GrowthBook gate check — without auth,
-    // GrowthBook has no user context and would return a stale/default false.
-    // getBridgeDisabledReason awaits GB init, so the returned value is fresh
-    // (not the stale disk cache), but init still needs auth headers to work.
+    // 认证检查必须在 GrowthBook 门控检查之前 —— 没有认证，G
+    // rowthBook 没有用户上下文，会返回过时的/默认的 false。
+    // getBridgeDisabledReason 等待 GB 初始化，因
+    // 此返回值是新鲜的（不是过时的磁盘缓存），但初始化仍然需要认证头才能工作。
     const { getClaudeAIOAuthTokens } = await import('../utils/auth.js')
     const { getBridgeAccessToken } = await import('../bridge/bridgeConfig.js')
     if (!getClaudeAIOAuthTokens()?.accessToken && !getBridgeAccessToken()) {
@@ -193,14 +191,14 @@ async function main(): Promise<void> {
       exitWithError(versionError)
     }
 
-    // Bridge is a remote control feature - check policy limits
+    // 桥接是一个远程控制功能 - 检查策略限制
     const { waitForPolicyLimitsToLoad, isPolicyAllowed } = await import(
       '../services/policyLimits/index.js'
     )
     await waitForPolicyLimitsToLoad()
     if (!isPolicyAllowed('allow_remote_control')) {
       exitWithError(
-        "Error: Remote Control is disabled by your organization's policy.",
+        "错误：远程控制已被您组织的策略禁用。",
       )
     }
 
@@ -208,9 +206,9 @@ async function main(): Promise<void> {
     return
   }
 
-  // Fast-path for `claude daemon [subcommand]`: unified daemon + session management.
-  // Handles both supervisor (start/stop) and background session (bg/attach/logs/kill)
-  // subcommands under one namespace.
+  // `claude daemon [subcommand]` 的快速路径：统一的守护进程
+  // + 会话管理。在一个命名空间下处理监督进程（启动/停止）和后台会话（bg/atta
+  // ch/logs/kill）子命令。
   if (
     (feature('DAEMON') || feature('BG_SESSIONS')) &&
     args[0] === 'daemon'
@@ -227,7 +225,7 @@ async function main(): Promise<void> {
     return
   }
 
-  // Fast-path for `--bg`/`--background` shortcut → daemon bg.
+  // `--bg`/`--background` 快捷方式的快速路径 → daemon bg。
   if (
     feature('BG_SESSIONS') &&
     (args.includes('--bg') || args.includes('--background'))
@@ -244,7 +242,7 @@ async function main(): Promise<void> {
     return
   }
 
-  // Backward-compat: ps/logs/attach/kill → daemon <sub> (deprecated)
+  // 向后兼容：ps/logs/attach/kill → daemon <子命令>（已弃用）
   if (
     feature('BG_SESSIONS') &&
     (args[0] === 'ps' ||
@@ -254,7 +252,7 @@ async function main(): Promise<void> {
   ) {
     const mapped = args[0] === 'ps' ? 'status' : args[0]
     console.error(
-      `[deprecated] Use: claude daemon ${mapped}${args[1] ? ' ' + args[1] : ''}`,
+      `[已弃用] 请使用：claude daemon ${mapped}${args[1] ? ' ' + args[1] : ''}`,
     )
     profileCheckpoint('cli_daemon_path')
     const { enableConfigs } = await import('../utils/config.js')
@@ -268,24 +266,24 @@ async function main(): Promise<void> {
     return
   }
 
-  // Fast-path for `claude job <subcommand>`: template jobs.
+  // `claude job <subcommand>` 的快速路径：模板作业。
   if (feature('TEMPLATES') && args[0] === 'job') {
     profileCheckpoint('cli_templates_path')
     const { templatesMain } = await import('../cli/handlers/templateJobs.js')
     await templatesMain(args.slice(1))
-    // process.exit (not return) — mountFleetView's Ink TUI can leave event
-    // loop handles that prevent natural exit.
-    // eslint-disable-next-line custom-rules/no-process-exit
+    // process.exit（而非 return）—— mountFleetView 的 Ink TUI 可
+    // 能会留下阻止自然退出的事件循环句柄。eslint-disab
+    // le-next-line custom-rules/no-process-exit
     process.exit(0)
   }
 
-  // Backward-compat: new/list/reply → job <sub> (deprecated)
+  // 向后兼容：new/list/reply → job <子命令>（已弃用）
   if (
     feature('TEMPLATES') &&
     (args[0] === 'new' || args[0] === 'list' || args[0] === 'reply')
   ) {
     console.error(
-      `[deprecated] Use: claude job ${args[0]} ${args.slice(1).join(' ')}`.trim(),
+      `[已弃用] 请使用：claude job ${args[0]} ${args.slice(1).join(' ')}`.trim(),
     )
     profileCheckpoint('cli_templates_path')
     const { templatesMain } = await import('../cli/handlers/templateJobs.js')
@@ -294,8 +292,8 @@ async function main(): Promise<void> {
     process.exit(0)
   }
 
-  // Fast-path for `claude environment-runner`: headless BYOC runner.
-  // feature() must stay inline for build-time dead code elimination.
+  // `claude environment-runner` 的快速路径：无头 B
+  // YOC 运行器。feature() 必须保持内联以便进行构建时死代码消除。
   if (feature('BYOC_ENVIRONMENT_RUNNER') && args[0] === 'environment-runner') {
     profileCheckpoint('cli_environment_runner_path')
     const { environmentRunnerMain } = await import(
@@ -305,9 +303,9 @@ async function main(): Promise<void> {
     return
   }
 
-  // Fast-path for `claude self-hosted-runner`: headless self-hosted-runner
-  // targeting the SelfHostedRunnerWorkerService API (register + poll; poll IS
-  // heartbeat). feature() must stay inline for build-time dead code elimination.
+  // `claude self-hosted-runner` 的快速路径：面向 Sel
+  // fHostedRunnerWorkerService API 的无头自托管运行器（
+  // 注册 + 轮询；轮询即心跳）。feature() 必须保持内联以实现构建时死代码消除。
   if (feature('SELF_HOSTED_RUNNER') && args[0] === 'self-hosted-runner') {
     profileCheckpoint('cli_self_hosted_runner_path')
     const { selfHostedRunnerMain } = await import(
@@ -317,7 +315,7 @@ async function main(): Promise<void> {
     return
   }
 
-  // Fast-path for --worktree --tmux: exec into tmux before loading full CLI
+  // --worktree --tmux 的快速路径：在加载完整 CLI 前通过 exec 进入 tmux
   const hasTmuxFlag = args.includes('--tmux') || args.includes('--tmux=classic')
   if (
     hasTmuxFlag &&
@@ -337,7 +335,7 @@ async function main(): Promise<void> {
       if (result.handled) {
         return
       }
-      // If not handled (e.g., error), fall through to normal CLI
+      // 如果未处理（例如，错误），则回退到正常 CLI
       if (result.error) {
         const { exitWithError } = await import('../utils/process.js')
         exitWithError(result.error)
@@ -345,7 +343,7 @@ async function main(): Promise<void> {
     }
   }
 
-  // Redirect common update flag mistakes to the update subcommand
+  // 将常见的更新标志错误重定向到 update 子命令
   if (
     args.length === 1 &&
     (args[0] === '--update' || args[0] === '--upgrade')
@@ -353,13 +351,13 @@ async function main(): Promise<void> {
     process.argv = [process.argv[0]!, process.argv[1]!, 'update']
   }
 
-  // --bare: set SIMPLE early so gates fire during module eval / commander
-  // option building (not just inside the action handler).
+  // --bare：尽早设置 SIMPLE，以便在模块评估 / commande
+  // r 选项构建期间触发门控（而不仅仅在操作处理程序内部）。
   if (args.includes('--bare')) {
     process.env.CLAUDE_CODE_SIMPLE = '1'
   }
 
-  // No special flags detected, load and run the full CLI
+  // 未检测到特殊标志，加载并运行完整 CLI
   const { startCapturingEarlyInput } = await import('../utils/earlyInput.js')
   startCapturingEarlyInput()
   profileCheckpoint('cli_before_main_import')

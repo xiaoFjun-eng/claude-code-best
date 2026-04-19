@@ -7,6 +7,7 @@ import { getIsNonInteractiveSession } from '../bootstrap/state.js'
 import { getCurrentWorktreeSession } from '../utils/worktree.js'
 import { getSessionStartDate } from './common.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
+import { isPoorModeActive } from '../commands/poor/poorMode.js'
 import {
   AGENT_TOOL_NAME,
   VERIFICATION_AGENT_TYPE,
@@ -382,7 +383,9 @@ function getSessionSpecificGuidanceSection(
     hasAgentTool &&
     feature('VERIFICATION_AGENT') &&
     // 三方默认 false — 验证智能体仅 ant 内 A/B
-    getFeatureValue_CACHED_MAY_BE_STALE('tengu_hive_evidence', false)
+    getFeatureValue_CACHED_MAY_BE_STALE('tengu_hive_evidence', false)&&
+        // Poor mode: skip verification agent to save tokens
+        !isPoorModeActive()
       ? `约定：若本轮发生非平凡实现，在向用户报告完成前必须进行独立的对抗式验证——无论实现者是你本人、你起的 fork 还是子智能体。向用户汇报的是你；你负责把关。非平凡指：修改 3 个及以上文件、后端/API 变更或基础设施变更。请用 ${AGENT_TOOL_NAME}，subagent_type="${VERIFICATION_AGENT_TYPE}"。你自己的检查、免责说明或 fork 的自检都不能替代——仅验证者可下结论；你不得自行判定 PARTIAL。传入原始用户请求、所有被改文件（无论谁改的）、方案，以及适用的计划文件路径。若有顾虑可标出，但不要分享测试结果或声称「已工作」。FAIL：修复后带着验证结果与你的修复再次拉起验证者，重复至 PASS。PASS：抽查——按其报告重跑 2–3 条命令，确认每个 PASS 都有带输出的 Command run 块且与你的重跑一致。若某 PASS 缺命令块或不一致，带着细节再交验证者。PARTIAL（来自验证者）：说明哪些通过、哪些无法验证。`
       : null,
   ].filter(item => item !== null)

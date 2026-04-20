@@ -104,7 +104,7 @@ import {
   formatActionForClassifier,
 } from './yoloClassifier.js'
 
-const CLASSIFIER_FAIL_CLOSED_REFRESH_MS = 30 * 60 * 1000 // 30 minutes
+const CLASSIFIER_FAIL_CLOSED_REFRESH_MS = 30 * 60 * 1000 // 30分钟
 
 const PERMISSION_RULE_SOURCES = [
   ...SETTING_SOURCES,
@@ -131,26 +131,24 @@ export function getAllowRules(
   )
 }
 
-/**
- * Creates a permission request message that explain the permission request
- */
+/** 创建一个解释权限请求的权限请求消息 */
 export function createPermissionRequestMessage(
   toolName: string,
   decisionReason?: PermissionDecisionReason,
 ): string {
-  // Handle different decision reason types
+  // 处理不同的决策原因类型
   if (decisionReason) {
     if (
       (feature('BASH_CLASSIFIER') || feature('TRANSCRIPT_CLASSIFIER')) &&
       decisionReason.type === 'classifier'
     ) {
-      return `Classifier '${decisionReason.classifier}' requires approval for this ${toolName} command: ${decisionReason.reason}`
+      return `分类器 '${decisionReason.classifier}' 要求对此 ${toolName} 命令进行审批：${decisionReason.reason}`
     }
     switch (decisionReason.type) {
       case 'hook': {
         const hookMessage = decisionReason.reason
-          ? `Hook '${decisionReason.hookName}' blocked this action: ${decisionReason.reason}`
-          : `Hook '${decisionReason.hookName}' requires approval for this ${toolName} command`
+          ? `钩子 '${decisionReason.hookName}' 阻止了此操作：${decisionReason.reason}`
+          : `钩子 '${decisionReason.hookName}' 要求对此 ${toolName} 命令进行审批`
         return hookMessage
       }
       case 'rule': {
@@ -160,18 +158,18 @@ export function createPermissionRequestMessage(
         const sourceString = permissionRuleSourceDisplayString(
           decisionReason.rule.source,
         )
-        return `Permission rule '${ruleString}' from ${sourceString} requires approval for this ${toolName} command`
+        return `来自 ${sourceString} 的权限规则 '${ruleString}' 要求对此 ${toolName} 命令进行审批`
       }
       case 'subcommandResults': {
         const needsApproval: string[] = []
         for (const [cmd, result] of decisionReason.reasons) {
           if (result.behavior === 'ask' || result.behavior === 'passthrough') {
-            // Strip output redirections for display to avoid showing filenames as commands
-            // Only do this for Bash tool to avoid affecting other tools
+            // 为显示移除输出重定向，避免将文件名显示为命令。仅对 B
+            // ash 工具执行此操作，以免影响其他工具
             if (toolName === 'Bash') {
               const { commandWithoutRedirections, redirections } =
                 extractOutputRedirections(cmd)
-              // Only use stripped version if there were actual redirections
+              // 仅当存在实际重定向时才使用移除后的版本
               const displayCmd =
                 redirections.length > 0 ? commandWithoutRedirections : cmd
               needsApproval.push(displayCmd)
@@ -182,14 +180,14 @@ export function createPermissionRequestMessage(
         }
         if (needsApproval.length > 0) {
           const n = needsApproval.length
-          return `This ${toolName} command contains multiple operations. The following ${plural(n, 'part')} ${plural(n, 'requires', 'require')} approval: ${needsApproval.join(', ')}`
+          return `此 ${toolName} 命令包含多个操作。以下 ${plural(n, 'part')} ${plural(n, 'requires', 'require')} 需要审批：${needsApproval.join(', ')}`
         }
-        return `This ${toolName} command contains multiple operations that require approval`
+        return `此 ${toolName} 命令包含多个需要审批的操作`
       }
       case 'permissionPromptTool':
-        return `Tool '${decisionReason.permissionPromptToolName}' requires approval for this ${toolName} command`
+        return `工具 '${decisionReason.permissionPromptToolName}' 要求对此 ${toolName} 命令进行审批`
       case 'sandboxOverride':
-        return 'Run outside of the sandbox'
+        return '在沙箱外运行'
       case 'workingDir':
         return decisionReason.reason
       case 'safetyCheck':
@@ -197,15 +195,15 @@ export function createPermissionRequestMessage(
         return decisionReason.reason
       case 'mode': {
         const modeTitle = permissionModeTitle(decisionReason.mode)
-        return `Current permission mode (${modeTitle}) requires approval for this ${toolName} command`
+        return `当前权限模式 (${modeTitle}) 要求对此 ${toolName} 命令进行审批`
       }
       case 'asyncAgent':
         return decisionReason.reason
     }
   }
 
-  // Default message without listing allowed commands
-  const message = `Claude requested permissions to use ${toolName}, but you haven't granted it yet.`
+  // 默认消息，不列出允许的命令
+  const message = `Claude 请求使用 ${toolName} 的权限，但您尚未授予。`
 
   return message
 }
@@ -230,33 +228,31 @@ export function getAskRules(context: ToolPermissionContext): PermissionRule[] {
   )
 }
 
-/**
- * Check if the entire tool matches a rule
- * For example, this matches "Bash" but not "Bash(prefix:*)" for BashTool
- * This also matches MCP tools with a server name, e.g. the rule "mcp__server1"
- */
+/** 检查整个工具是否匹配规则
+例如，对于 BashTool，这匹配 "Bash" 但不匹配 "Bash(prefix:*)"
+这也匹配具有服务器名称的 MCP 工具，例如规则 "mcp__server1" */
 function toolMatchesRule(
   tool: Pick<Tool, 'name' | 'mcpInfo'>,
   rule: PermissionRule,
 ): boolean {
-  // Rule must not have content to match the entire tool
+  // 规则必须没有内容才能匹配整个工具
   if (rule.ruleValue.ruleContent !== undefined) {
     return false
   }
 
-  // MCP tools are matched by their fully qualified mcp__server__tool name. In
-  // skip-prefix mode (CLAUDE_AGENT_SDK_MCP_NO_PREFIX), MCP tools have unprefixed
-  // display names (e.g., "Write") that collide with builtin names; rules targeting
-  // builtins should not match their MCP replacements.
+  // MCP 工具通过其完全限定的 mcp__server__tool 名称进行匹配
+  // 。在跳过前缀模式 (CLAUDE_AGENT_SDK_MCP_NO_PREFIX
+  // ) 下，MCP 工具具有无前缀的显示名称（例如 "Write"），这些名称与内置名称
+  // 冲突；针对内置工具的规则不应匹配其 MCP 替代品。
   const nameForRuleMatch = getToolNameForPermissionCheck(tool)
 
-  // Direct tool name match
+  // 直接工具名称匹配
   if (rule.ruleValue.toolName === nameForRuleMatch) {
     return true
   }
 
-  // MCP server-level permission: rule "mcp__server1" matches tool "mcp__server1__tool1"
-  // Also supports wildcard: rule "mcp__server1__*" matches all tools from server1
+  // MCP 服务器级权限：规则 "mcp__server1" 匹配工具 "mcp__server1__tool
+  // 1"。也支持通配符：规则 "mcp__server1__*" 匹配来自 server1 的所有工具
   const ruleInfo = mcpInfoFromString(rule.ruleValue.toolName)
   const toolInfo = mcpInfoFromString(nameForRuleMatch)
 
@@ -268,10 +264,8 @@ function toolMatchesRule(
   )
 }
 
-/**
- * Check if the entire tool is listed in the always allow rules
- * For example, this finds "Bash" but not "Bash(prefix:*)" for BashTool
- */
+/** 检查整个工具是否列在始终允许规则中
+例如，对于 BashTool，这找到 "Bash" 但找不到 "Bash(prefix:*)" */
 export function toolAlwaysAllowedRule(
   context: ToolPermissionContext,
   tool: Pick<Tool, 'name' | 'mcpInfo'>,
@@ -281,9 +275,7 @@ export function toolAlwaysAllowedRule(
   )
 }
 
-/**
- * Check if the tool is listed in the always deny rules
- */
+/** 检查工具是否列在始终拒绝规则中 */
 export function getDenyRuleForTool(
   context: ToolPermissionContext,
   tool: Pick<Tool, 'name' | 'mcpInfo'>,
@@ -291,9 +283,7 @@ export function getDenyRuleForTool(
   return getDenyRules(context).find(rule => toolMatchesRule(tool, rule)) || null
 }
 
-/**
- * Check if the tool is listed in the always ask rules
- */
+/** 检查工具是否列在始终询问规则中 */
 export function getAskRuleForTool(
   context: ToolPermissionContext,
   tool: Pick<Tool, 'name' | 'mcpInfo'>,
@@ -301,10 +291,8 @@ export function getAskRuleForTool(
   return getAskRules(context).find(rule => toolMatchesRule(tool, rule)) || null
 }
 
-/**
- * Check if a specific agent is denied via Agent(agentType) syntax.
- * For example, Agent(Explore) would deny the Explore agent.
- */
+/** 检查特定代理是否通过 Agent(agentType) 语法被拒绝。
+例如，Agent(Explore) 将拒绝 Explore 代理。 */
 export function getDenyRuleForAgent(
   context: ToolPermissionContext,
   agentToolName: string,
@@ -319,17 +307,15 @@ export function getDenyRuleForAgent(
   )
 }
 
-/**
- * Filter agents to exclude those that are denied via Agent(agentType) syntax.
- */
+/** 过滤代理以排除那些通过 Agent(agentType) 语法被拒绝的代理。 */
 export function filterDeniedAgents<T extends { agentType: string }>(
   agents: T[],
   context: ToolPermissionContext,
   agentToolName: string,
 ): T[] {
-  // Parse deny rules once and collect Agent(x) contents into a Set.
-  // Previously this called getDenyRuleForAgent per agent, which re-parsed
-  // every deny rule for every agent (O(agents×rules) parse calls).
+  // 解析拒绝规则一次，并将 Agent(x) 内容收集到一个 Set
+  // 中。之前这为每个代理调用 getDenyRuleForAgent，这为每
+  // 个代理重新解析每条拒绝规则（O(代理数×规则数) 次解析调用）。
   const deniedAgentTypes = new Set<string>()
   for (const rule of getDenyRules(context)) {
     if (
@@ -342,10 +328,8 @@ export function filterDeniedAgents<T extends { agentType: string }>(
   return agents.filter(agent => !deniedAgentTypes.has(agent.agentType))
 }
 
-/**
- * Map of rule contents to the associated rule for a given tool.
- * e.g. the string key is "prefix:*" from "Bash(prefix:*)" for BashTool
- */
+/** 规则内容到给定工具关联规则的映射。
+例如，对于 BashTool，字符串键是来自 "Bash(prefix:*)" 的 "prefix:*" */
 export function getRuleByContentsForTool(
   context: ToolPermissionContext,
   tool: Tool,
@@ -358,7 +342,7 @@ export function getRuleByContentsForTool(
   )
 }
 
-// Used to break circular dependency where a Tool calls this function
+// 用于打破工具调用此函数时产生的循环依赖。
 export function getRuleByContentsForToolName(
   context: ToolPermissionContext,
   toolName: string,
@@ -389,14 +373,9 @@ export function getRuleByContentsForToolName(
   return ruleByContents
 }
 
-/**
- * Runs PermissionRequest hooks for headless/async agents that cannot show
- * permission prompts. This gives hooks an opportunity to allow or deny
- * tool use before the fallback auto-deny kicks in.
- *
- * Returns a PermissionDecision if a hook made a decision, or null if no
- * hook provided a decision (caller should proceed to auto-deny).
- */
+/** 为无法显示权限提示的无头/异步代理运行 PermissionRequest 钩子。这给了钩子在备用自动拒绝机制生效前，允许或拒绝工具使用的机会。
+
+如果钩子做出了决定，则返回一个 PermissionDecision；如果没有钩子提供决定（调用方应继续执行自动拒绝），则返回 null。 */
 async function runPermissionRequestHooksForHeadlessAgent(
   tool: Tool,
   input: { [key: string]: unknown },
@@ -421,7 +400,7 @@ async function runPermissionRequestHooksForHeadlessAgent(
       const decision = hookResult.permissionRequestResult
       if (decision.behavior === 'allow') {
         const finalInput = decision.updatedInput ?? input
-        // Persist permission updates if provided
+        // 如果提供了权限更新，则将其持久化。
         if (decision.updatedPermissions?.length) {
           persistPermissionUpdates(decision.updatedPermissions as any)
           context.setAppState(prev => ({
@@ -444,13 +423,13 @@ async function runPermissionRequestHooksForHeadlessAgent(
       if (decision.behavior === 'deny') {
         if (decision.interrupt) {
           logForDebugging(
-            `Hook interrupt: tool=${tool.name} hookMessage=${decision.message}`,
+            `钩子中断：tool=${tool.name} hookMessage=${decision.message}`,
           )
           context.abortController.abort()
         }
         return {
           behavior: 'deny',
-          message: decision.message || 'Permission denied by hook',
+          message: decision.message || '权限被钩子拒绝',
           decisionReason: {
             type: 'hook',
             hookName: 'PermissionRequest',
@@ -460,9 +439,9 @@ async function runPermissionRequestHooksForHeadlessAgent(
       }
     }
   } catch (error) {
-    // If hooks fail, fall through to auto-deny rather than crashing
+    // 如果钩子失败，则回退到自动拒绝，而不是导致崩溃。
     logError(
-      new Error('PermissionRequest hook failed for headless agent', {
+      new Error('无头代理的 PermissionRequest 钩子失败', {
         cause: toError(error),
       }),
     )
@@ -480,9 +459,9 @@ export const hasPermissionsToUseTool: CanUseToolFn = async (
   const result = await hasPermissionsToUseToolInner(tool, input, context)
 
 
-  // Reset consecutive denials on any allowed tool use in auto mode.
-  // This ensures that a successful tool use (even one auto-allowed by rules)
-  // breaks the consecutive denial streak.
+  // 在自动模式下，任何被允许的工具使用都会重置连续
+  // 拒绝计数。这确保了一次成功的工具使用（即使是规则自动允
+  // 许的）会中断连续拒绝的记录。
   if (result.behavior === 'allow') {
     const appState = context.getAppState()
     if (feature('TRANSCRIPT_CLASSIFIER')) {
@@ -500,8 +479,8 @@ export const hasPermissionsToUseTool: CanUseToolFn = async (
     return result
   }
 
-  // Apply dontAsk mode transformation: convert 'ask' to 'deny'
-  // This is done at the end so it can't be bypassed by early returns
+  // 应用 dontAsk 模式转换：将 'ask' 转换
+  // 为 'deny'。此操作在最后执行，以防止被提前返回绕过。
   if (result.behavior === 'ask') {
     const appState = context.getAppState()
 
@@ -515,20 +494,20 @@ export const hasPermissionsToUseTool: CanUseToolFn = async (
         message: DONT_ASK_REJECT_MESSAGE(tool.name),
       }
     }
-    // Apply auto mode: use AI classifier instead of prompting user
-    // Check this BEFORE shouldAvoidPermissionPrompts so classifiers work in headless mode
+    // 应用自动模式：使用 AI 分类器而不是提示用户。在 should
+    // AvoidPermissionPrompts 之前检查此项，以便分类器在无头模式下工作。
     if (
       feature('TRANSCRIPT_CLASSIFIER') &&
       (appState.toolPermissionContext.mode === 'auto' ||
         (appState.toolPermissionContext.mode === 'plan' &&
           (autoModeStateModule?.isAutoModeActive() ?? false)))
     ) {
-      // Non-classifier-approvable safetyCheck decisions stay immune to ALL
-      // auto-approve paths: the acceptEdits fast-path, the safe-tool allowlist,
-      // and the classifier. Step 1g only guards bypassPermissions; this guards
-      // auto. classifierApprovable safetyChecks (sensitive-file paths) fall
-      // through to the classifier — the fast-paths below naturally don't fire
-      // because the tool's own checkPermissions still returns 'ask'.
+      // 非分类器可批准的安全检查决定对所有自动批准路径保持免疫：
+      // acceptEdits 快速路径、安全工具白名单和分类器。步
+      // 骤 1g 仅防护 bypassPermissions；此项防
+      // 护自动模式。分类器可批准的安全检查（敏感文件路径）会传递给
+      // 分类器——下面的快速路径自然不会被触发，因为工具自身的 ch
+      // eckPermissions 仍然返回 'ask'。
       if (
         result.decisionReason?.type === 'safetyCheck' &&
         !result.decisionReason.classifierApprovable
@@ -540,7 +519,7 @@ export const hasPermissionsToUseTool: CanUseToolFn = async (
             decisionReason: {
               type: 'asyncAgent',
               reason:
-                'Safety check requires interactive approval and permission prompts are not available in this context',
+                '安全检查需要交互式批准，但在此上下文中无法提供权限提示。',
             },
           }
         }
@@ -550,25 +529,25 @@ export const hasPermissionsToUseTool: CanUseToolFn = async (
         return result
       }
 
-      // Use local denial tracking for async subagents (whose setAppState
-      // is a no-op), otherwise read from appState as before.
+      // 对异步子代理使用本地拒绝跟踪（其 setAppState 是空
+      // 操作），否则像以前一样从 appState 读取。
       const denialState =
         context.localDenialTracking ??
         appState.denialTracking ??
         createDenialTrackingState()
 
-      // PowerShell requires explicit user permission in auto mode unless
-      // POWERSHELL_AUTO_MODE (ant-only build flag) is on. When disabled, this
-      // guard keeps PS out of the classifier and skips the acceptEdits
-      // fast-path below. When enabled, PS flows through to the classifier like
-      // Bash — the classifier prompt gets POWERSHELL_DENY_GUIDANCE appended so
-      // it recognizes `iex (iwr ...)` as download-and-execute, etc.
-      // Note: this runs inside the behavior === 'ask' branch, so allow rules
-      // that fire earlier (step 2b toolAlwaysAllowedRule, PS prefix allow)
-      // return before reaching here. Allow-rule protection is handled by
-      // permissionSetup.ts: isOverlyBroadPowerShellAllowRule strips PowerShell(*)
-      // and isDangerousPowerShellPermission strips iex/pwsh/Start-Process
-      // prefix rules for ant users and auto mode entry.
+      // 在自动模式下，PowerShell 需要明确的用户权限，除非 POWERS
+      // HELL_AUTO_MODE（仅限蚂蚁构建标志）已开启。禁用时，此防护使 PS
+      // 不进入分类器，并跳过下面的 acceptEdits 快速路径。启用时，P
+      // S 像 Bash 一样进入分类器——分类器提示会附加 POWERSHELL_DE
+      // NY_GUIDANCE，以便其识别 `iex (iwr ...)` 为下载并执行
+      // 等。注意：此操作在 behavior === 'ask' 分支内运行
+      // ，因此较早触发的允许规则（步骤 2b 的 toolAlwaysAllowedR
+      // ule、PS 前缀允许）会在到达此处之前返回。允许规则的保护由 permis
+      // sionSetup.ts 处理：isOverlyBroadPowerShe
+      // llAllowRule 会剥离 PowerShell(*)，而 isDangerou
+      // sPowerShellPermission 会为蚂蚁用户和自动模式入口剥离
+      // iex/pwsh/Start-Process 前缀规则。
       if (
         tool.name === POWERSHELL_TOOL_NAME &&
         !feature('POWERSHELL_AUTO_MODE')
@@ -576,27 +555,27 @@ export const hasPermissionsToUseTool: CanUseToolFn = async (
         if (appState.toolPermissionContext.shouldAvoidPermissionPrompts) {
           return {
             behavior: 'deny',
-            message: 'PowerShell tool requires interactive approval',
+            message: 'PowerShell 工具需要交互式批准。',
             decisionReason: {
               type: 'asyncAgent',
               reason:
-                'PowerShell tool requires interactive approval and permission prompts are not available in this context',
+                'PowerShell 工具需要交互式批准，但在此上下文中无法提供权限提示。',
             },
           }
         }
         logForDebugging(
-          `Skipping auto mode classifier for ${tool.name}: tool requires explicit user permission`,
+          `跳过 ${tool.name} 的自动模式分类器：工具需要明确的用户权限。`,
         )
         return result
       }
 
-      // Before running the auto mode classifier, check if acceptEdits mode would
-      // allow this action. This avoids expensive classifier API calls for safe
-      // operations like file edits in the working directory.
-      // Skip for Agent and REPL — their checkPermissions returns 'allow' for
-      // acceptEdits mode, which would silently bypass the classifier. REPL
-      // code can contain VM escapes between inner tool calls; the classifier
-      // must see the glue JavaScript, not just the inner tool calls.
+      // 在运行自动模式分类器之前，检查 acceptEdits 模式是否会允
+      // 许此操作。这避免了为安全操作（如工作目录中的文件编辑）进行昂贵的分
+      // 类器 API 调用。对 Agent 和 REPL
+      // 跳过此检查——它们的 checkPermissions 在 acc
+      // eptEdits 模式下返回 'allow'，这会静默绕过分类器
+      // 。REPL 代码可能在内部工具调用之间包含虚拟机逃逸；分类器必须看
+      // 到粘合的 JavaScript，而不仅仅是内部工具调用。
       if (
         result.behavior === 'ask' &&
         tool.name !== AGENT_TOOL_NAME &&
@@ -621,16 +600,16 @@ export const hasPermissionsToUseTool: CanUseToolFn = async (
             const newDenialState = recordSuccess(denialState)
             persistDenialState(context, newDenialState)
             logForDebugging(
-              `Skipping auto mode classifier for ${tool.name}: would be allowed in acceptEdits mode`,
+              `跳过 ${tool.name} 的自动模式分类器：在 acceptEdits 模式下会被允许。`,
             )
             logEvent('tengu_auto_mode_decision', {
               decision:
                 'allowed' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
               toolName: sanitizeToolNameForAnalytics(tool.name),
               inProtectedNamespace: isInProtectedNamespace(),
-              // msg_id of the agent completion that produced this tool_use —
-              // the action at the bottom of the classifier transcript. Joins
-              // the decision back to the main agent's API response.
+              // 产生此 tool_use 的代理完成的
+              // msg_id——分类器记录底部的操作。将
+              // 决策关联回主代理的 API 响应。
               agentMsgId: assistantMessage.message
                 .id as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
               confidence:
@@ -651,17 +630,17 @@ export const hasPermissionsToUseTool: CanUseToolFn = async (
           if (e instanceof AbortError || e instanceof APIUserAbortError) {
             throw e
           }
-          // If the acceptEdits check fails, fall through to the classifier
+          // 如果 acceptEdits 检查失败，则回退到分类器。
         }
       }
 
-      // Allowlisted tools are safe and don't need YOLO classification.
-      // This uses the safe-tool allowlist to skip unnecessary classifier API calls.
+      // 白名单工具是安全的，不需要 YOLO 分类。这
+      // 使用安全工具白名单来跳过不必要的分类器 API 调用。
       if (classifierDecisionModule!.isAutoModeAllowlistedTool(tool.name)) {
         const newDenialState = recordSuccess(denialState)
         persistDenialState(context, newDenialState)
         logForDebugging(
-          `Skipping auto mode classifier for ${tool.name}: tool is on the safe allowlist`,
+          `跳过 ${tool.name} 的自动模式分类器：工具位于安全白名单上。`,
         )
         logEvent('tengu_auto_mode_decision', {
           decision:
@@ -685,7 +664,7 @@ export const hasPermissionsToUseTool: CanUseToolFn = async (
         }
       }
 
-      // Run the auto mode classifier
+      // 运行自动模式分类器。
       const action = formatActionForClassifier(tool.name, input)
       setClassifierChecking(toolUseID)
       let classifierResult
@@ -701,7 +680,7 @@ export const hasPermissionsToUseTool: CanUseToolFn = async (
         clearClassifierChecking(toolUseID)
       }
 
-      // Notify ants when classifier error dumped prompts (will be in /share)
+      // 当分类器错误转储提示时通知蚂蚁（将位于 /share 中）。
       if (
         process.env.USER_TYPE === 'ant' &&
         classifierResult.errorDumpPath &&
@@ -709,20 +688,20 @@ export const hasPermissionsToUseTool: CanUseToolFn = async (
       ) {
         context.addNotification({
           key: 'auto-mode-error-dump',
-          text: `Auto mode classifier error — prompts dumped to ${classifierResult.errorDumpPath} (included in /share)`,
+          text: `自动模式分类器错误——提示已转储到 ${classifierResult.errorDumpPath}（包含在 /share 中）。`,
           priority: 'immediate',
           color: 'error',
         })
       }
 
-      // Log classifier decision for metrics (including overhead telemetry)
+      // 记录分类器决策以用于指标（包括开销遥测）。
       const yoloDecision = classifierResult.unavailable
         ? 'unavailable'
         : classifierResult.shouldBlock
           ? 'blocked'
           : 'allowed'
 
-      // Compute classifier cost in USD for overhead analysis
+      // 计算分类器成本（美元）以进行开销分析。
       const classifierCostUSD =
         classifierResult.usage && classifierResult.model
           ? calculateCostFromTokens(
@@ -735,8 +714,8 @@ export const hasPermissionsToUseTool: CanUseToolFn = async (
           yoloDecision as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
         toolName: sanitizeToolNameForAnalytics(tool.name),
         inProtectedNamespace: isInProtectedNamespace(),
-        // msg_id of the agent completion that produced this tool_use —
-        // the action at the bottom of the classifier transcript.
+        // 产生此 tool_use 的代理完成的 m
+        // sg_id——分类器记录底部的操作。
         agentMsgId: assistantMessage.message
           .id as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
         classifierModel:
@@ -747,7 +726,7 @@ export const hasPermissionsToUseTool: CanUseToolFn = async (
         totalDenials: classifierResult.shouldBlock
           ? denialState.totalDenials + 1
           : denialState.totalDenials,
-        // Overhead telemetry: token usage and latency for the classifier API call
+        // 开销遥测：分类器 API 调用的令牌使用情况和延迟。
         classifierInputTokens: classifierResult.usage?.inputTokens,
         classifierOutputTokens: classifierResult.usage?.outputTokens,
         classifierCacheReadInputTokens:
@@ -755,15 +734,15 @@ export const hasPermissionsToUseTool: CanUseToolFn = async (
         classifierCacheCreationInputTokens:
           classifierResult.usage?.cacheCreationInputTokens,
         classifierDurationMs: classifierResult.durationMs,
-        // Character lengths of the prompt components sent to the classifier
+        // 发送给分类器的提示组件的字符长度
         classifierSystemPromptLength:
           classifierResult.promptLengths?.systemPrompt,
         classifierToolCallsLength: classifierResult.promptLengths?.toolCalls,
         classifierUserPromptsLength:
           classifierResult.promptLengths?.userPrompts,
-        // Session totals at time of classifier call (for computing overhead %).
-        // These are main-transcript-only — sideQuery (used by the classifier)
-        // does NOT call addToTotalSessionCost, so classifier tokens are excluded.
+        // 分类器调用时的会话总计（用于计算开销百分比）。这些仅为主转录
+        // 本——sideQuery（由分类器使用）不会调用 addT
+        // oTotalSessionCost，因此分类器令牌被排除在外。
         sessionInputTokens: getTotalInputTokens(),
         sessionOutputTokens: getTotalOutputTokens(),
         sessionCacheReadInputTokens: getTotalCacheReadInputTokens(),
@@ -816,19 +795,19 @@ export const hasPermissionsToUseTool: CanUseToolFn = async (
       }
 
       if (classifierResult.shouldBlock) {
-        // Transcript exceeded the classifier's context window — deterministic
-        // error, won't recover on retry. Skip iron_gate and fall back to
-        // normal prompting so the user can approve/deny manually.
+        // 转录本超出了分类器的上下文窗口——确定性错误，重
+        // 试不会恢复。跳过 iron_gate 并回退
+        // 到正常提示，以便用户可以手动批准/拒绝。
         if (classifierResult.transcriptTooLong) {
           if (appState.toolPermissionContext.shouldAvoidPermissionPrompts) {
-            // Permanent condition (transcript only grows) — deny-retry-deny
-            // wastes tokens without ever hitting the denial-limit abort.
+            // 永久性状态（转录本只会增长）——拒绝-重试-拒
+            // 绝会浪费令牌，而永远不会触发拒绝限制中止。
             throw new AbortError(
-              'Agent aborted: auto mode classifier transcript exceeded context window in headless mode',
+              '代理已中止：无头模式下自动模式分类器转录本超出上下文窗口',
             )
           }
           logForDebugging(
-            'Auto mode classifier transcript too long, falling back to normal permission handling',
+            '自动模式分类器转录本过长，回退到正常权限处理',
             { level: 'warn' },
           )
           return {
@@ -836,12 +815,12 @@ export const hasPermissionsToUseTool: CanUseToolFn = async (
             decisionReason: {
               type: 'other',
               reason:
-                'Auto mode classifier transcript exceeded context window — falling back to manual approval',
+                '自动模式分类器转录本超出上下文窗口——回退到手动批准',
             },
           }
         }
-        // When classifier is unavailable (API error), behavior depends on
-        // the tengu_iron_gate_closed gate.
+        // 当分类器不可用时（API 错误），行为取决于 tengu_iro
+        // n_gate_closed 门控。
         if (classifierResult.unavailable) {
           if (
             getFeatureValue_CACHED_WITH_REFRESH(
@@ -851,7 +830,7 @@ export const hasPermissionsToUseTool: CanUseToolFn = async (
             )
           ) {
             logForDebugging(
-              'Auto mode classifier unavailable, denying with retry guidance (fail closed)',
+              '自动模式分类器不可用，拒绝并附带重试指引（故障关闭）',
               { level: 'warn' },
             )
             return {
@@ -859,7 +838,7 @@ export const hasPermissionsToUseTool: CanUseToolFn = async (
               decisionReason: {
                 type: 'classifier',
                 classifier: 'auto-mode',
-                reason: 'Classifier unavailable',
+                reason: '分类器不可用',
               },
               message: buildClassifierUnavailableMessage(
                 tool.name,
@@ -867,26 +846,26 @@ export const hasPermissionsToUseTool: CanUseToolFn = async (
               ),
             }
           }
-          // Fail open: fall back to normal permission handling
+          // 故障开放：回退到正常权限处理
           logForDebugging(
-            'Auto mode classifier unavailable, falling back to normal permission handling (fail open)',
+            '自动模式分类器不可用，回退到正常权限处理（故障开放）',
             { level: 'warn' },
           )
           return result
         }
 
-        // Update denial tracking and check limits
+        // 更新拒绝跟踪并检查限制
         const newDenialState = recordDenial(denialState)
         persistDenialState(context, newDenialState)
 
         logForDebugging(
-          `Auto mode classifier blocked action: ${classifierResult.reason}`,
+          `自动模式分类器阻止了操作：${classifierResult.reason}`,
           { level: 'warn' },
         )
 
-        // If denial limit hit, fall back to prompting so the user
-        // can review. We check after the classifier so we can include
-        // its reason in the prompt.
+        // 如果达到拒绝限制，则回退到提示，以便用户
+        // 可以审查。我们在分类器之后检查，以便可以在
+        // 提示中包含其理由。
         const denialLimitResult = handleDenialLimitExceeded(
           newDenialState,
           appState,
@@ -911,7 +890,7 @@ export const hasPermissionsToUseTool: CanUseToolFn = async (
         }
       }
 
-      // Reset consecutive denials on success
+      // 成功时重置连续拒绝次数
       const newDenialState = recordSuccess(denialState)
       persistDenialState(context, newDenialState)
 
@@ -926,9 +905,9 @@ export const hasPermissionsToUseTool: CanUseToolFn = async (
       }
     }
 
-    // When permission prompts should be avoided (e.g., background/headless agents),
-    // run PermissionRequest hooks first to give them a chance to allow/deny.
-    // Only auto-deny if no hook provides a decision.
+    // 当应避免权限提示时（例如，后台/无头代理），首先运行 Perm
+    // issionRequest 钩子，给它们允许/拒绝的机会
+    // 。仅当没有钩子提供决定时才自动拒绝。
     if (appState.toolPermissionContext.shouldAvoidPermissionPrompts) {
       const hookDecision = await runPermissionRequestHooksForHeadlessAgent(
         tool,
@@ -945,7 +924,7 @@ export const hasPermissionsToUseTool: CanUseToolFn = async (
         behavior: 'deny',
         decisionReason: {
           type: 'asyncAgent',
-          reason: 'Permission prompts are not available in this context',
+          reason: '在此上下文中权限提示不可用',
         },
         message: AUTO_REJECT_MESSAGE(tool.name),
       }
@@ -955,11 +934,9 @@ export const hasPermissionsToUseTool: CanUseToolFn = async (
   return result
 }
 
-/**
- * Persist denial tracking state. For async subagents with localDenialTracking,
- * mutate the local state in place (since setAppState is a no-op). Otherwise,
- * write to appState as usual.
- */
+/** 持久化拒绝跟踪状态。对于具有 localDenialTracking 的异步子代理，
+就地修改本地状态（因为 setAppState 是无操作的）。否则，
+照常写入 appState。 */
 function persistDenialState(
   context: ToolUseContext,
   newState: DenialTrackingState,
@@ -968,19 +945,17 @@ function persistDenialState(
     Object.assign(context.localDenialTracking, newState)
   } else {
     context.setAppState(prev => {
-      // recordSuccess returns the same reference when state is
-      // unchanged. Returning prev here lets store.setState's Object.is check
-      // skip the listener loop entirely.
+      // 当状态未改变时，recordSuccess 返回相同的引用
+      // 。此处返回 prev 可以让 store.setState 的 Objec
+      // t.is 检查完全跳过监听器循环。
       if (prev.denialTracking === newState) return prev
       return { ...prev, denialTracking: newState }
     })
   }
 }
 
-/**
- * Check if a denial limit was exceeded and return an 'ask' result
- * so the user can review. Returns null if no limit was hit.
- */
+/** 检查是否超出拒绝限制并返回一个‘询问’结果，
+以便用户可以审查。如果未达到任何限制，则返回 null。 */
 function handleDenialLimitExceeded(
   denialState: DenialTrackingState,
   appState: {
@@ -998,13 +973,13 @@ function handleDenialLimitExceeded(
 
   const hitTotalLimit = denialState.totalDenials >= DENIAL_LIMITS.maxTotal
   const isHeadless = appState.toolPermissionContext.shouldAvoidPermissionPrompts
-  // Capture counts before persistDenialState, which may mutate denialState
-  // in-place via Object.assign for subagents with localDenialTracking.
+  // 在 persistDenialState 之前捕获计数，persistDenialState 可能会通过 Objec
+  // t.assign 为具有 localDenialTracking 的子代理就地修改 denialState。
   const totalCount = denialState.totalDenials
   const consecutiveCount = denialState.consecutiveDenials
   const warning = hitTotalLimit
-    ? `${totalCount} actions were blocked this session. Please review the transcript before continuing.`
-    : `${consecutiveCount} consecutive actions were blocked. Please review the transcript before continuing.`
+    ? `本次会话中已阻止 ${totalCount} 个操作。请在继续之前审查转录本。`
+    : `已连续阻止 ${consecutiveCount} 个操作。请在继续之前审查转录本。`
 
   logEvent('tengu_auto_mode_denial_limit_exceeded', {
     limit: (hitTotalLimit
@@ -1022,12 +997,12 @@ function handleDenialLimitExceeded(
 
   if (isHeadless) {
     throw new AbortError(
-      'Agent aborted: too many classifier denials in headless mode',
+      '代理已中止：无头模式下分类器拒绝次数过多',
     )
   }
 
   logForDebugging(
-    `Classifier denial limit exceeded, falling back to prompting: ${warning}`,
+    `分类器拒绝限制已超出，回退到提示：${warning}`,
     { level: 'warn' },
   )
 
@@ -1039,9 +1014,9 @@ function handleDenialLimitExceeded(
     })
   }
 
-  // Preserve the original classifier value (e.g. 'dangerous-agent-action')
-  // so downstream analytics in interactiveHandler can log the correct
-  // user override event.
+  // 保留原始分类器值（例如 'dangerous-agent-action'
+  // ），以便 interactiveHandler 中的下游分析可以记录
+  // 正确的用户覆盖事件。
   const originalClassifier =
     result.decisionReason?.type === 'classifier'
       ? result.decisionReason.classifier
@@ -1052,22 +1027,19 @@ function handleDenialLimitExceeded(
     decisionReason: {
       type: 'classifier',
       classifier: originalClassifier,
-      reason: `${warning}\n\nLatest blocked action: ${classifierReason}`,
+      reason: `${warning}
+
+最近被阻止的操作：${classifierReason}`,
     },
   }
 }
 
-/**
- * Check only the rule-based steps of the permission pipeline — the subset
- * that bypassPermissions mode respects (everything that fires before step 2a).
- *
- * Returns a deny/ask decision if a rule blocks the tool, or null if no rule
- * objects. Unlike hasPermissionsToUseTool, this does NOT run the auto mode classifier,
- * mode-based transformations (dontAsk/auto/asyncAgent), PermissionRequest hooks,
- * or bypassPermissions / always-allowed checks.
- *
- * Caller must pre-check tool.requiresUserInteraction() — step 1e is not replicated.
- */
+/** 仅检查权限管道的基于规则的步骤——即 bypassPermissions 模式所尊重的子集（在步骤 2a 之前触发的所有内容）。
+
+如果规则阻止了工具，则返回拒绝/询问决定；如果没有规则对象，则返回 null。与 hasPermissionsToUseTool 不同，此函数不运行自动模式分类器、基于模式的转换（dontAsk/auto/asyncAgent）、PermissionRequest 钩子，
+也不检查 bypassPermissions / always-allowed。
+
+调用者必须预先检查 tool.requiresUserInteraction()——不复制步骤 1e。 */
 export async function checkRuleBasedPermissions(
   tool: Tool,
   input: { [key: string]: unknown },
@@ -1075,7 +1047,7 @@ export async function checkRuleBasedPermissions(
 ): Promise<PermissionAskDecision | PermissionDenyDecision | null> {
   const appState = context.getAppState()
 
-  // 1a. Entire tool is denied by rule
+  // 1a. 整个工具被规则拒绝
   const denyRule = getDenyRuleForTool(appState.toolPermissionContext, tool)
   if (denyRule) {
     return {
@@ -1084,11 +1056,11 @@ export async function checkRuleBasedPermissions(
         type: 'rule',
         rule: denyRule,
       },
-      message: `Permission to use ${tool.name} has been denied.`,
+      message: `使用 ${tool.name} 的权限已被拒绝。`,
     }
   }
 
-  // 1b. Entire tool has an ask rule
+  // 1b. 整个工具有一条询问规则
   const askRule = getAskRuleForTool(appState.toolPermissionContext, tool)
   if (askRule) {
     const canSandboxAutoAllow =
@@ -1107,10 +1079,10 @@ export async function checkRuleBasedPermissions(
         message: createPermissionRequestMessage(tool.name),
       }
     }
-    // Fall through to let tool.checkPermissions handle command-specific rules
+    // 向下传递，让 tool.checkPermissions 处理特定于命令的规则
   }
 
-  // 1c. Tool-specific permission check (e.g. bash subcommand rules)
+  // 1c. 特定于工具的权限检查（例如 bash 子命令规则）
   let toolPermissionResult: PermissionResult = {
     behavior: 'passthrough',
     message: createPermissionRequestMessage(tool.name),
@@ -1125,14 +1097,14 @@ export async function checkRuleBasedPermissions(
     logError(e)
   }
 
-  // 1d. Tool implementation denied (catches bash subcommand denies wrapped
-  // in subcommandResults — no need to inspect decisionReason.type)
+  // 1d. 工具实现拒绝了权限（捕获包裹在 subcommandResults 中的 b
+  // ash 子命令拒绝 —— 无需检查 decisionReason.type）
   if (toolPermissionResult?.behavior === 'deny') {
     return toolPermissionResult
   }
 
-  // 1f. Content-specific ask rules from tool.checkPermissions
-  // (e.g. Bash(npm publish:*) → {ask, type:'rule', ruleBehavior:'ask'})
+  // 1f. 来自 tool.checkPermissions 的特定于内容的询问规则（例如 Bash
+  // (npm publish:*) → {ask, type:'rule', ruleBehavior:'ask'}）
   if (
     toolPermissionResult?.behavior === 'ask' &&
     toolPermissionResult.decisionReason?.type === 'rule' &&
@@ -1141,9 +1113,9 @@ export async function checkRuleBasedPermissions(
     return toolPermissionResult
   }
 
-  // 1g. Safety checks (e.g. .git/, .claude/, .vscode/, shell configs) are
-  // bypass-immune — they must prompt even when a PreToolUse hook returned
-  // allow. checkPathSafetyForAutoEdit returns {type:'safetyCheck'} for these.
+  // 1g. 安全检查（例如 .git/、.claude/、.vscode/、shell 配置文件）是
+  // 绕过免疫的 —— 即使 PreToolUse 钩子返回了允许，它们也必须触发提示。checkPa
+  // thSafetyForAutoEdit 会为这些路径返回 {type:'safetyCheck'}。
   if (
     toolPermissionResult?.behavior === 'ask' &&
     toolPermissionResult.decisionReason?.type === 'safetyCheck'
@@ -1151,7 +1123,7 @@ export async function checkRuleBasedPermissions(
     return toolPermissionResult
   }
 
-  // No rule-based objection
+  // 没有基于规则的反对意见
   return null
 }
 
@@ -1166,8 +1138,8 @@ async function hasPermissionsToUseToolInner(
 
   let appState = context.getAppState()
 
-  // 1. Check if the tool is denied
-  // 1a. Entire tool is denied
+  // 1. 检查工具是否被拒绝
+  // 1a. 整个工具被拒绝
   const denyRule = getDenyRuleForTool(appState.toolPermissionContext, tool)
   if (denyRule) {
     return {
@@ -1176,16 +1148,16 @@ async function hasPermissionsToUseToolInner(
         type: 'rule',
         rule: denyRule,
       },
-      message: `Permission to use ${tool.name} has been denied.`,
+      message: `使用 ${tool.name} 的权限已被拒绝。`,
     }
   }
 
-  // 1b. Check if the entire tool should always ask for permission
+  // 1b. 检查整个工具是否应始终请求权限
   const askRule = getAskRuleForTool(appState.toolPermissionContext, tool)
   if (askRule) {
-    // When autoAllowBashIfSandboxed is on, sandboxed commands skip the ask rule and
-    // auto-allow via Bash's checkPermissions. Commands that won't be sandboxed (excluded
-    // commands, dangerouslyDisableSandbox) still need to respect the ask rule.
+    // 当 autoAllowBashIfSandboxed 开启时，沙盒化的命令会跳过询问规
+    // 则并通过 Bash 的 checkPermissions 自动允许。不会被沙盒化的命令（排
+    // 除的命令、dangerouslyDisableSandbox）仍需遵守询问规则。
     const canSandboxAutoAllow =
       tool.name === BASH_TOOL_NAME &&
       SandboxManager.isSandboxingEnabled() &&
@@ -1202,11 +1174,11 @@ async function hasPermissionsToUseToolInner(
         message: createPermissionRequestMessage(tool.name),
       }
     }
-    // Fall through to let Bash's checkPermissions handle command-specific rules
+    // 向下传递，让 Bash 的 checkPermissions 处理特定于命令的规则
   }
 
-  // 1c. Ask the tool implementation for a permission result
-  // Overridden unless tool input schema is not valid
+  // 1c. 向工具实现请求权限结果（除非
+  // 工具输入模式无效，否则会被覆盖）
   let toolPermissionResult: PermissionResult = {
     behavior: 'passthrough',
     message: createPermissionRequestMessage(tool.name),
@@ -1215,19 +1187,19 @@ async function hasPermissionsToUseToolInner(
     const parsedInput = tool.inputSchema.parse(input)
     toolPermissionResult = await tool.checkPermissions(parsedInput, context)
   } catch (e) {
-    // Rethrow abort errors so they propagate properly
+    // 重新抛出中止错误，以便它们正确传播
     if (e instanceof AbortError || e instanceof APIUserAbortError) {
       throw e
     }
     logError(e)
   }
 
-  // 1d. Tool implementation denied permission
+  // 1d. 工具实现拒绝了权限
   if (toolPermissionResult?.behavior === 'deny') {
     return toolPermissionResult
   }
 
-  // 1e. Tool requires user interaction even in bypass mode
+  // 1e. 即使在绕过模式下，工具也需要用户交互
   if (
     tool.requiresUserInteraction?.() &&
     toolPermissionResult?.behavior === 'ask'
@@ -1235,12 +1207,12 @@ async function hasPermissionsToUseToolInner(
     return toolPermissionResult
   }
 
-  // 1f. Content-specific ask rules from tool.checkPermissions take precedence
-  // over bypassPermissions mode. When a user explicitly configures a
-  // content-specific ask rule (e.g. Bash(npm publish:*)), the tool's
-  // checkPermissions returns {behavior:'ask', decisionReason:{type:'rule',
-  // rule:{ruleBehavior:'ask'}}}. This must be respected even in bypass mode,
-  // just as deny rules are respected at step 1d.
+  // 1f. 来自 tool.checkPermissions 的特定于内容的询问规则优先于 by
+  // passPermissions 模式。当用户显式配置了特定于内容的询问规则（例如
+  // Bash(npm publish:*)）时，工具的 checkPermissi
+  // ons 会返回 {behavior:'ask', decisionReason:{typ
+  // e:'rule', rule:{ruleBehavior:'ask'}}}。即使在绕过模式
+  // 下也必须遵守此规则，就像在步骤 1d 中遵守拒绝规则一样。
   if (
     toolPermissionResult?.behavior === 'ask' &&
     toolPermissionResult.decisionReason?.type === 'rule' &&
@@ -1249,9 +1221,9 @@ async function hasPermissionsToUseToolInner(
     return toolPermissionResult
   }
 
-  // 1g. Safety checks (e.g. .git/, .claude/, .vscode/, shell configs) are
-  // bypass-immune — they must prompt even in bypassPermissions mode.
-  // checkPathSafetyForAutoEdit returns {type:'safetyCheck'} for these paths.
+  // 1g. 安全检查（例如 .git/、.claude/、.vscode/、shell 配置文件）是绕
+  // 过免疫的 —— 即使在 bypassPermissions 模式下也必须触发提示。check
+  // PathSafetyForAutoEdit 会为这些路径返回 {type:'safetyCheck'}。
   if (
     toolPermissionResult?.behavior === 'ask' &&
     toolPermissionResult.decisionReason?.type === 'safetyCheck'
@@ -1259,12 +1231,12 @@ async function hasPermissionsToUseToolInner(
     return toolPermissionResult
   }
 
-  // 2a. Check if mode allows the tool to run
-  // IMPORTANT: Call getAppState() to get the latest value
+  // 2a. 检查模式是否允许工具运行（重要
+  // ：调用 getAppState() 以获取最新值）
   appState = context.getAppState()
-  // Check if permissions should be bypassed:
-  // - Direct bypassPermissions mode
-  // - Plan mode when the user originally started with bypass mode (isBypassPermissionsModeAvailable)
+  // 检查是否应绕过权限：- 直接 bypassP
+  // ermissions 模式 - 当
+  // 用户最初以绕过模式启动时的计划模式（isBypassPermissionsModeAvailable）
   const shouldBypassPermissions =
     appState.toolPermissionContext.mode === 'bypassPermissions' ||
     (appState.toolPermissionContext.mode === 'plan' &&
@@ -1280,7 +1252,7 @@ async function hasPermissionsToUseToolInner(
     }
   }
 
-  // 2b. Entire tool is allowed
+  // 2b. 整个工具被允许
   const alwaysAllowedRule = toolAlwaysAllowedRule(
     appState.toolPermissionContext,
     tool,
@@ -1296,7 +1268,7 @@ async function hasPermissionsToUseToolInner(
     }
   }
 
-  // 3. Convert "passthrough" to "ask"
+  // 3. 将 "passthrough" 转换为 "ask"
   const result: PermissionDecision =
     toolPermissionResult.behavior === 'passthrough'
       ? {
@@ -1311,7 +1283,7 @@ async function hasPermissionsToUseToolInner(
 
   if (result.behavior === 'ask' && result.suggestions) {
     logForDebugging(
-      `Permission suggestions for ${tool.name}: ${jsonStringify(result.suggestions, null, 2)}`,
+      `${tool.name} 的权限建议：${jsonStringify(result.suggestions, null, 2)}`,
     )
   }
 
@@ -1323,9 +1295,7 @@ type EditPermissionRuleArgs = {
   setToolPermissionContext: (updatedContext: ToolPermissionContext) => void
 }
 
-/**
- * Delete a permission rule from the appropriate destination
- */
+/** 从相应目标删除权限规则 */
 export async function deletePermissionRule({
   rule,
   initialContext,
@@ -1336,7 +1306,7 @@ export async function deletePermissionRule({
     rule.source === 'flagSettings' ||
     rule.source === 'command'
   ) {
-    throw new Error('Cannot delete permission rules from read-only settings')
+    throw new Error('无法从只读设置中删除权限规则')
   }
 
   const updatedContext = applyPermissionUpdate(initialContext, {
@@ -1346,13 +1316,13 @@ export async function deletePermissionRule({
     destination: rule.source as PermissionUpdateDestination,
   })
 
-  // Per-destination logic to delete the rule from settings
+  // 从设置中删除规则的按目标逻辑
   const destination = rule.source
   switch (destination) {
     case 'localSettings':
     case 'userSettings':
     case 'projectSettings': {
-      // Note: Typescript doesn't know that rule conforms to `PermissionRuleFromEditableSettings` even when we switch on `rule.source`
+      // 注意：即使我们根据 `rule.source` 进行切换，Typescript 也不知道规则符合 `PermissionRuleFromEditableSettings`
       deletePermissionRuleFromSettings(
         rule as PermissionRuleFromEditableSettings,
       )
@@ -1360,23 +1330,21 @@ export async function deletePermissionRule({
     }
     case 'cliArg':
     case 'session': {
-      // No action needed for in-memory sources - not persisted to disk
+      // 对于内存中的源无需操作 —— 不会持久化到磁盘
       break
     }
   }
 
-  // Update React state with updated context
+  // 使用更新后的上下文更新 React 状态
   setToolPermissionContext(updatedContext)
 }
 
-/**
- * Helper to convert PermissionRule array to PermissionUpdate array
- */
+/** 将 PermissionRule 数组转换为 PermissionUpdate 数组的辅助函数 */
 function convertRulesToUpdates(
   rules: PermissionRule[],
   updateType: 'addRules' | 'replaceRules',
 ): PermissionUpdate[] {
-  // Group rules by source and behavior
+  // 按来源和行为对规则进行分组
   const grouped = new Map<string, PermissionRuleValue[]>()
 
   for (const rule of rules) {
@@ -1387,7 +1355,7 @@ function convertRulesToUpdates(
     grouped.get(key)!.push(rule.ruleValue)
   }
 
-  // Convert to PermissionUpdate array
+  // 转换为 PermissionUpdate 数组
   const updates: PermissionUpdate[] = []
   for (const [key, ruleValues] of grouped) {
     const [source, behavior] = key.split(':')
@@ -1402,9 +1370,7 @@ function convertRulesToUpdates(
   return updates
 }
 
-/**
- * Apply permission rules to context (additive - for initial setup)
- */
+/** 将权限规则应用到上下文（累加模式 - 用于初始设置） */
 export function applyPermissionRulesToPermissionContext(
   toolPermissionContext: ToolPermissionContext,
   rules: PermissionRule[],
@@ -1413,16 +1379,14 @@ export function applyPermissionRulesToPermissionContext(
   return applyPermissionUpdates(toolPermissionContext, updates)
 }
 
-/**
- * Sync permission rules from disk (replacement - for settings changes)
- */
+/** 从磁盘同步权限规则（替换模式 - 用于设置变更） */
 export function syncPermissionRulesFromDisk(
   toolPermissionContext: ToolPermissionContext,
   rules: PermissionRule[],
 ): ToolPermissionContext {
   let context = toolPermissionContext
 
-  // When allowManagedPermissionRulesOnly is enabled, clear all non-policy sources
+  // 当启用 allowManagedPermissionRulesOnly 时，清除所有非策略来源的规则
   if (shouldAllowManagedPermissionRulesOnly()) {
     const sourcesToClear: PermissionUpdateDestination[] = [
       'userSettings',
@@ -1445,11 +1409,11 @@ export function syncPermissionRulesFromDisk(
     }
   }
 
-  // Clear all disk-based source:behavior combos before applying new rules.
-  // Without this, removing a rule from settings (e.g. deleting a deny entry)
-  // would leave the old rule in the context because convertRulesToUpdates
-  // only generates replaceRules for source:behavior pairs that have rules —
-  // an empty group produces no update, so stale rules persist.
+  // 在应用新规则前，清除所有基于磁盘的来源:行为组合。若不这样做
+  // ，从设置中移除规则（例如删除一个拒绝条目）会导致旧规则残留在上
+  // 下文中，因为 convertRulesToUpdates
+  // 仅针对有规则的来源:行为对生成 replaceRules —
+  // — 空分组不会产生更新，因此过时的规则会持续存在。
   const diskSources: PermissionUpdateDestination[] = [
     'userSettings',
     'projectSettings',
@@ -1470,10 +1434,8 @@ export function syncPermissionRulesFromDisk(
   return applyPermissionUpdates(context, updates)
 }
 
-/**
- * Extract updatedInput from a permission result, falling back to the original input.
- * Handles the case where some PermissionResult variants don't have updatedInput.
- */
+/** 从权限结果中提取 updatedInput，若不存在则回退到原始输入。
+处理某些 PermissionResult 变体没有 updatedInput 的情况。 */
 function getUpdatedInputOrFallback(
   permissionResult: PermissionResult,
   fallback: Record<string, unknown>,

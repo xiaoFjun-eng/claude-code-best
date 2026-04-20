@@ -354,10 +354,12 @@ export const AgentTool = buildTool({
     }
 
     // 筛选代理：首先根据 MCP 要求，然后根据权限规则
+    //某些 agent 声明了必须有某些 MCP server，没连上就不该让模型看到/选择它。
     const agentsWithMcpRequirementsMet = filterAgentsByMcpRequirements(
       agents,
       mcpServersWithTools,
     )
+    // 当前权限模式下（always allow/deny/ask）不允许的 agent 也不该列出来，避免模型选了也跑不起来。
     const filteredAgents = filterDeniedAgents(
       agentsWithMcpRequirementsMet,
       toolPermissionContext,
@@ -672,8 +674,7 @@ export const AgentTool = buildTool({
         const reasons = (eligibility as { eligible: false; errors: BackgroundRemoteSessionPrecondition[] }).errors
           .map(formatPreconditionError)
           .join('\n')
-        throw new Error(`无法启动远程代理：
-${reasons}`)
+        throw new Error(`无法启动远程代理：\n${reasons}`)
       }
 
       let bundleFailHint: string | undefined
@@ -824,7 +825,7 @@ ${reasons}`)
     const assistantForceAsync = feature('KAIROS')
       ? appState.kairosEnabled
       : false
-
+    //是否为异步Agent，决定是否需要创建异步代理
     const shouldRunAsync =
       (run_in_background === true ||
         selectedAgent.background === true ||

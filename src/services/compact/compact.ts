@@ -126,26 +126,22 @@ import {
 export const POST_COMPACT_MAX_FILES_TO_RESTORE = 5
 export const POST_COMPACT_TOKEN_BUDGET = 50_000
 export const POST_COMPACT_MAX_TOKENS_PER_FILE = 5_000
-// Skills can be large (verify=18.7KB, claude-api=20.1KB). Previously re-injected
-// unbounded on every compact → 5-10K tok/compact. Per-skill truncation beats
-// dropping — instructions at the top of a skill file are usually the critical
-// part. Budget sized to hold ~5 skills at the per-skill cap.
+// 技能可能很大（verify=18.7KB，claude-api=20.1
+// KB）。之前每次压缩时都会无限制地重新注入 → 每次压缩消耗 5-1
+// 0K 令牌。按技能截断优于丢弃——技能文件顶部的指令通常是关键部分。
+// 预算大小设置为能容纳约 5 个达到单技能上限的技能。
 export const POST_COMPACT_MAX_TOKENS_PER_SKILL = 5_000
 export const POST_COMPACT_SKILLS_TOKEN_BUDGET = 25_000
 const MAX_COMPACT_STREAMING_RETRIES = 2
 
-/**
- * Strip image blocks from user messages before sending for compaction.
- * Images are not needed for generating a conversation summary and can
- * cause the compaction API call itself to hit the prompt-too-long limit,
- * especially in CCD sessions where users frequently attach images.
- * Replaces image blocks with a text marker so the summary still notes
- * that an image was shared.
- *
- * Note: Only user messages contain images (either directly attached or within
- * tool_result content from tools). Assistant messages contain text, tool_use,
- * and thinking blocks but not images.
- */
+/** 在发送进行压缩前，从用户消息中剥离图像块。
+生成对话摘要不需要图像，并且可能导致压缩 API 调用本身触发提示过长限制，
+尤其是在用户频繁附加图像的 CCD 会话中。
+用文本标记替换图像块，以便摘要仍能记录
+有图像被分享。
+
+注意：只有用户消息包含图像（直接附加或在工具的工具结果内容中）。
+助手消息包含文本、tool_use 和思考块，但不包含图像。 */
 export function stripImagesFromMessages(messages: Message[]): Message[] {
   return messages.map(message => {
     if (message.type !== 'user') {
@@ -167,7 +163,7 @@ export function stripImagesFromMessages(messages: Message[]): Message[] {
         hasMediaBlock = true
         return [{ type: 'text' as const, text: '[document]' }]
       }
-      // Also strip images/documents nested inside tool_result content arrays
+      // 同时剥离嵌套在 tool_result 内容数组内的图像/文档
       if (block.type === 'tool_result' && Array.isArray(block.content)) {
         let toolHasMedia = false
         const newToolContent = block.content.map(item => {
@@ -203,15 +199,12 @@ export function stripImagesFromMessages(messages: Message[]): Message[] {
   })
 }
 
-/**
- * Strip attachment types that are re-injected post-compaction anyway.
- * skill_discovery/skill_listing are re-surfaced by resetSentSkillNames()
- * + the next turn's discovery signal, so feeding them to the summarizer
- * wastes tokens and pollutes the summary with stale skill suggestions.
- *
- * No-op when EXPERIMENTAL_SKILL_SEARCH is off (the attachment types
- * don't exist on external builds).
- */
+/** 剥离那些在压缩后无论如何都会重新注入的附件类型。
+skill_discovery/skill_listing 会被 resetSentSkillNames() 和下一轮的发现信号重新呈现，
+因此将它们提供给摘要器会浪费令牌，并用过时的技能建议污染摘要。
+
+当 EXPERIMENTAL_SKILL_SEARCH 关闭时无操作（这些附件类型
+在外部构建中不存在）。 */
 export function stripReinjectedAttachments(messages: Message[]): Message[] {
   if (feature('EXPERIMENTAL_SKILL_SEARCH')) {
     return messages.filter(
@@ -227,30 +220,25 @@ export function stripReinjectedAttachments(messages: Message[]): Message[] {
 }
 
 export const ERROR_MESSAGE_NOT_ENOUGH_MESSAGES =
-  'Not enough messages to compact.'
+  '消息数量不足以进行压缩。'
 const MAX_PTL_RETRIES = 3
-const PTL_RETRY_MARKER = '[earlier conversation truncated for compaction retry]'
+const PTL_RETRY_MARKER = '[为压缩重试而截断的先前对话]'
 
-/**
- * Drops the oldest API-round groups from messages until tokenGap is covered.
- * Falls back to dropping 20% of groups when the gap is unparseable (some
- * Vertex/Bedrock error formats). Returns null when nothing can be dropped
- * without leaving an empty summarize set.
- *
- * This is the last-resort escape hatch for CC-1180 — when the compact request
- * itself hits prompt-too-long, the user is otherwise stuck. Dropping the
- * oldest context is lossy but unblocks them. The reactive-compact path
- * (compactMessages.ts) has the proper retry loop that peels from the tail;
- * this helper is the dumb-but-safe fallback for the proactive/manual path
- * that wasn't migrated in bfdb472f's unification.
- */
+/** 从消息中丢弃最旧的 API 轮次组，直到覆盖 tokenGap。
+当间隙无法解析时（某些 Vertex/Bedrock 错误格式），回退到丢弃 20% 的组。
+当丢弃任何内容都会导致摘要集为空时返回 null。
+
+这是针对 CC-1180 的最后逃生舱口——当压缩请求本身遇到提示过长时，
+用户会被卡住。丢弃最旧的上下文是有损的，但能让他们继续。
+响应式压缩路径（compactMessages.ts）有适当的重试循环，从尾部剥离；
+此辅助函数是主动/手动路径的简单但安全的回退方案，该路径在 bfdb472f 的统一中未迁移。 */
 export function truncateHeadForPTLRetry(
   messages: Message[],
   ptlResponse: AssistantMessage,
 ): Message[] | null {
-  // Strip our own synthetic marker from a previous retry before grouping.
-  // Otherwise it becomes its own group 0 and the 20% fallback stalls
-  // (drops only the marker, re-adds it, zero progress on retry 2+).
+  // 在分组前，从先前的重试中剥离我们自己的合成标记。否则它
+  // 会成为自己的第 0 组，导致 20% 回退停滞（仅
+  // 丢弃标记，重新添加它，重试 2+ 次时零进展）。
   const input =
     messages[0]?.type === 'user' &&
     messages[0]?.isMeta &&
@@ -275,16 +263,16 @@ export function truncateHeadForPTLRetry(
     dropCount = Math.max(1, Math.floor(groups.length * 0.2))
   }
 
-  // Keep at least one group so there's something to summarize.
+  // 至少保留一个组，以便有内容可摘要。
   dropCount = Math.min(dropCount, groups.length - 1)
   if (dropCount < 1) return null
 
   const sliced = groups.slice(dropCount).flat()
-  // groupMessagesByApiRound puts the preamble in group 0 and starts every
-  // subsequent group with an assistant message. Dropping group 0 leaves an
-  // assistant-first sequence which the API rejects (first message must be
-  // role=user). Prepend a synthetic user marker — ensureToolResultPairing
-  // already handles any orphaned tool_results this creates.
+  // groupMessagesByApiRound 将前言放在第 0 组
+  // ，并以助手消息开始每个后续组。丢弃第 0 组会留下一个以助手开头的序列
+  // ，API 会拒绝（第一条消息必须是 role=user）。前置一个合
+  // 成的用户标记——ensureToolResultPairing 已经
+  // 处理了由此产生的任何孤立的 tool_results。
   if (sliced[0]?.type === 'assistant') {
     return [
       createUserMessage({ content: PTL_RETRY_MARKER, isMeta: true }),
@@ -295,10 +283,10 @@ export function truncateHeadForPTLRetry(
 }
 
 export const ERROR_MESSAGE_PROMPT_TOO_LONG =
-  'Conversation too long. Press esc twice to go up a few messages and try again.'
-export const ERROR_MESSAGE_USER_ABORT = 'API Error: Request was aborted.'
+  '对话过长。按两次 esc 键向上移动几条消息，然后重试。'
+export const ERROR_MESSAGE_USER_ABORT = 'API 错误：请求被中止。'
 export const ERROR_MESSAGE_INCOMPLETE_RESPONSE =
-  'Compaction interrupted · This may be due to network issues — please try again.'
+  '压缩中断 · 这可能是由于网络问题——请重试。'
 
 export interface CompactionResult {
   boundaryMarker: SystemMessage
@@ -313,11 +301,8 @@ export interface CompactionResult {
   compactionUsage?: ReturnType<typeof getTokenUsage>
 }
 
-/**
- * Diagnosis context passed from autoCompactIfNeeded into compactConversation.
- * Lets the tengu_compact event disambiguate same-chain loops (H2) from
- * cross-agent (H1/H5) and manual-vs-auto (H3) compactions without joins.
- */
+/** 从 autoCompactIfNeeded 传递到 compactConversation 的诊断上下文。
+让 tengu_compact 事件能够区分同链循环（H2）、跨代理（H1/H5）和手动与自动（H3）压缩，而无需连接。 */
 export type RecompactionInfo = {
   isRecompactionInChain: boolean
   turnsSincePreviousCompact: number
@@ -326,11 +311,9 @@ export type RecompactionInfo = {
   querySource?: QuerySource
 }
 
-/**
- * Build the base post-compact messages array from a CompactionResult.
- * This ensures consistent ordering across all compaction paths.
- * Order: boundaryMarker, summaryMessages, messagesToKeep, attachments, hookResults
- */
+/** 从 CompactionResult 构建压缩后的基础消息数组。
+这确保了所有压缩路径的顺序一致性。
+顺序：boundaryMarker、summaryMessages、messagesToKeep、attachments、hookResults */
 export function buildPostCompactMessages(result: CompactionResult): Message[] {
   return [
     result.boundaryMarker,
@@ -341,15 +324,13 @@ export function buildPostCompactMessages(result: CompactionResult): Message[] {
   ]
 }
 
-/**
- * Annotate a compact boundary with relink metadata for messagesToKeep.
- * Preserved messages keep their original parentUuids on disk (dedup-skipped);
- * the loader uses this to patch head→anchor and anchor's-other-children→tail.
- *
- * `anchorUuid` = what sits immediately before keep[0] in the desired chain:
- *   - suffix-preserving (reactive/session-memory): last summary message
- *   - prefix-preserving (partial compact): the boundary itself
- */
+/** 为 messagesToKeep 使用重链接元数据标注压缩边界。
+保留的消息在磁盘上保持其原始 parentUuids（去重跳过）；
+加载器使用此信息来修补 head→anchor 和 anchor 的其他子节点→tail。
+
+`anchorUuid` = 在期望链中紧接在 keep[0] 之前的内容：
+  - 后缀保留（响应式/会话内存）：最后一条摘要消息
+  - 前缀保留（部分压缩）：边界本身 */
 export function annotateBoundaryWithPreservedSegment(
   boundary: SystemCompactBoundaryMessage,
   anchorUuid: UUID,
@@ -370,11 +351,9 @@ export function annotateBoundaryWithPreservedSegment(
   }
 }
 
-/**
- * Merges user-supplied custom instructions with hook-provided instructions.
- * User instructions come first; hook instructions are appended.
- * Empty strings normalize to undefined.
- */
+/** 合并用户提供的自定义指令与钩子提供的指令。
+用户指令在前；钩子指令附加在后。
+空字符串规范化为 undefined。 */
 export function mergeHookInstructions(
   userInstructions: string | undefined,
   hookInstructions: string | undefined,
@@ -384,10 +363,7 @@ export function mergeHookInstructions(
   return `${userInstructions}\n\n${hookInstructions}`
 }
 
-/**
- * Creates a compact version of a conversation by summarizing older messages
- * and preserving recent conversation history.
- */
+/** 通过摘要较早的消息并保留最近的对话历史，创建对话的压缩版本。 */
 export async function compactConversation(
   messages: Message[],
   context: ToolUseContext,
@@ -412,7 +388,7 @@ export async function compactConversation(
       hookType: 'pre_compact',
     })
 
-    // Execute PreCompact hooks
+    // 执行 PreCompact 钩子
     context.setSDKStatus?.('compacting')
     const hookResult = await executePreCompactHooks(
       {
@@ -427,15 +403,15 @@ export async function compactConversation(
     )
     const userDisplayMessage = hookResult.userDisplayMessage
 
-    // Show requesting mode with up arrow and custom message
+    // 显示带有上箭头和自定义消息的请求模式
     context.setStreamMode?.('requesting')
     context.setResponseLength?.(() => 0)
     context.onCompactProgress?.({ type: 'compact_start' })
 
-    // 3P default: true — forked-agent path reuses main conversation's prompt cache.
-    // Experiment (Jan 2026) confirmed: false path is 98% cache miss, costs ~0.76% of
-    // fleet cache_creation (~38B tok/day), concentrated in ephemeral envs (CCR/GHA/SDK)
-    // with cold GB cache and 3P providers where GB is disabled. GB gate kept as kill-switch.
+    // 第三方默认：true——分叉代理路径重用主对话的提示缓存。实验（2026 年 1
+    // 月）确认：false 路径有 98% 的缓存未命中，消耗约 0.76% 的舰队 c
+    // ache_creation（约 38B 令牌/天），集中在具有冷 GB 缓存和禁用 G
+    // B 的第三方提供商的临时环境（CCR/GHA/SDK）中。保留 GB 门控作为紧急关闭开关。
     const promptCacheSharingEnabled = getFeatureValue_CACHED_MAY_BE_STALE(
       'tengu_compact_cache_prefix',
       true,
@@ -463,8 +439,8 @@ export async function compactConversation(
       summary = getAssistantMessageText(summaryResponse)
       if (!summary?.startsWith(PROMPT_TOO_LONG_ERROR_MESSAGE)) break
 
-      // CC-1180: compact request itself hit prompt-too-long. Truncate the
-      // oldest API-round groups and retry rather than leaving the user stuck.
+      // CC-1180：压缩请求本身遇到提示过长。截断
+      // 最旧的 API 轮次组并重试，而不是让用户卡住。
       ptlAttempts++
       const truncated =
         ptlAttempts <= MAX_PTL_RETRIES
@@ -486,8 +462,8 @@ export async function compactConversation(
         remainingMessages: truncated.length,
       })
       messagesToSummarize = truncated
-      // The forked-agent path reads from cacheSafeParams.forkContextMessages,
-      // not the messages param — thread the truncated set through both paths.
+      // 分叉代理路径从 cacheSafeParams.forkContextMessa
+      // ges 读取，而不是 messages 参数——将截断后的集合通过两条路径传递。
       retryCacheSafeParams = {
         ...retryCacheSafeParams,
         forkContextMessages: truncated,
@@ -496,7 +472,7 @@ export async function compactConversation(
 
     if (!summary) {
       logForDebugging(
-        `Compact failed: no summary text in response. Response: ${jsonStringify(summaryResponse)}`,
+        `压缩失败：响应中没有摘要文本。响应：${jsonStringify(summaryResponse)}`,
         { level: 'error' },
       )
       logEvent('tengu_compact_failed', {
@@ -506,7 +482,7 @@ export async function compactConversation(
         promptCacheSharingEnabled,
       })
       throw new Error(
-        `Failed to generate conversation summary - response did not contain valid text content`,
+        `生成对话摘要失败 - 响应未包含有效的文本内容`,
       )
     } else if (startsWithApiErrorPrefix(summary)) {
       logEvent('tengu_compact_failed', {
@@ -518,21 +494,21 @@ export async function compactConversation(
       throw new Error(summary)
     }
 
-    // Store the current file state before clearing
+    // 在清除前存储当前文件状态
     const preCompactReadFileState = cacheToObject(context.readFileState)
 
-    // Clear the cache
+    // 清除缓存
     context.readFileState.clear()
     context.loadedNestedMemoryPaths?.clear()
 
-    // Intentionally NOT resetting sentSkillNames: re-injecting the full
-    // skill_listing (~4K tokens) post-compact is pure cache_creation with
-    // marginal benefit. The model still has SkillTool in its schema and
-    // invoked_skills attachment (below) preserves used-skill content. Ants
-    // with EXPERIMENTAL_SKILL_SEARCH already skip re-injection via the
-    // early-return in getSkillListingAttachments.
+    // 故意不重置 sentSkillNames：压缩后重新注入完整的 skill
+    // _listing（约 4K 令牌）纯粹是 cache_creation，边际效
+    // 益很小。模型在其模式中仍有 SkillTool，并且 invoked_sk
+    // ills 附件（下方）保留了已使用技能的内容。具有 EXPERIMENTAL_
+    // SKILL_SEARCH 的蚂蚁已经通过 getSkillListingA
+    // ttachments 中的提前返回来跳过重新注入。
 
-    // Run async attachment generation in parallel
+    // 并行运行异步附件生成
     const [fileAttachments, asyncAgentAttachments] = await Promise.all([
       createPostCompactFileAttachments(
         preCompactReadFileState,
@@ -551,23 +527,23 @@ export async function compactConversation(
       postCompactFileAttachments.push(planAttachment)
     }
 
-    // Add plan mode instructions if currently in plan mode, so the model
-    // continues operating in plan mode after compaction
+    // 如果当前处于计划模式，则添加计划模式指令，以
+    // 便模型在压缩后继续以计划模式运行
     const planModeAttachment = await createPlanModeAttachmentIfNeeded(context)
     if (planModeAttachment) {
       postCompactFileAttachments.push(planModeAttachment)
     }
 
-    // Add skill attachment if skills were invoked in this session
+    // 如果在此会话中调用了技能，则添加技能附件
     const skillAttachment = createSkillAttachmentIfNeeded(context.agentId)
     if (skillAttachment) {
       postCompactFileAttachments.push(skillAttachment)
     }
 
-    // Compaction ate prior delta attachments. Re-announce from the current
-    // state so the model has tool/instruction context on the first
-    // post-compact turn. Empty message history → diff against nothing →
-    // announces the full set.
+    // 压缩消耗了先前的增量附件。从当前状态重新宣布
+    // ，以便模型在压缩后的第一轮拥有工具/指
+    // 令上下文。空消息历史 → 与无内容比较 →
+    // 宣布完整集合。
     for (const att of getDeferredToolsDeltaAttachment(
       context.options.tools,
       context.options.mainLoopModel,
@@ -592,21 +568,21 @@ export async function compactConversation(
       type: 'hooks_start',
       hookType: 'session_start',
     })
-    // Execute SessionStart hooks after successful compaction
+    // 在成功压缩后执行 SessionStart 钩子
     const hookMessages = await processSessionStartHooks('compact', {
       model: context.options.mainLoopModel,
     })
 
-    // Create the compact boundary marker and summary messages before the
-    // event so we can compute the true resulting-context size.
+    // 在事件前创建压缩边界标记和摘要消息，以便
+    // 我们可以计算真正的结果上下文大小。
     const boundaryMarker = createCompactBoundaryMessage(
       isAutoCompact ? 'auto' : 'manual',
       preCompactTokenCount ?? 0,
       messages.at(-1)?.uuid,
     )
-    // Carry loaded-tool state — the summary doesn't preserve tool_reference
-    // blocks, so the post-compact schema filter needs this to keep sending
-    // already-loaded deferred tool schemas to the API.
+    // 携带已加载工具状态——摘要不保留 tool_refer
+    // ence 块，因此压缩后的模式过滤器需要此信息来继续
+    // 向 API 发送已加载的延迟工具模式。
     const preCompactDiscovered = extractDiscoveredToolNames(messages)
     if (preCompactDiscovered.size > 0) {
       boundaryMarker.compactMetadata.preCompactDiscoveredTools = [
@@ -627,17 +603,17 @@ export async function compactConversation(
       }),
     ]
 
-    // Previously "postCompactTokenCount" — renamed because this is the
-    // compact API call's total usage (input_tokens ≈ preCompactTokenCount),
-    // NOT the size of the resulting context. Kept for event-field continuity.
+    // 先前为“postCompactTokenCount”——重命名是因为这
+    // 是压缩 API 调用的总使用量（input_tokens ≈ preComp
+    // actTokenCount），而不是结果上下文的大小。为事件字段连续性而保留。
     const compactionCallTotalTokens = tokenCountFromLastAPIResponse([
       summaryResponse,
     ])
 
-    // Message-payload estimate of the resulting context. The next iteration's
-    // shouldAutoCompact will see this PLUS ~20-40K for system prompt + tools +
-    // userContext (via API usage.input_tokens). So `willRetriggerNextTurn: true`
-    // is a strong signal; `false` may still retrigger when this is close to threshold.
+    // 结果上下文的消息负载估计。下一次迭代的 shouldAutoCompact 将看到
+    // 此值加上系统提示 + 工具 + userContext 的约 20-40K（通过
+    // API usage.input_tokens）。因此 `willRetriggerNe
+    // xtTurn: true` 是一个强烈信号；`false` 在此值接近阈值时仍可能重新触发。
     const truePostCompactTokenCount = roughTokenCountEstimationForMessages([
       boundaryMarker,
       ...summaryMessages,
@@ -645,7 +621,7 @@ export async function compactConversation(
       ...hookMessages,
     ] as Parameters<typeof roughTokenCountEstimationForMessages>[0])
 
-    // Extract compaction API usage metrics
+    // 提取压缩 API 使用指标
     const compactionUsage = getTokenUsage(summaryResponse)
 
     const querySourceForEvent =
@@ -653,7 +629,7 @@ export async function compactConversation(
 
     logEvent('tengu_compact', {
       preCompactTokenCount,
-      // Kept for continuity — semantically the compact API call's total usage
+      // 为连续性而保留——语义上是压缩 API 调用的总使用量
       postCompactTokenCount: compactionCallTotalTokens,
       truePostCompactTokenCount,
       autoCompactThreshold: recompactionInfo?.autoCompactThreshold ?? -1,
@@ -683,11 +659,11 @@ export async function compactConversation(
           compactionUsage.output_tokens
         : 0,
       promptCacheSharingEnabled,
-      // analyzeContext walks every content block (~11ms on a 4.5K-message
-      // session) purely for this telemetry breakdown. Computed here, past
-      // the compaction-API await, so the sync walk doesn't starve the
-      // render loop before compaction even starts. Same deferral pattern
-      // as reactiveCompact.ts.
+      // analyzeContext 遍历每个内容块（在 4.5K
+      // 条消息的会话上约 11 毫秒）纯粹是为了此遥测细分。在此
+      // 处计算，在压缩 API 等待之后，以便同步遍历不会在压缩
+      // 开始前饿死渲染循环。与 reactiveCompact.t
+      // s 相同的延迟模式。
       ...(() => {
         try {
           return tokenStatsToStatsigMetrics(analyzeContext(messages))
@@ -698,7 +674,7 @@ export async function compactConversation(
       })(),
     })
 
-    // Reset cache read baseline so the post-compact drop isn't flagged as a break
+    // 重置缓存读取基线，以便压缩后的下降不会被标记为中断
     if (feature('PROMPT_CACHE_BREAK_DETECTION')) {
       notifyCompaction(
         context.options.querySource ?? 'compact',
@@ -707,15 +683,15 @@ export async function compactConversation(
     }
     markPostCompaction()
 
-    // Re-append session metadata (custom title, tag) so it stays within
-    // the 16KB tail window that readLiteMetadata reads for --resume display.
-    // Without this, enough post-compaction messages push the metadata entry
-    // out of the window, causing --resume to show the auto-generated title
-    // instead of the user-set session name.
+    // 重新附加会话元数据（自定义标题、标签），使其保持在 re
+    // adLiteMetadata 为 --resume 显示而读
+    // 取的 16KB 尾部窗口内。没有这个，足够的压缩后消息会将
+    // 元数据条目推出窗口，导致 --resume 显示自动生成的
+    // 标题而不是用户设置的会话名称。
     reAppendSessionMetadata()
 
-    // Write a reduced transcript segment for the pre-compaction messages
-    // (assistant mode only). Fire-and-forget — errors are logged internally.
+    // 为压缩前的消息写入一个简化的转录片段（仅
+    // 助手模式）。触发后不管——错误在内部记录。
     if (feature('KAIROS')) {
       void sessionTranscriptModule?.writeSessionTranscriptSegment(messages)
     }
@@ -751,9 +727,9 @@ export async function compactConversation(
       compactionUsage,
     }
   } catch (error) {
-    // Only show the error notification for manual /compact.
-    // Auto-compact failures are retried on the next turn and the
-    // notification is confusing when compaction eventually succeeds.
+    // 仅对手动 /compact 显示错
+    // 误通知。自动压缩失败会在下一轮重试，
+    // 并且当压缩最终成功时，通知会令人困惑。
     if (!isAutoCompact) {
       addErrorNotificationIfNeeded(error, context)
     }
@@ -766,13 +742,11 @@ export async function compactConversation(
   }
 }
 
-/**
- * Performs a partial compaction around the selected message index.
- * Direction 'from': summarizes messages after the index, keeps earlier ones.
- *   Prompt cache for kept (earlier) messages is preserved.
- * Direction 'up_to': summarizes messages before the index, keeps later ones.
- *   Prompt cache is invalidated since the summary precedes the kept messages.
- */
+/** 围绕选定的消息索引执行部分压缩。
+方向 'from'：摘要索引之后的消息，保留较早的。
+  保留（较早）消息的提示缓存被保留。
+方向 'up_to'：摘要索引之前的消息，保留较晚的。
+  提示缓存失效，因为摘要位于保留消息之前。 */
 export async function partialCompactConversation(
   allMessages: Message[],
   pivotIndex: number,
@@ -786,11 +760,11 @@ export async function partialCompactConversation(
       direction === 'up_to'
         ? allMessages.slice(0, pivotIndex)
         : allMessages.slice(pivotIndex)
-    // 'up_to' must strip old compact boundaries/summaries: for 'up_to',
-    // summary_B sits BEFORE kept, so a stale boundary_A in kept wins
-    // findLastCompactBoundaryIndex's backward scan and drops summary_B.
-    // 'from' keeps them: summary_B sits AFTER kept (backward scan still
-    // works), and removing an old summary would lose its covered history.
+    // 'up_to' 必须剥离旧的压缩边界/摘要：对于 'up_to'，summa
+    // ry_B 位于保留消息之前，因此保留消息中的陈旧 boundary_A
+    // 会在 findLastCompactBoundaryIndex 的后向扫描中
+    // 胜出并丢弃 summary_B。'from' 保留它们：summary_B
+    // 位于保留消息之后（后向扫描仍然有效），并且移除旧的摘要会丢失其覆盖的历史。
     const messagesToKeep =
       direction === 'up_to'
         ? allMessages
@@ -806,8 +780,8 @@ export async function partialCompactConversation(
     if (messagesToSummarize.length === 0) {
       throw new Error(
         direction === 'up_to'
-          ? 'Nothing to summarize before the selected message.'
-          : 'Nothing to summarize after the selected message.',
+          ? '在选定消息之前没有内容可摘要。'
+          : '在选定消息之后没有内容可摘要。',
       )
     }
 
@@ -827,14 +801,16 @@ export async function partialCompactConversation(
       context.abortController.signal,
     )
 
-    // Merge hook instructions with user feedback
+    // 将钩子指令与用户反馈合并
     let customInstructions: string | undefined
     if (hookResult.newCustomInstructions && userFeedback) {
-      customInstructions = `${hookResult.newCustomInstructions}\n\nUser context: ${userFeedback}`
+      customInstructions = `${hookResult.newCustomInstructions}
+
+用户上下文：${userFeedback}`
     } else if (hookResult.newCustomInstructions) {
       customInstructions = hookResult.newCustomInstructions
     } else if (userFeedback) {
-      customInstructions = `User context: ${userFeedback}`
+      customInstructions = `用户上下文：${userFeedback}`
     }
 
     context.setStreamMode?.('requesting')
@@ -853,8 +829,8 @@ export async function partialCompactConversation(
       messagesSummarized: messagesToSummarize.length,
     }
 
-    // 'up_to' prefix hits cache directly; 'from' sends all (tail wouldn't cache).
-    // PTL retry breaks the cache prefix but unblocks the user (CC-1180).
+    // 'up_to' 前缀直接命中缓存；'from' 发送所有内容（尾部不会被缓存
+    // ）。PTL 重试会破坏缓存前缀，但能让用户继续（CC-1180）。
     let apiMessages = direction === 'up_to' ? messagesToSummarize : allMessages
     let retryCacheSafeParams =
       direction === 'up_to'
@@ -908,7 +884,7 @@ export async function partialCompactConversation(
         ...failureMetadata,
       })
       throw new Error(
-        'Failed to generate conversation summary - response did not contain valid text content',
+        '生成对话摘要失败 - 响应未包含有效的文本内容',
       )
     } else if (startsWithApiErrorPrefix(summary)) {
       logEvent('tengu_partial_compact_failed', {
@@ -919,12 +895,12 @@ export async function partialCompactConversation(
       throw new Error(summary)
     }
 
-    // Store the current file state before clearing
+    // 在清除前存储当前文件状态
     const preCompactReadFileState = cacheToObject(context.readFileState)
     context.readFileState.clear()
     context.loadedNestedMemoryPaths?.clear()
-    // Intentionally NOT resetting sentSkillNames — see compactConversation()
-    // for rationale (~4K tokens saved per compact event).
+    // 故意不重置 sentSkillNames——参见 compactConvers
+    // ation() 的理由（每次压缩事件节省约 4K 令牌）。
 
     const [fileAttachments, asyncAgentAttachments] = await Promise.all([
       createPostCompactFileAttachments(
@@ -945,7 +921,7 @@ export async function partialCompactConversation(
       postCompactFileAttachments.push(planAttachment)
     }
 
-    // Add plan mode instructions if currently in plan mode
+    // 如果当前处于计划模式，则添加计划模式指令
     const planModeAttachment = await createPlanModeAttachmentIfNeeded(context)
     if (planModeAttachment) {
       postCompactFileAttachments.push(planModeAttachment)
@@ -956,8 +932,8 @@ export async function partialCompactConversation(
       postCompactFileAttachments.push(skillAttachment)
     }
 
-    // Re-announce only what was in the summarized portion — messagesToKeep
-    // is scanned, so anything already announced there is skipped.
+    // 仅重新宣布摘要部分的内容——扫描 messagesTo
+    // Keep，因此任何已在那里宣布的内容都会被跳过。
     for (const att of getDeferredToolsDeltaAttachment(
       context.options.tools,
       context.options.mainLoopModel,
@@ -1008,8 +984,8 @@ export async function partialCompactConversation(
         compactionUsage?.cache_creation_input_tokens ?? 0,
     })
 
-    // Progress messages aren't loggable, so forkSessionImpl would null out
-    // a logicalParentUuid pointing at one. Both directions skip them.
+    // 进度消息不可记录，因此 forkSessionImpl 会将指向它们的
+    // logicalParentUuid 置空。两个方向都跳过它们。
     const lastPreCompactUuid =
       direction === 'up_to'
         ? allMessages.slice(0, pivotIndex).findLast(m => m.type !== 'progress')
@@ -1022,8 +998,8 @@ export async function partialCompactConversation(
       userFeedback,
       messagesToSummarize.length,
     )
-    // allMessages not just messagesToSummarize — set union is idempotent,
-    // simpler than tracking which half each tool lived in.
+    // allMessages 而不仅仅是 messagesToSummariz
+    // e——集合并集是幂等的，比跟踪每个工具位于哪一半更简单。
     const preCompactDiscovered = extractDiscoveredToolNames(allMessages)
     if (preCompactDiscovered.size > 0) {
       boundaryMarker.compactMetadata.preCompactDiscoveredTools = [
@@ -1056,8 +1032,8 @@ export async function partialCompactConversation(
     }
     markPostCompaction()
 
-    // Re-append session metadata (custom title, tag) so it stays within
-    // the 16KB tail window that readLiteMetadata reads for --resume display.
+    // 重新附加会话元数据（自定义标题、标签），使其保持在 readLiteM
+    // etadata 为 --resume 显示而读取的 16KB 尾部窗口内。
     reAppendSessionMetadata()
 
     if (feature('KAIROS')) {
@@ -1078,7 +1054,7 @@ export async function partialCompactConversation(
       context.abortController.signal,
     )
 
-    // 'from': prefix-preserving → boundary; 'up_to': suffix → last summary
+    // 'from'：前缀保留 → 边界；'up_to'：后缀 → 最后摘要
     const anchorUuid =
       direction === 'up_to'
         ? (summaryMessages.at(-1)?.uuid ?? boundaryMarker.uuid)
@@ -1119,7 +1095,7 @@ function addErrorNotificationIfNeeded(
   ) {
     context.addNotification?.({
       key: 'error-compacting-conversation',
-      text: 'Error compacting conversation',
+      text: '压缩对话时出错',
       priority: 'immediate',
       color: 'error',
     })
@@ -1129,10 +1105,10 @@ function addErrorNotificationIfNeeded(
 export function createCompactCanUseTool(): CanUseToolFn {
   return async () => ({
     behavior: 'deny' as const,
-    message: 'Tool use is not allowed during compaction',
+    message: '压缩期间不允许使用工具',
     decisionReason: {
       type: 'other' as const,
-      reason: 'compaction agent should only produce text summary',
+      reason: '压缩代理应仅生成文本摘要',
     },
   })
 }
@@ -1152,22 +1128,22 @@ async function streamCompactSummary({
   preCompactTokenCount: number
   cacheSafeParams: CacheSafeParams
 }): Promise<AssistantMessage> {
-  // When prompt cache sharing is enabled, use forked agent to reuse the
-  // main conversation's cached prefix (system prompt, tools, context messages).
-  // Falls back to regular streaming path on failure.
-  // 3P default: true — see comment at the other tengu_compact_cache_prefix read above.
+  // 当启用提示缓存共享时，使用分叉代理来重用主对话的缓存前
+  // 缀（系统提示、工具、上下文消息）。失败时回退到常规流式路径。第
+  // 三方默认：true——参见上方另一个 t
+  // engu_compact_cache_prefix 读取处的注释。
   const promptCacheSharingEnabled = getFeatureValue_CACHED_MAY_BE_STALE(
     'tengu_compact_cache_prefix',
     true,
   )
-  // Send keep-alive signals during compaction to prevent remote session
-  // WebSocket idle timeouts from dropping bridge connections. Compaction
-  // API calls can take 5-10+ seconds, during which no other messages
-  // flow through the transport — without keep-alives, the server may
-  // close the WebSocket for inactivity.
-  // Two signals: (1) PUT /worker heartbeat via sessionActivity, and
-  // (2) re-emit 'compacting' status so the SDK event stream stays active
-  // and the server doesn't consider the session stale.
+  // 在压缩期间发送保活信号，以防止远程会话 WebSocket
+  // 空闲超时断开桥接连接。压缩 API 调用可能需要 5-10+
+  // 秒，在此期间没有其他消息通过传输层——没有保活，服务器
+  // 可能因不活动而关闭 WebSocket。两个信号：(1)
+  // 通过 sessionActi
+  // vity 发送 PUT /worker 心跳，以及 (2
+  // ) 重新发出 'compacting' 状态，以便 SDK
+  // 事件流保持活动状态，服务器不会认为会话已过期。
   const activityInterval = isSessionActivityTrackingActive()
     ? setInterval(
         (statusSetter?: (status: 'compacting' | null) => void) => {
@@ -1182,13 +1158,13 @@ async function streamCompactSummary({
   try {
     if (promptCacheSharingEnabled) {
       try {
-        // DO NOT set maxOutputTokens here. The fork piggybacks on the main thread's
-        // prompt cache by sending identical cache-key params (system, tools, model,
-        // messages prefix, thinking config). Setting maxOutputTokens would clamp
-        // budget_tokens via Math.min(budget, maxOutputTokens-1) in claude.ts,
-        // creating a thinking config mismatch that invalidates the cache.
-        // The streaming fallback path (below) can safely set maxOutputTokensOverride
-        // since it doesn't share cache with the main thread.
+        // 不要在此处设置 maxOutputTokens。分叉通过发送相同的缓存键
+        // 参数（系统、工具、模型、消息前缀、思考配置）来搭载主线程的提示缓存。设置
+        // maxOutputTokens 会通过 claude.ts 中的 M
+        // ath.min(budget, maxOutputTokens-1
+        // ) 限制 budget_tokens，造成思考配置不匹配，从而
+        // 使缓存失效。流式回退路径（下方）可以安全地设置 maxOutputToke
+        // nsOverride，因为它不与主线程共享缓存。
         const result = await runForkedAgent({
           promptMessages: [summaryRequest],
           cacheSafeParams,
@@ -1197,23 +1173,23 @@ async function streamCompactSummary({
           forkLabel: 'compact',
           maxTurns: 1,
           skipCacheWrite: true,
-          // Pass the compact context's abortController so user Esc aborts the
-          // fork — same signal the streaming fallback uses at
-          // `signal: context.abortController.signal` below.
+          // 传递压缩上下文的 abortController，以便用户按 Esc 键中止分叉—
+          // —与下方流式回退在 `signal: context.abor
+          // tController.signal` 处使用的信号相同。
           overrides: { abortController: context.abortController },
         })
         const assistantMsg = getLastAssistantMessage(result.messages)
         const assistantText = assistantMsg
           ? getAssistantMessageText(assistantMsg)
           : null
-        // Guard isApiErrorMessage: query() catches API errors (including
-        // APIUserAbortError on ESC) and yields them as synthetic assistant
-        // messages. Without this check, an aborted compact "succeeds" with
-        // "Request was aborted." as the summary — the text doesn't start with
-        // "API Error" so the caller's startsWithApiErrorPrefix guard misses it.
+        // 保护 isApiErrorMessage：query() 捕获 A
+        // PI 错误（包括按 Esc 键时的 APIUserAbortErro
+        // r）并将它们作为合成的助手消息产生。没有此检查，一个被中止的压缩会“
+        // 成功”并返回“请求被中止。”作为摘要——文本不以“API 错误”开头，因
+        // 此调用者的 startsWithApiErrorPrefix 保护会错过它。
         if (assistantMsg && assistantText && !assistantMsg.isApiErrorMessage) {
-          // Skip success logging for PTL error text — it's returned so the
-          // caller's retry loop catches it, but it's not a successful summary.
+          // 跳过 PTL 错误文本的成功日志记录——它被返回
+          // 以便调用者的重试循环捕获它，但它不是一个成功的摘要。
           if (!assistantText.startsWith(PROMPT_TOO_LONG_ERROR_MESSAGE)) {
             logEvent('tengu_compact_cache_sharing_success', {
               preCompactTokenCount,
@@ -1233,7 +1209,7 @@ async function streamCompactSummary({
           return assistantMsg
         }
         logForDebugging(
-          `Compact cache sharing: no text in response, falling back. Response: ${jsonStringify(assistantMsg)}`,
+          `压缩缓存共享：响应中无文本，正在回退。响应：${jsonStringify(assistantMsg)}`,
           { level: 'warn' },
         )
         logEvent('tengu_compact_cache_sharing_fallback', {
@@ -1251,7 +1227,7 @@ async function streamCompactSummary({
       }
     }
 
-    // Regular streaming path (fallback when cache sharing fails or is disabled)
+    // 常规流式路径（当缓存共享失败或禁用时的回退）
     const retryEnabled = getFeatureValue_CACHED_MAY_BE_STALE(
       'tengu_compact_streaming_retry',
       false,
@@ -1259,13 +1235,13 @@ async function streamCompactSummary({
     const maxAttempts = retryEnabled ? MAX_COMPACT_STREAMING_RETRIES : 1
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      // Reset state for retry
+      // 为重试重置状态
       let hasStartedStreaming = false
       let response: AssistantMessage | undefined
       context.setResponseLength?.(() => 0)
 
-      // Check if tool search is enabled using the main loop's tools list.
-      // context.options.tools includes MCP tools merged via useMergedTools.
+      // 使用主循环的工具列表检查工具搜索是否启用。context.options
+      // .tools 包括通过 useMergedTools 合并的 MCP 工具。
       const useToolSearch = await isToolSearchEnabled(
         context.options.mainLoopModel,
         context.options.tools,
@@ -1274,14 +1250,14 @@ async function streamCompactSummary({
         'compact',
       )
 
-      // When tool search is enabled, include ToolSearchTool and MCP tools. They get
-      // defer_loading: true and don't count against context - the API filters them out
-      // of system_prompt_tools before token counting (see api/token_count_api/counting.py:188
-      // and api/public_api/messages/handler.py:324).
-      // Filter MCP tools from context.options.tools (not appState.mcp.tools) so we
-      // get the permission-filtered set from useMergedTools — same source used for
-      // isToolSearchEnabled above and normalizeMessagesForAPI below.
-      // Deduplicate by name to avoid API errors when MCP tools share names with built-in tools.
+      // 当工具搜索启用时，包含 ToolSearchTool 和 MCP 工具。它们获得 defer_lo
+      // ading: true 并且不计入上下文——API 在令牌计数前将它们从 system_prompt_
+      // tools 中过滤掉（参见 api/token_count_api/counting.py:188 和 api/
+      // public_api/messages/handler.p
+      // y:324）。从 context.options.tools（而不是 appState.mcp.t
+      // ools）中过滤 MCP 工具，以便我们从 useMergedTools 获得权限过滤后的集合——
+      // 与上方 isToolSearchEnabled 和下方 normalizeMes
+      // sagesForAPI 使用的来源相同。按名称去重，以避免当 MCP 工具与内置工具共享名称时出现 API 错误。
       const tools: Tool[] = useToolSearch
         ? uniqBy(
             [
@@ -1304,7 +1280,7 @@ async function streamCompactSummary({
           context.options.tools,
         ),
         systemPrompt: asSystemPrompt([
-          'You are a helpful AI assistant tasked with summarizing conversations.',
+          '你是一个有帮助的 AI 助手，负责摘要对话。',
         ]),
         thinkingConfig: { type: 'disabled' as const },
         tools,
@@ -1378,7 +1354,7 @@ async function streamCompactSummary({
       }
 
       logForDebugging(
-        `Compact streaming failed after ${attempt} attempts. hasStartedStreaming=${hasStartedStreaming}`,
+        `压缩流式传输在 ${attempt} 次尝试后失败。hasStartedStreaming=${hasStartedStreaming}`,
         { level: 'error' },
       )
       logEvent('tengu_compact_failed', {
@@ -1393,30 +1369,27 @@ async function streamCompactSummary({
       throw new Error(ERROR_MESSAGE_INCOMPLETE_RESPONSE)
     }
 
-    // This should never be reached due to the throw above, but TypeScript needs it
+    // 由于上方的抛出，这应该永远不会到达，但 TypeScript 需要它
     throw new Error(ERROR_MESSAGE_INCOMPLETE_RESPONSE)
   } finally {
     clearInterval(activityInterval)
   }
 }
 
-/**
- * Creates attachment messages for recently accessed files to restore them after compaction.
- * This prevents the model from having to re-read files that were recently accessed.
- * Re-reads files using FileReadTool to get fresh content with proper validation.
- * Files are selected based on recency, but constrained by both file count and token budget limits.
- *
- * Files already present as Read tool results in preservedMessages are skipped —
- * re-injecting identical content the model can already see in the preserved tail
- * is pure waste (up to 25K tok/compact). Mirrors the diff-against-preserved
- * pattern that getDeferredToolsDeltaAttachment uses at the same call sites.
- *
- * @param readFileState The current file state tracking recently read files
- * @param toolUseContext The tool use context for calling FileReadTool
- * @param maxFiles Maximum number of files to restore (default: 5)
- * @param preservedMessages Messages kept post-compact; Read results here are skipped
- * @returns Array of attachment messages for the most recently accessed files that fit within token budget
- */
+/** 为最近访问的文件创建附件消息，以便在压缩后恢复它们。
+这可以防止模型不得不重新读取最近访问过的文件。
+使用 FileReadTool 重新读取文件以获取经过适当验证的新鲜内容。
+文件的选择基于最近访问时间，但受文件数量和令牌预算限制的双重约束。
+
+对于已作为 Read 工具结果存在于 preservedMessages 中的文件，将跳过处理——
+重新注入模型在保留的尾部消息中已经能看到的内容纯粹是浪费（每次压缩最多浪费 25K 令牌）。
+这镜像了 getDeferredToolsDeltaAttachment 在同一调用点使用的、针对保留内容的差异对比模式。
+
+@param readFileState 跟踪最近读取文件的当前文件状态
+@param toolUseContext 用于调用 FileReadTool 的工具使用上下文
+@param maxFiles 要恢复的最大文件数量（默认值：5）
+@param preservedMessages 压缩后保留的消息；其中的 Read 结果将被跳过
+@returns 符合令牌预算限制的、最近访问文件的附件消息数组 */
 export async function createPostCompactFileAttachments(
   readFileState: Record<string, { content: string; timestamp: number }>,
   toolUseContext: ToolUseContext,
@@ -1468,10 +1441,8 @@ export async function createPostCompactFileAttachments(
   })
 }
 
-/**
- * Creates a plan file attachment if a plan file exists for the current session.
- * This ensures the plan is preserved after compaction.
- */
+/** 如果当前会话存在计划文件，则创建一个计划文件附件。
+这确保了计划在压缩后得以保留。 */
 export function createPlanAttachmentIfNeeded(
   agentId?: AgentId,
 ): AttachmentMessage | null {
@@ -1490,12 +1461,10 @@ export function createPlanAttachmentIfNeeded(
   })
 }
 
-/**
- * Creates an attachment for invoked skills to preserve their content across compaction.
- * Only includes skills scoped to the given agent (or main session when agentId is null/undefined).
- * This ensures skill guidelines remain available after the conversation is summarized
- * without leaking skills from other agent contexts.
- */
+/** 为已调用的技能创建附件，以便在压缩过程中保留其内容。
+仅包含限定于给定智能体（或当 agentId 为 null/undefined 时为主会话）的技能。
+这确保了在对话被总结后，技能指南仍然可用，
+同时不会泄露来自其他智能体上下文的技能。 */
 export function createSkillAttachmentIfNeeded(
   agentId?: string,
 ): AttachmentMessage | null {
@@ -1505,9 +1474,9 @@ export function createSkillAttachmentIfNeeded(
     return null
   }
 
-  // Sorted most-recent-first so budget pressure drops the least-relevant skills.
-  // Per-skill truncation keeps the head of each file (where setup/usage
-  // instructions typically live) rather than dropping whole skills.
+  // 按最近优先排序，这样预算压力会淘汰最不相关的技能。
+  // 对每个技能进行截断，保留每个文件的头部（通常
+  // 包含设置/使用说明），而不是丢弃整个技能。
   let usedTokens = 0
   const skills = Array.from(invokedSkills.values())
     .sort((a, b) => b.invokedAt - a.invokedAt)
@@ -1538,12 +1507,10 @@ export function createSkillAttachmentIfNeeded(
   })
 }
 
-/**
- * Creates a plan_mode attachment if the user is currently in plan mode.
- * This ensures the model continues to operate in plan mode after compaction
- * (otherwise it would lose the plan mode instructions since those are
- * normally only injected on tool-use turns via getAttachmentMessages).
- */
+/** 如果用户当前处于计划模式，则创建一个 plan_mode 附件。
+这确保了模型在压缩后继续在计划模式下运行
+（否则它将丢失计划模式指令，因为这些指令
+通常仅在工具使用轮次通过 getAttachmentMessages 注入）。 */
 export async function createPlanModeAttachmentIfNeeded(
   context: ToolUseContext,
 ): Promise<AttachmentMessage | null> {
@@ -1564,12 +1531,9 @@ export async function createPlanModeAttachmentIfNeeded(
   })
 }
 
-/**
- * Creates attachments for async agents so the model knows about them after
- * compaction. Covers both agents still running in the background (so the model
- * doesn't spawn a duplicate) and agents that have finished but whose results
- * haven't been retrieved yet.
- */
+/** 为异步智能体创建附件，以便模型在压缩后了解它们。
+涵盖仍在后台运行的智能体（这样模型就不会
+重复生成）以及已完成但其结果尚未被检索的智能体。 */
 export async function createAsyncAgentAttachmentsIfNeeded(
   context: ToolUseContext,
 ): Promise<AttachmentMessage[]> {
@@ -1603,15 +1567,13 @@ export async function createAsyncAgentAttachmentsIfNeeded(
   })
 }
 
-/**
- * Scan messages for Read tool_use blocks and collect their file_path inputs
- * (normalized via expandPath). Used to dedup post-compact file restoration
- * against what's already visible in the preserved tail.
- *
- * Skips Reads whose tool_result is a dedup stub — the stub points at an
- * earlier full Read that may have been compacted away, so we want
- * createPostCompactFileAttachments to re-inject the real content.
- */
+/** 扫描消息中的 Read 工具使用块，并收集它们的 file_path 输入
+（通过 expandPath 进行标准化）。用于在压缩后恢复文件时，
+对已经在保留尾部消息中可见的内容进行去重。
+
+跳过那些 tool_result 是去重存根的 Read 操作——该存根指向一个
+可能已被压缩掉的早期完整 Read 操作，因此我们希望
+createPostCompactFileAttachments 重新注入真实内容。 */
 function collectReadToolFilePaths(messages: Message[]): Set<string> {
   const stubIds = new Set<string>()
   for (const message of messages) {
@@ -1660,14 +1622,12 @@ function collectReadToolFilePaths(messages: Message[]): Set<string> {
 }
 
 const SKILL_TRUNCATION_MARKER =
-  '\n\n[... skill content truncated for compaction; use Read on the skill path if you need the full text]'
+  '\n\n[... 技能内容已为压缩而截断；如果需要完整文本，请对技能路径使用 Read 操作]'
 
-/**
- * Truncate content to roughly maxTokens, keeping the head. roughTokenCountEstimation
- * uses ~4 chars/token (its default bytesPerToken), so char budget = maxTokens * 4
- * minus the marker so the result stays within budget. Marker tells the model it
- * can Read the full file if needed.
- */
+/** 将内容截断至大约 maxTokens，保留头部。roughTokenCountEstimation
+使用约 4 个字符/令牌（其默认的 bytesPerToken），因此字符预算 = maxTokens * 4
+减去标记文本，以使结果保持在预算内。标记文本告诉模型，
+如果需要，它可以读取完整文件。 */
 function truncateToTokens(content: string, maxTokens: number): string {
   if (roughTokenCountEstimation(content) <= maxTokens) {
     return content
@@ -1681,19 +1641,19 @@ function shouldExcludeFromPostCompactRestore(
   agentId?: AgentId,
 ): boolean {
   const normalizedFilename = expandPath(filename)
-  // Exclude plan files
+  // 排除计划文件
   try {
     const planFilePath = expandPath(getPlanFilePath(agentId))
     if (normalizedFilename === planFilePath) {
       return true
     }
   } catch {
-    // If we can't get plan file path, continue with other checks
+    // 如果无法获取计划文件路径，则继续执行其他检查
   }
 
-  // Exclude all types of claude.md files
-  // TODO: Refactor to use isMemoryFilePath() from claudemd.ts for consistency
-  // and to also match child directory memory files (.claude/rules/*.md, etc.)
+  // 排除所有类型的 claude.md 文件 T
+  // ODO：重构以使用 claudemd.ts 中的 isMemoryFilePath()
+  // 以确保一致性，并同时匹配子目录中的记忆文件（.claude/rules/*.md 等）
   try {
     const normalizedMemoryPaths = new Set(
       MEMORY_TYPE_VALUES.map(type => expandPath(getMemoryPath(type))),
@@ -1703,7 +1663,7 @@ function shouldExcludeFromPostCompactRestore(
       return true
     }
   } catch {
-    // If we can't get memory paths, continue
+    // 如果无法获取记忆文件路径，则继续
   }
 
   return false

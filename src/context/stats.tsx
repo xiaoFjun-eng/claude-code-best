@@ -61,7 +61,7 @@ export function createStatsStore(): StatsStore {
       if (value > h.max) {
         h.max = value
       }
-      // Reservoir sampling (Algorithm R)
+      // 蓄水池抽样算法（算法 R）
       if (h.reservoir.length < RESERVOIR_SIZE) {
         h.reservoir.push(value)
       } else {
@@ -141,7 +141,7 @@ export function StatsProvider({
 export function useStats(): StatsStore {
   const store = useContext(StatsContext)
   if (!store) {
-    throw new Error('useStats must be used within a StatsProvider')
+    throw new Error('useStats 必须在 StatsProvider 内部使用')
   }
   return store
 }

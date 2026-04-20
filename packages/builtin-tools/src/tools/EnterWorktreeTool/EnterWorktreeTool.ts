@@ -33,7 +33,7 @@ const inputSchema = lazySchema(() =>
       })
       .optional()
       .describe(
-        'Optional name for the worktree. Each "/"-separated segment may contain only letters, digits, dots, underscores, and dashes; max 64 chars total. A random name is generated if not provided.',
+        '工作树的可选名称。每个以“/”分隔的段只能包含字母、数字、点、下划线和短横线；总长度最多 64 个字符。如果未提供，将生成一个随机名称。',
       ),
   }),
 )
@@ -51,10 +51,10 @@ export type Output = z.infer<OutputSchema>
 
 export const EnterWorktreeTool: Tool<InputSchema, Output> = buildTool({
   name: ENTER_WORKTREE_TOOL_NAME,
-  searchHint: 'create an isolated git worktree and switch into it',
+  searchHint: '创建一个隔离的 git 工作树并切换到其中',
   maxResultSizeChars: 100_000,
   async description() {
-    return 'Creates an isolated worktree (via git or configured hooks) and switches the session into it'
+    return '创建一个隔离的工作树（通过 git 或配置的钩子）并将会话切换到其中'
   },
   async prompt() {
     return getEnterWorktreeToolPrompt()
@@ -66,7 +66,7 @@ export const EnterWorktreeTool: Tool<InputSchema, Output> = buildTool({
     return outputSchema()
   },
   userFacingName() {
-    return 'Creating worktree'
+    return '正在创建工作树'
   },
   shouldDefer: true,
   toAutoClassifierInput(input) {
@@ -75,12 +75,12 @@ export const EnterWorktreeTool: Tool<InputSchema, Output> = buildTool({
   renderToolUseMessage,
   renderToolResultMessage,
   async call(input) {
-    // Validate not already in a worktree created by this session
+    // 验证当前未处于由本会话创建的工作树中
     if (getCurrentWorktreeSession()) {
-      throw new Error('Already in a worktree session')
+      throw new Error('已处于工作树会话中')
     }
 
-    // Resolve to main repo root so worktree creation works from within a worktree
+    // 解析到主仓库根目录，以便可以从工作树内部创建工作树
     const mainRepoRoot = findCanonicalGitRoot(getCwd())
     if (mainRepoRoot && mainRepoRoot !== getCwd()) {
       process.chdir(mainRepoRoot)
@@ -95,9 +95,9 @@ export const EnterWorktreeTool: Tool<InputSchema, Output> = buildTool({
     setCwd(worktreeSession.worktreePath)
     setOriginalCwd(getCwd())
     saveWorktreeState(worktreeSession)
-    // Clear cached system prompt sections so env_info_simple recomputes with worktree context
+    // 清除缓存的系统提示部分，以便 env_info_simple 在工作树上下文中重新计算
     clearSystemPromptSections()
-    // Clear memoized caches that depend on CWD
+    // 清除依赖于当前工作目录的已记忆缓存
     clearMemoryFileCaches()
     getPlansDirectory.cache.clear?.()
 
@@ -106,14 +106,14 @@ export const EnterWorktreeTool: Tool<InputSchema, Output> = buildTool({
     })
 
     const branchInfo = worktreeSession.worktreeBranch
-      ? ` on branch ${worktreeSession.worktreeBranch}`
+      ? ` 在分支 ${worktreeSession.worktreeBranch} 上`
       : ''
 
     return {
       data: {
         worktreePath: worktreeSession.worktreePath,
         worktreeBranch: worktreeSession.worktreeBranch,
-        message: `Created worktree at ${worktreeSession.worktreePath}${branchInfo}. The session is now working in the worktree. Use ExitWorktree to leave mid-session, or exit the session to be prompted.`,
+        message: `已在 ${worktreeSession.worktreePath}${branchInfo} 处创建工作树。会话现在正在该工作树中工作。使用 ExitWorktree 可在会话中途离开，或退出会话以获取提示。`,
       },
     }
   },

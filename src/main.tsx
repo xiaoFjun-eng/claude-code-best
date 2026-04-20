@@ -4972,16 +4972,13 @@ ${formattedErrors}
 					if (!isRemoteTuiEnabled) {
 						// 原始行为：打印会话信息并退出
 						process.stdout.write(
-							`已创建远程会话：${createdSession.title}
-`,
+							`已创建远程会话：${createdSession.title}\n`,
 						);
 						process.stdout.write(
-							`查看：${getRemoteSessionUrl(createdSession.id)}?m=0
-`,
+							`查看：${getRemoteSessionUrl(createdSession.id)}?m=0\n`,
 						);
 						process.stdout.write(
-							`恢复会话：claude --teleport ${createdSession.id}
-`,
+							`恢复会话：claude --teleport ${createdSession.id}\n`,
 						);
 						await gracefulShutdown(0);
 						process.exit(0);

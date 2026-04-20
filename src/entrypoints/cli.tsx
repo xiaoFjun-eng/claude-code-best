@@ -138,6 +138,31 @@ async function main(): Promise<void> {
     return
   }
 
+  if (args[0] === 'weixin') {
+    profileCheckpoint('cli_weixin_path')
+    const { handleWeixinCli } = await import('@claude-code-best/weixin')
+    const { enableConfigs } = await import('../utils/config.js')
+    const { initializeAnalyticsSink } = await import('../services/analytics/sink.js')
+    const { shutdownDatadog } = await import('../services/analytics/datadog.js')
+    const { shutdown1PEventLogging } = await import('../services/analytics/firstPartyEventLogger.js')
+    const { logForDebugging } = await import('../utils/debug.js')
+    const { ChannelPermissionRequestNotificationSchema } = await import('../services/mcp/channelNotification.js')
+    await handleWeixinCli(args.slice(1), {
+      enableConfigs,
+      initializeAnalyticsSink,
+      shutdownDatadog,
+      shutdown1PEventLogging,
+      logForDebugging,
+      registerPermissionHandler(server, handler) {
+        server.setNotificationHandler(
+          ChannelPermissionRequestNotificationSchema(),
+          async notification => handler(notification.params),
+        )
+      },
+    }, MACRO.VERSION)
+    return
+  }
+
   // `--daemon-worker=<kind>` 的快速路径（内部 —— 由监
   // 督进程生成）。必须在守护进程子命令检查之前：每个工作进程单独生成，因此
   // 对性能敏感。此层不调用 enableConfigs()，没有分析接收器

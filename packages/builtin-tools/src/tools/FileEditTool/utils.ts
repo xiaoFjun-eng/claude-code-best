@@ -15,17 +15,17 @@ import {
 } from 'src/utils/file.js'
 import type { EditInput, FileEdit } from './types.js'
 
-// Claude 无法输出花引号，因此我们在此将其定义为常量供 Claude 使用
-// 在代码中。我们这样做是因为在应用编辑时，我们会将花引号规范化为直引号
-// 。
+// Claude 无法输出花引号，因此我们在此将其定义为常量，供 Claud
+// e 在代码中使用。我们这样做是因为在应用编辑时，我们会将花引号
+// 规范化为直引号。
 export const LEFT_SINGLE_CURLY_QUOTE = '‘'
 export const RIGHT_SINGLE_CURLY_QUOTE = '’'
 export const LEFT_DOUBLE_CURLY_QUOTE = '“'
 export const RIGHT_DOUBLE_CURLY_QUOTE = '”'
 
-/** * 通过将花引号转换为直引号来规范化字符串中的引号
- * @param str 要规范化的字符串
- * @returns 所有花引号被替换为直引号的字符串 */
+/** 通过将花引号转换为直引号来规范化字符串中的引号
+@param str 要规范化的字符串
+@returns 所有花引号被替换为直引号后的字符串 */
 export function normalizeQuotes(str: string): string {
   return str
     .replaceAll(LEFT_SINGLE_CURLY_QUOTE, "'")
@@ -34,12 +34,12 @@ export function normalizeQuotes(str: string): string {
     .replaceAll(RIGHT_DOUBLE_CURLY_QUOTE, '"')
 }
 
-/** * 去除字符串中每行的尾部空白，同时保留行尾符
- * @param str 要处理的字符串
- * @returns 每行尾部空白被移除的字符串 */
+/** 去除字符串中每行的尾部空白字符，同时保留行尾符
+@param str 要处理的字符串
+@returns 每行尾部空白字符被移除后的字符串 */
 export function stripTrailingWhitespace(str: string): string {
-  // 处理不同的行尾符：CRLF、LF、CR
-  // 使用一个匹配行尾符并捕获它们的正则表达式
+  // 处理不同的行尾符：CRLF、LF、C
+  // R。使用一个匹配行尾符并捕获它们的正则表达式
   const lines = str.split(/(\r\n|\n|\r)/)
 
   let result = ''
@@ -59,11 +59,11 @@ export function stripTrailingWhitespace(str: string): string {
   return result
 }
 
-/** * 在文件内容中查找与搜索字符串匹配的实际字符串，
- * 考虑引号规范化
- * @param fileContent 要搜索的文件内容
- * @param searchString 要搜索的字符串
- * @returns 在文件中找到的实际字符串，如果未找到则返回 null */
+/** 在文件内容中查找与搜索字符串匹配的实际字符串，
+考虑引号规范化
+@param fileContent 要搜索的文件内容
+@param searchString 要搜索的字符串
+@returns 在文件中找到的实际字符串，如果未找到则返回 null */
 export function findActualString(
   fileContent: string,
   searchString: string,
@@ -73,7 +73,7 @@ export function findActualString(
     return searchString
   }
 
-  // 尝试使用规范化后的引号
+  // 尝试使用规范化后的引号进行匹配
   const normalizedSearch = normalizeQuotes(searchString)
   const normalizedFile = normalizeQuotes(fileContent)
 
@@ -86,24 +86,24 @@ export function findActualString(
   return null
 }
 
-/** * 当 old_string 通过引号规范化匹配时（文件中的花引号，
- * 模型输出的直引号），将相同的花引号样式应用于 new_string
- * 以便编辑保留文件的排版风格。
- *
- * 使用简单的开/闭启发式规则：一个引号字符前面是空白、
- * 字符串开头或开标点符号，则视为开引号；
- * 否则视为闭引号。 */
+/** 当 old_string 通过引号规范化匹配时（文件中的花引号，
+模型输出的直引号），将相同的花引号样式应用于 new_string，
+以便编辑操作保留文件的排版风格。
+
+使用简单的开/闭启发式规则：一个引号字符前面是空白字符、
+字符串开头或开标点符号，则视为开引号；
+否则视为闭引号。 */
 export function preserveQuoteStyle(
   oldString: string,
   actualOldString: string,
   newString: string,
 ): string {
-  // 如果它们相同，则没有发生规范化
+  // 如果它们相同，则未发生规范化
   if (oldString === actualOldString) {
     return newString
   }
 
-  // 检测文件中存在哪种花引号类型
+  // 检测文件中存在的花引号类型
   const hasDoubleQuotes =
     actualOldString.includes(LEFT_DOUBLE_CURLY_QUOTE) ||
     actualOldString.includes(RIGHT_DOUBLE_CURLY_QUOTE)
@@ -140,8 +140,8 @@ function isOpeningContext(chars: string[], index: number): boolean {
     prev === '(' ||
     prev === '[' ||
     prev === '{' ||
-    prev === '\u2014' || // em dash
-    prev === '\u2013' // en dash
+    prev === '\u2014' || // 长破折号
+    prev === '\u2013' // 短破折号
   )
 }
 
@@ -167,14 +167,14 @@ function applyCurlySingleQuotes(str: string): string {
   const result: string[] = []
   for (let i = 0; i < chars.length; i++) {
     if (chars[i] === "'") {
-      // 不要转换缩略词中的撇号（例如 "don't"、"it's"）
-      // 两个字母之间的撇号是缩略词，不是引号
+      // 不要转换缩略词中的撇号（例如 "don't"、"i
+      // t's"）。两个字母之间的撇号是缩略符，不是引号
       const prev = i > 0 ? chars[i - 1] : undefined
       const next = i < chars.length - 1 ? chars[i + 1] : undefined
       const prevIsLetter = prev !== undefined && /\p{L}/u.test(prev)
       const nextIsLetter = next !== undefined && /\p{L}/u.test(next)
       if (prevIsLetter && nextIsLetter) {
-        // 缩略词中的撇号 —— 使用右单花引号
+        // 缩略词中的撇号 — 使用右单花引号
         result.push(RIGHT_SINGLE_CURLY_QUOTE)
       } else {
         result.push(
@@ -190,9 +190,9 @@ function applyCurlySingleQuotes(str: string): string {
   return result.join('')
 }
 
-/** * 转换编辑以确保 replace_all 始终具有布尔值
- * @param edits 带有可选 replace_all 的编辑数组
- * @returns 保证 replace_all 为布尔值的编辑数组 */
+/** 转换编辑操作以确保 replace_all 始终具有布尔值
+@param edits 包含可选 replace_all 的编辑数组
+@returns 保证 replace_all 为布尔值的编辑数组 */
 export function applyEditToFile(
   originalContent: string,
   oldString: string,
@@ -217,8 +217,8 @@ export function applyEditToFile(
     : f(originalContent, oldString, newString)
 }
 
-/** * 将编辑应用于文件并返回补丁和更新后的文件。
- * 不将文件写入磁盘。 */
+/** 将编辑应用于文件并返回补丁和更新后的文件。
+不会将文件写入磁盘。 */
 export function getPatchForEdit({
   filePath,
   fileContents,
@@ -241,10 +241,10 @@ export function getPatchForEdit({
   })
 }
 
-/** * 将编辑列表应用于文件并返回补丁和更新后的文件。
- * 不将文件写入磁盘。
- *
- * 注意：返回的补丁仅用于显示目的 - 它使用空格代替制表符 */
+/** 将一系列编辑应用于文件并返回补丁和更新后的文件。
+不会将文件写入磁盘。
+
+注意：返回的补丁仅用于显示目的 - 它使用空格代替制表符 */
 export function getPatchForEdits({
   filePath,
   fileContents,
@@ -291,7 +291,7 @@ export function getPatchForEdits({
         previousNewString.includes(oldStringToCheck)
       ) {
         throw new Error(
-          'Cannot edit file: old_string is a substring of a new_string from a previous edit.',
+          '无法编辑文件：old_string 是先前编辑的 new_string 的子字符串。',
         )
       }
     }
@@ -322,10 +322,10 @@ export function getPatchForEdits({
     )
   }
 
-  // 我们已经有了修改前后的内容，因此直接调用 getPatchFromContents。
-  // 之前这需要通过 getPatchForDisplay 处理，参数 edits=[{old:fileContents,new:updatedFile}]，
-  // 这会导致 fileContents 被转换两次（一次作为 preparedFileContents，另一次作为 reduce 内的 escapedOldString）
-  // 并执行一个无操作的全内容 .replace()。这为大型文件节省了约 20% 的开销。
+  // 我们已经有了修改前/后的内容，因此直接调用 getPatchFromContents。之前这是通过 get
+  // PatchForDisplay 并传入 edits=[{old:fileContents,new:updatedFile}] 来处理的
+  // ，这会导致 fileContents 被转换两次（一次作为 preparedFileContents，另一次作为 reduce
+  // 内部的 escapedOldString）并运行一个无操作的全内容 .replace()。这为大型文件节省了约 20% 的开销。
   const patch = getPatchFromContents({
     filePath,
     oldContent: convertLeadingTabsToSpaces(fileContents),
@@ -335,14 +335,14 @@ export function getPatchForEdits({
   return { patch, updatedFile }
 }
 
-// 对 edited_text_file 附件片段设置上限。保存时格式化大型文件
-// 之前每次交互都会注入整个文件（观察到的最大值为 16.1KB，约 14K
-// tokens/会话）。8KB 在保留有意义上下文的同时，限制了最坏情况。
+// 对 edited_text_file 附件片段设置上限。之前保存时
+// 格式化大文件会每轮注入整个文件（观察到最大 16.1KB，约 1
+// 4K 令牌/会话）。8KB 能在保留有意义上下文的同时限制最坏情况。
 const DIFF_SNIPPET_MAX_BYTES = 8192
 
-/** * 用于附件，在文件更改时显示片段。
- *
- * TODO：将此逻辑与其他片段逻辑统一。 */
+/** 用于附件，在文件变更时显示片段。
+
+TODO：将此逻辑与其他片段逻辑统一。 */
 export function getSnippetForTwoFileDiff(
   fileAContents: string,
   fileBContents: string,
@@ -368,7 +368,7 @@ export function getSnippetForTwoFileDiff(
     .map(_ => ({
       startLine: _.oldStart,
       content: _.lines
-        // Filter out deleted lines AND diff metadata lines
+        // 过滤掉已删除的行和差异元数据行
         .filter(_ => !_.startsWith('-') && !_.startsWith('\\'))
         .map(_ => _.slice(1))
         .join('\n'),
@@ -380,8 +380,8 @@ export function getSnippetForTwoFileDiff(
     return full
   }
 
-  // 在符合上限的最后一个行边界处截断。
-  // 标记格式与 BashTool/utils.ts 匹配。
+  // 在符合上限的最后一个行边界处截断。标记格式与 Bas
+  // hTool/utils.ts 匹配。
   const cutoff = full.lastIndexOf('\n', DIFF_SNIPPET_MAX_BYTES)
   const kept =
     cutoff > 0 ? full.slice(0, cutoff) : full.slice(0, DIFF_SNIPPET_MAX_BYTES)
@@ -393,11 +393,11 @@ export function getSnippetForTwoFileDiff(
 
 const CONTEXT_LINES = 4
 
-/** * 从文件中获取一个片段，显示补丁周围带行号的上下文。
- * @param originalFile 应用补丁前的原始文件内容
- * @param patch 用于确定片段位置的差异块
- * @param newFile 应用补丁后的文件内容
- * @returns 带行号的片段文本及起始行号 */
+/** 从文件中获取一个片段，显示补丁周围带行号的上下文。
+@param originalFile 应用补丁前的原始文件内容
+@param patch 用于确定片段位置的差异块
+@param newFile 应用补丁后的文件内容
+@returns 带行号的片段文本及起始行号 */
 export function getSnippetForPatch(
   patch: StructuredPatchHunk[],
   newFile: string,
@@ -422,7 +422,7 @@ export function getSnippetForPatch(
     }
   }
 
-  // 计算包含上下文的范围
+  // 计算带上下文的范围
   const startLine = Math.max(1, minLine - CONTEXT_LINES)
   const endLine = maxLine + CONTEXT_LINES
 
@@ -440,13 +440,13 @@ export function getSnippetForPatch(
   return { formattedSnippet, startLine }
 }
 
-/** * 从文件中获取一个片段，显示单个编辑周围的上下文。
- * 这是一个使用原始算法的便捷函数。
- * @param originalFile 原始文件内容
- * @param oldString 要替换的文本
- * @param newString 替换后的文本
- * @param contextLines 更改前后要显示的行数
- * @returns 片段及起始行号 */
+/** 从文件中获取一个片段，显示单个编辑周围的上下文。
+这是一个使用原始算法的便捷函数。
+@param originalFile 原始文件内容
+@param oldString 要替换的文本
+@param newString 用于替换的文本
+@param contextLines 在更改前后显示的行数
+@returns 片段及起始行号 */
 export function getSnippet(
   originalFile: string,
   oldString: string,
@@ -489,7 +489,7 @@ export function getEditsForPatch(patch: StructuredPatchHunk[]): FileEdit[] {
         oldLines.push(line.slice(1))
         newLines.push(line.slice(1))
       } else if (line.startsWith('-')) {
-        // 删除行 - 仅出现在旧版本中
+        // 已删除行 - 仅出现在旧版本中
         oldLines.push(line.slice(1))
       } else if (line.startsWith('+')) {
         // 新增行 - 仅出现在新版本中
@@ -505,9 +505,9 @@ export function getEditsForPatch(patch: StructuredPatchHunk[]): FileEdit[] {
   })
 }
 
-/** * 包含用于对 Claude 的字符串进行去清理的替换项
- * 由于 Claude 无法看到这些字符串（在 API 中已被清理）
- * 它将在编辑响应中输出清理后的版本 */
+/** 包含用于对 Claude 的字符串进行去消毒的替换
+由于 Claude 无法看到这些字符串（在 API 中已消毒）
+它会在编辑响应中输出消毒后的版本 */
 const DESANITIZATIONS: Record<string, string> = {
   '<fnr>': '<function_results>',
   '<n>': '<name>',
@@ -529,9 +529,9 @@ const DESANITIZATIONS: Record<string, string> = {
   '\n\nA:': '\n\nAssistant:',
 }
 
-/** * 通过应用特定替换来规范化匹配字符串
- * 这有助于处理因格式差异导致精确匹配失败的情况
- * @returns 规范化后的字符串以及应用的替换项 */
+/** 通过应用特定替换来规范化匹配字符串
+这有助于处理因格式差异导致精确匹配失败的情况
+@returns 规范化后的字符串以及应用了哪些替换 */
 function desanitizeMatchString(matchString: string): {
   result: string
   appliedReplacements: Array<{ from: string; to: string }>
@@ -551,9 +551,9 @@ function desanitizeMatchString(matchString: string): {
   return { result, appliedReplacements }
 }
 
-/** * 为 FileEditTool 规范化输入
- * 如果文件中未找到要替换的字符串，则尝试使用规范化版本
- * 如果成功则返回规范化输入，否则返回原始输入 */
+/** 为 FileEditTool 规范化输入
+如果文件中未找到要替换的字符串，则尝试使用规范化版本
+如果成功则返回规范化输入，否则返回原始输入 */
 export function normalizeFileEditInput({
   file_path,
   edits,
@@ -568,16 +568,16 @@ export function normalizeFileEditInput({
     return { file_path, edits }
   }
 
-  // Markdown 使用两个尾随空格作为硬换行符——去除空格会静默改变语义。对 .md/.mdx 文件跳过 stripTrailingWhitespace。
-  // 使用缓存的文件读取以避免冗余的 I/O 操作。
+  // Markdown 使用两个尾随空格作为硬换行符——去除会静默改变语义。对于 .
+  // md/.mdx 文件跳过 stripTrailingWhitespace。
   const isMarkdown = /\.(md|mdx)$/i.test(file_path)
 
   try {
     const fullPath = expandPath(file_path)
 
-    // 如果文件不存在，readFileSyncCached 会抛出 ENOENT 错误，该错误由
-    // 下方的 catch 块处理，返回原始输入（无需 TOCTOU 预检查）。
-    // 如果精确字符串匹配有效，则保持原样
+    // 使用缓存文件读取以避免冗余 I/O 操作。如果文件不存在
+    // ，readFileSyncCached 会抛出 ENOENT 错误，由
+    // 下方的 catch 块处理并返回原始输入（无需 TOCTOU 预检查）。
     const fileContent = readFileSyncCached(fullPath)
 
     return {
@@ -587,7 +587,7 @@ export function normalizeFileEditInput({
           ? new_string
           : stripTrailingWhitespace(new_string)
 
-        // 如果精确匹配失败，尝试对字符串进行去清理操作
+        // 如果精确字符串匹配有效，则保持原样
         if (fileContent.includes(old_string)) {
           return {
             old_string,
@@ -596,12 +596,12 @@ export function normalizeFileEditInput({
           }
         }
 
-        // 对 new_string 应用相同的精确替换
+        // 如果精确匹配失败，则尝试对字符串进行去清理操作
         const { result: desanitizedOldString, appliedReplacements } =
           desanitizeMatchString(old_string)
 
         if (fileContent.includes(desanitizedOldString)) {
-          // 如果读取文件时出现任何错误，直接返回原始输入。
+          // 对 new_string 应用相同的精确替换
           let desanitizedNewString = normalizedNewString
           for (const { from, to } of appliedReplacements) {
             desanitizedNewString = desanitizedNewString.replaceAll(from, to)
@@ -622,9 +622,8 @@ export function normalizeFileEditInput({
       }),
     }
   } catch (error) {
-    // 当文件尚不存在时（例如新文件），ENOENT 是预期错误。
-    // * 比较两组编辑操作，通过将它们应用到原始内容并比较结果来确定它们是否等效。
- * 这处理了编辑操作可能不同但产生相同结果的情况。
+    // 如果读取文件时出现任何错误，直接返回原始输入。当文件尚
+    // 不存在时（例如新文件），预期会出现 ENOENT 错误。
     if (!isENOENT(error)) {
       logError(error)
     }
@@ -633,13 +632,13 @@ export function normalizeFileEditInput({
   return { file_path, edits }
 }
 
-/** 快速路径：检查编辑操作是否字面相同 */
+/** 通过将两组编辑应用到原始内容并比较结果，来判断它们是否等效。这处理了编辑可能不同但产生相同结果的情况。 */
 export function areFileEditsEquivalent(
   edits1: FileEdit[],
   edits2: FileEdit[],
   originalContent: string,
 ): boolean {
-  // 尝试应用两组编辑操作
+  // 快速路径：检查编辑是否字面意义上完全相同
   if (
     edits1.length === edits2.length &&
     edits1.every((edit1, index) => {
@@ -655,7 +654,7 @@ export function areFileEditsEquivalent(
     return true
   }
 
-  // 如果两者都抛出错误，则仅当错误相同时它们才相等
+  // 尝试应用两组编辑
   let result1: { patch: StructuredPatchHunk[]; updatedFile: string } | null =
     null
   let error1: string | null = null
@@ -683,23 +682,22 @@ export function areFileEditsEquivalent(
     error2 = errorMessage(e)
   }
 
-  // 规范化错误消息以便比较
+  // 如果两者都抛出错误，则仅当错误相同时它们才相等
   if (error1 !== null && error2 !== null) {
-    // 如果一个抛出错误而另一个没有，则它们不相等
+    // 为比较而规范化错误信息
     return error1 === error2
   }
 
-  // 两者都成功 - 比较结果
+  // 如果一个抛出错误而另一个没有，则它们不相等
   if (error1 !== null || error2 !== null) {
     return false
   }
 
-  // * 统一函数，用于检查两个文件编辑输入是否等效。
- * 处理文件编辑（FileEditTool）。
+  // 两者都成功 - 比较结果
   return result1!.updatedFile === result2!.updatedFile
 }
 
-/** 快速路径：不同文件 */
+/** 用于检查两个文件编辑输入是否等效的统一函数。处理文件编辑（FileEditTool）。 */
 export function areFileEditsInputsEquivalent(
   input1: {
     file_path: string
@@ -710,12 +708,12 @@ export function areFileEditsInputsEquivalent(
     edits: FileEdit[]
   },
 ): boolean {
-  // 快速路径：字面相等
+  // 快速路径：不同文件
   if (input1.file_path !== input2.file_path) {
     return false
   }
 
-  // 语义比较（需要读取文件）。如果文件不存在，
+  // 快速路径：字面相等
   if (
     input1.edits.length === input2.edits.length &&
     input1.edits.every((edit1, index) => {
@@ -731,8 +729,8 @@ export function areFileEditsInputsEquivalent(
     return true
   }
 
-  // 则与空内容进行比较（无需 TOCTOU 预检查）。
-  // 与空内容进行比较（无 TOCTOU 预检）。
+  // 语义比较（需要读取文件）。如果文件不存在，则与空内容
+  // 进行比较（无需 TOCTOU 预检查）。
   let fileContent = ''
   try {
     fileContent = readFileSyncCached(input1.file_path)

@@ -6,7 +6,7 @@ import type {
 import { z } from 'zod/v4'
 import { lazySchema } from '../../utils/lazySchema.js'
 
-// Configuration schemas and types
+// 配置模式与类型
 export const ConfigScopeSchema = lazySchema(() =>
   z.enum([
     'local',
@@ -27,17 +27,17 @@ export type Transport = z.infer<ReturnType<typeof TransportSchema>>
 
 export const McpStdioServerConfigSchema = lazySchema(() =>
   z.object({
-    type: z.literal('stdio').optional(), // Optional for backwards compatibility
-    command: z.string().min(1, 'Command cannot be empty'),
+    type: z.literal('stdio').optional(), // 为向后兼容而可选
+    command: z.string().min(1, '命令不能为空'),
     args: z.array(z.string()).default([]),
     env: z.record(z.string(), z.string()).optional(),
   }),
 )
 
-// Cross-App Access (XAA / SEP-990): just a per-server flag. IdP connection
-// details (issuer, clientId, callbackPort) come from settings.xaaIdp — configured
-// once, shared across all XAA-enabled servers. clientId/clientSecret (parent
-// oauth config + keychain slot) are for the MCP server's AS.
+// 跨应用访问 (XAA / SEP-990)：仅是一个每服务器标志。IdP 连接详情
+// （颁发者、客户端 ID、回调端口）来自 settings.xaaIdp — 一次性配置，在
+// 所有启用 XAA 的服务器间共享。clientId/clientSecret（父级
+// OAuth 配置 + 钥匙串槽位）用于 MCP 服务器的 AS。
 const McpXaaConfigSchema = lazySchema(() => z.boolean())
 
 const McpOAuthConfigSchema = lazySchema(() =>
@@ -48,7 +48,7 @@ const McpOAuthConfigSchema = lazySchema(() =>
       .string()
       .url()
       .startsWith('https://', {
-        message: 'authServerMetadataUrl must use https://',
+        message: 'authServerMetadataUrl 必须使用 https://',
       })
       .optional(),
     xaa: McpXaaConfigSchema().optional(),
@@ -65,7 +65,7 @@ export const McpSSEServerConfigSchema = lazySchema(() =>
   }),
 )
 
-// Internal-only server type for IDE extensions
+// 仅供 IDE 扩展使用的内部服务器类型
 export const McpSSEIDEServerConfigSchema = lazySchema(() =>
   z.object({
     type: z.literal('sse-ide'),
@@ -75,7 +75,7 @@ export const McpSSEIDEServerConfigSchema = lazySchema(() =>
   }),
 )
 
-// Internal-only server type for IDE extensions
+// 仅供 IDE 扩展使用的内部服务器类型
 export const McpWebSocketIDEServerConfigSchema = lazySchema(() =>
   z.object({
     type: z.literal('ws-ide'),
@@ -112,7 +112,7 @@ export const McpSdkServerConfigSchema = lazySchema(() =>
   }),
 )
 
-// Config type for Claude.ai proxy servers
+// Claude.ai 代理服务器的配置类型
 export const McpClaudeAIProxyServerConfigSchema = lazySchema(() =>
   z.object({
     type: z.literal('claudeai-proxy'),
@@ -162,9 +162,9 @@ export type McpServerConfig = z.infer<ReturnType<typeof McpServerConfigSchema>>
 
 export type ScopedMcpServerConfig = McpServerConfig & {
   scope: ConfigScope
-  // For plugin-provided servers: the providing plugin's LoadedPlugin.source
-  // (e.g. 'slack@anthropic'). Stashed at config-build time so the channel
-  // gate doesn't have to race AppState.plugins.enabled hydration.
+  // 对于插件提供的服务器：提供插件的 LoadedPlugin.source（例如
+  // 'slack@anthropic'）。在配置构建时存储，以便频道网关不必与
+  // AppState.plugins.enabled 的水合过程竞争。
   pluginSource?: string
 }
 
@@ -176,7 +176,7 @@ export const McpJsonConfigSchema = lazySchema(() =>
 
 export type McpJsonConfig = z.infer<ReturnType<typeof McpJsonConfigSchema>>
 
-// Server connection types
+// 服务器连接类型
 export type ConnectedMCPServer = {
   client: Client
   name: string
@@ -225,10 +225,10 @@ export type MCPServerConnection =
   | PendingMCPServer
   | DisabledMCPServer
 
-// Resource types
+// 资源类型
 export type ServerResource = Resource & { server: string }
 
-// MCP CLI State types
+// MCP CLI 状态类型
 export interface SerializedTool {
   name: string
   description: string
@@ -240,7 +240,7 @@ export interface SerializedTool {
     }
   }
   isMcp?: boolean
-  originalToolName?: string // Original unnormalized tool name from MCP server
+  originalToolName?: string // 来自 MCP 服务器的原始未规范化工具名称
 }
 
 export interface SerializedClient {
@@ -254,5 +254,5 @@ export interface MCPCliState {
   configs: Record<string, ScopedMcpServerConfig>
   tools: SerializedTool[]
   resources: Record<string, ServerResource[]>
-  normalizedNames?: Record<string, string> // Maps normalized names to original names
+  normalizedNames?: Record<string, string> // 将规范化名称映射到原始名称
 }

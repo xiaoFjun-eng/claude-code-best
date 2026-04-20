@@ -12,17 +12,13 @@ export function setSessionSettingsCache(value: SettingsWithErrors): void {
   sessionSettingsCache = value
 }
 
-/**
- * Per-source cache for getSettingsForSource. Invalidated alongside the
- * merged sessionSettingsCache — same resetSettingsCache() triggers
- * (settings write, --add-dir, plugin init, hooks refresh).
- */
+/** getSettingsForSource 的按源缓存。与合并的 sessionSettingsCache 一同失效——相同的 resetSettingsCache() 触发条件（设置写入、--add-dir、插件初始化、钩子刷新）。 */
 const perSourceCache = new Map<SettingSource, SettingsJson | null>()
 
 export function getCachedSettingsForSource(
   source: SettingSource,
 ): SettingsJson | null | undefined {
-  // undefined = cache miss; null = cached "no settings for this source"
+  // undefined = 缓存未命中；null = 已缓存“此源无设置”
   return perSourceCache.has(source) ? perSourceCache.get(source) : undefined
 }
 
@@ -33,11 +29,7 @@ export function setCachedSettingsForSource(
   perSourceCache.set(source, value)
 }
 
-/**
- * Path-keyed cache for parseSettingsFile. Both getSettingsForSource and
- * loadSettingsFromDisk call parseSettingsFile on the same paths during
- * startup — this dedupes the disk read + zod parse.
- */
+/** parseSettingsFile 的路径键控缓存。getSettingsForSource 和 loadSettingsFromDisk 在启动期间对相同路径调用 parseSettingsFile——此缓存用于去重磁盘读取和 zod 解析。 */
 type ParsedSettings = {
   settings: SettingsJson | null
   errors: ValidationError[]
@@ -58,11 +50,7 @@ export function resetSettingsCache(): void {
   parseFileCache.clear()
 }
 
-/**
- * Plugin settings base layer for the settings cascade.
- * pluginLoader writes here after loading plugins;
- * loadSettingsFromDisk reads it as the lowest-priority base.
- */
+/** 设置级联中的插件设置基础层。pluginLoader 在加载插件后写入此处；loadSettingsFromDisk 将其作为最低优先级的基础层读取。 */
 let pluginSettingsBase: Record<string, unknown> | undefined
 
 export function getPluginSettingsBase(): Record<string, unknown> | undefined {

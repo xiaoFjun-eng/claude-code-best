@@ -8,18 +8,16 @@ import {
 
 export const DESCRIPTION = '获取或设置 Claude Code 配置项。'
 
-/**
- * Generate the prompt documentation from the registry
- */
+/** 从注册表生成提示词文档 */
 export function generatePrompt(): string {
   const globalSettings: string[] = []
   const projectSettings: string[] = []
 
   for (const [key, config] of Object.entries(SUPPORTED_SETTINGS)) {
-    // Skip model - it gets its own section with dynamic options
+    // 跳过模型 - 它拥有自己的动态选项部分
     if (key === 'model') continue
-    // Voice settings are registered at build-time but gated by GrowthBook
-    // at runtime. Hide from model prompt when the kill-switch is on.
+    // 语音设置在构建时注册，但在运行时由 GrowthBo
+    // ok 控制。当功能开关关闭时，从模型提示中隐藏。
     if (
       feature('VOICE_MODE') &&
       key === 'voiceEnabled' &&

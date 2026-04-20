@@ -347,17 +347,6 @@ export function assembleToolPool(
   // 避免使用 Array.toSorted（Node 20+）——我们支持 Node 18。builtInTools 是
   // 只读的，因此先复制再排序；allowedMcpTools 是 .filter() 的新结果。
   // * 获取所有工具，包括内置工具和 MCP 工具。
- *
- * 当您需要完整的工具列表用于以下场景时，这是首选函数：
- * - 工具搜索阈值计算（isToolSearchEnabled）
- * - 包含 MCP 工具的令牌计数
- * - 任何应考虑 MCP 工具的上下文
- *
- * 仅当您特别需要仅内置工具时，才使用 getTools()。
- *
- * @param permissionContext - 用于过滤内置工具的权限上下文
- * @param mcpTools - 来自 appState.mcp.tools 的 MCP 工具
- * @returns 合并后的内置工具和 MCP 工具数组
   const byName = (a: Tool, b: Tool) => a.name.localeCompare(b.name)
   return uniqBy(
     [...builtInTools].sort(byName).concat(allowedMcpTools.sort(byName)),

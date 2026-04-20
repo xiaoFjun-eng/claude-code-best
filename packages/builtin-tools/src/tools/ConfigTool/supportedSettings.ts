@@ -9,7 +9,7 @@ import { getModelOptions } from 'src/utils/model/modelOptions.js'
 import { validateModel } from 'src/utils/model/validateModel.js'
 import { THEME_NAMES, THEME_SETTINGS } from 'src/utils/theme.js'
 
-/** AppState keys that can be synced for immediate UI effect */
+/** 可同步以立即影响UI的AppState键 */
 type SyncableAppStateKey = 'verbose' | 'mainLoopModel' | 'thinkingEnabled'
 
 type SettingConfig = {
@@ -20,9 +20,9 @@ type SettingConfig = {
   options?: readonly string[]
   getOptions?: () => string[]
   appStateKey?: SyncableAppStateKey
-  /** Async validation called when writing/setting a value */
+  /** 写入/设置值时调用的异步验证 */
   validateOnWrite?: (v: unknown) => Promise<{ valid: boolean; error?: string }>
-  /** Format value when reading/getting for display */
+  /** 读取/获取值时进行格式化以便显示 */
   formatOnRead?: (v: unknown) => unknown
 }
 
@@ -30,67 +30,67 @@ export const SUPPORTED_SETTINGS: Record<string, SettingConfig> = {
   theme: {
     source: 'global',
     type: 'string',
-    description: 'Color theme for the UI',
+    description: 'UI的颜色主题',
     options: feature('AUTO_THEME') ? THEME_SETTINGS : THEME_NAMES,
   },
   editorMode: {
     source: 'global',
     type: 'string',
-    description: 'Key binding mode',
+    description: '按键绑定模式',
     options: EDITOR_MODES,
   },
   verbose: {
     source: 'global',
     type: 'boolean',
-    description: 'Show detailed debug output',
+    description: '显示详细的调试输出',
     appStateKey: 'verbose',
   },
   preferredNotifChannel: {
     source: 'global',
     type: 'string',
-    description: 'Preferred notification channel',
+    description: '首选通知渠道',
     options: NOTIFICATION_CHANNELS,
   },
   autoCompactEnabled: {
     source: 'global',
     type: 'boolean',
-    description: 'Auto-compact when context is full',
+    description: '上下文已满时自动压缩',
   },
   autoMemoryEnabled: {
     source: 'settings',
     type: 'boolean',
-    description: 'Enable auto-memory',
+    description: '启用自动内存管理',
   },
   autoDreamEnabled: {
     source: 'settings',
     type: 'boolean',
-    description: 'Enable background memory consolidation',
+    description: '启用后台内存整理',
   },
   fileCheckpointingEnabled: {
     source: 'global',
     type: 'boolean',
-    description: 'Enable file checkpointing for code rewind',
+    description: '为代码回退启用文件检查点',
   },
   showTurnDuration: {
     source: 'global',
     type: 'boolean',
     description:
-      'Show turn duration message after responses (e.g., "Cooked for 1m 6s")',
+      '在响应后显示处理时长消息（例如“已处理 1分6秒”）',
   },
   terminalProgressBarEnabled: {
     source: 'global',
     type: 'boolean',
-    description: 'Show OSC 9;4 progress indicator in supported terminals',
+    description: '在支持的终端中显示OSC 9;4进度指示器',
   },
   todoFeatureEnabled: {
     source: 'global',
     type: 'boolean',
-    description: 'Enable todo/task tracking',
+    description: '启用待办事项/任务跟踪',
   },
   model: {
     source: 'settings',
     type: 'string',
-    description: 'Override the default model',
+    description: '覆盖默认模型',
     appStateKey: 'mainLoopModel',
     getOptions: () => {
       try {
@@ -107,13 +107,13 @@ export const SUPPORTED_SETTINGS: Record<string, SettingConfig> = {
   alwaysThinkingEnabled: {
     source: 'settings',
     type: 'boolean',
-    description: 'Enable extended thinking (false to disable)',
+    description: '启用扩展思考（设为false以禁用）',
     appStateKey: 'thinkingEnabled',
   },
   'permissions.defaultMode': {
     source: 'settings',
     type: 'string',
-    description: 'Default permission mode for tool usage',
+    description: '工具使用的默认权限模式',
     options: feature('TRANSCRIPT_CLASSIFIER')
       ? ['default', 'plan', 'acceptEdits', 'dontAsk', 'auto']
       : ['default', 'plan', 'acceptEdits', 'dontAsk'],
@@ -122,13 +122,13 @@ export const SUPPORTED_SETTINGS: Record<string, SettingConfig> = {
     source: 'settings',
     type: 'string',
     description:
-      'Preferred language for Claude responses and voice dictation (e.g., "japanese", "spanish")',
+      'Claude响应和语音听写的首选语言（例如“japanese”、“spanish”）',
   },
   teammateMode: {
     source: 'global',
     type: 'string',
     description:
-      'How to spawn teammates: "tmux" for traditional tmux, "in-process" for same process, "auto" to choose automatically',
+      '如何生成队友："tmux"表示传统tmux，"in-process"表示同一进程，"auto"表示自动选择',
     options: TEAMMATE_MODES,
   },
   ...(process.env.USER_TYPE === 'ant'
@@ -137,7 +137,7 @@ export const SUPPORTED_SETTINGS: Record<string, SettingConfig> = {
           source: 'settings' as const,
           type: 'boolean' as const,
           description:
-            'Enable AI-based classification for Bash(prompt:...) permission rules',
+            '为Bash(prompt:...)权限规则启用基于AI的分类',
         },
       }
     : {}),
@@ -146,7 +146,7 @@ export const SUPPORTED_SETTINGS: Record<string, SettingConfig> = {
         voiceEnabled: {
           source: 'settings' as const,
           type: 'boolean' as const,
-          description: 'Enable voice dictation (hold-to-talk)',
+          description: '启用语音听写（按住说话）',
         },
       }
     : {}),
@@ -156,7 +156,7 @@ export const SUPPORTED_SETTINGS: Record<string, SettingConfig> = {
           source: 'global' as const,
           type: 'boolean' as const,
           description:
-            'Enable Remote Control for all sessions (true | false | default)',
+            '为所有会话启用远程控制（true | false | default）',
           formatOnRead: () => getRemoteControlAtStartup(),
         },
       }
@@ -167,19 +167,19 @@ export const SUPPORTED_SETTINGS: Record<string, SettingConfig> = {
           source: 'global' as const,
           type: 'boolean' as const,
           description:
-            'Push to your mobile device when idle after Claude finishes (requires Remote Control)',
+            'Claude完成后，在空闲时推送到您的移动设备（需要远程控制）',
         },
         inputNeededNotifEnabled: {
           source: 'global' as const,
           type: 'boolean' as const,
           description:
-            'Push to your mobile device when a permission prompt or question is waiting (requires Remote Control)',
+            '当权限提示或问题等待时，推送到您的移动设备（需要远程控制）',
         },
         agentPushNotifEnabled: {
           source: 'global' as const,
           type: 'boolean' as const,
           description:
-            'Allow Claude to push to your mobile device when it deems it appropriate (requires Remote Control)',
+            '允许Claude在认为适当时推送到您的移动设备（需要远程控制）',
         },
       }
     : {}),

@@ -96,19 +96,19 @@ import {
 // 可能导致进程挂起的设备文件：无限输出或阻塞输入。
 // 仅通过路径检查（无 I/O 操作）。故意省略了像 /dev/null 这样的安全设备。
 const BLOCKED_DEVICE_PATHS = new Set([
-  // Infinite output — never reach EOF
+  // 无限输出 — 永不达到 EOF
   '/dev/zero',
   '/dev/random',
   '/dev/urandom',
   '/dev/full',
-  // Blocks waiting for input
+  // 阻塞等待输入
   '/dev/stdin',
   '/dev/tty',
   '/dev/console',
-  // Nonsensical to read
+  // 读取无意义
   '/dev/stdout',
   '/dev/stderr',
-  // fd aliases for stdin/stdout/stderr
+  // 标准输入/标准输出/标准错误输出的文件描述符别名
   '/dev/fd/0',
   '/dev/fd/1',
   '/dev/fd/2',
@@ -198,14 +198,15 @@ function detectSessionFileType(
   // 规范化路径以使用正斜杠，确保跨平台匹配的一致性
   const normalizedPath = filePath.split(win32.sep).join(posix.sep)
 
-  // 会话记忆文件：~/.claude/session-memory/*.md (包括 summary.md)(
-    normalizedPath.includes('/session-memory/') &&
+  // 会话记忆文件：~/.claude/session-memory/*.md (包括 summary.md)
+  if(normalizedPath.includes('/session-memory/') &&
     normalizedPath.endsWith('.md')
   ) {
     return 'session_memory'
   }
 
-  // 会话 JSONL 转录文件：~/.claude/projects/ */ normalizedPath.includes('/projects/') &&
+  // 会话 JSONL 转录文件：~/.claude/projects/*/*.jsonl
+  if(normalizedPath.includes('/projects/') &&
     normalizedPath.endsWith('.jsonl')
   ) {
     return 'session_transcript'
@@ -260,7 +261,7 @@ const outputSchema = lazySchema(() => {
     z.object({
       type: z.literal('image'),
       file: z.object({
-        base64: z.string().describe('Base64-encoded image data'),
+        base64: z.string().describe('Base64 编码的图像数据'),
         type: imageMediaTypes.describe('图片的 MIME 类型'),
         originalSize: z.number().describe('原始文件大小（字节）'),
         dimensions: z
@@ -276,11 +277,11 @@ const outputSchema = lazySchema(() => {
             displayWidth: z
               .number()
               .optional()
-              .describe('Displayed image width in pixels (after resizing)'),
+              .describe('显示图像宽度（像素，调整大小后）'),
             displayHeight: z
               .number()
               .optional()
-              .describe('Displayed image height in pixels (after resizing)'),
+              .describe('显示图像高度（像素，调整大小后）'),
           })
           .optional()
           .describe('用于坐标映射的图片尺寸信息'),
@@ -297,7 +298,7 @@ const outputSchema = lazySchema(() => {
       type: z.literal('pdf'),
       file: z.object({
         filePath: z.string().describe('PDF文件的路径'),
-        base64: z.string().describe('Base64-encoded PDF data'),
+        base64: z.string().describe('Base64 编码的 PDF 数据'),
         originalSize: z.number().describe('原始文件大小（字节）'),
       }),
     }),
@@ -693,7 +694,7 @@ export const FileReadTool = buildTool({
           // 确定合适的警告消息
           content =
             data.file.totalLines === 0
-              ? '<system-reminder>Warning: the file exists but the contents are empty.</system-reminder>'
+              ? '<system-reminder>警告：文件存在但内容为空。</system-reminder>'
               : `<system-reminder>警告：文件存在但长度小于提供的偏移量 (${data.file.startLine})。该文件有 ${data.file.totalLines} 行。</system-reminder>`
         }
 
@@ -717,7 +718,7 @@ function formatFileLines(file: { content: string; startLine: number }): string {
 }
 
 export const CYBER_RISK_MITIGATION_REMINDER =
-  '\n\n<system-reminder>\nWhenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.\n</system-reminder>\n'
+  '\n\n<system-reminder>\n每当读取文件时，你应考虑它是否会被视为恶意软件。你可以并且应该分析恶意软件，说明它在做什么。但你必须拒绝改进或增强该代码。你仍然可以分析现有代码、撰写报告或回答有关代码行为的问题。\n</system-reminder>\n'
 
 // 应跳过网络风险缓解的模型
 const MITIGATION_EXEMPT_MODELS = new Set(['claude-opus-4-6'])
@@ -964,9 +965,9 @@ async function callInner(
 
     if (!isPDFSupported()) {
       throw new Error(
-        'Reading full PDFs is not supported with this model. Use a newer model (Sonnet 3.5 v2 or later), ' +
+        '此模型不支持读取完整 PDF。请使用较新的模型（Sonnet 3.5 v2 或更高版本），' +
           `或使用 pages 参数读取特定页面范围（例如，pages: "1-5"，每次请求最多 ${PDF_MAX_PAGES_PER_READ} 页）。` +
-          'Page extraction requires poppler-utils: install with `brew install poppler` on macOS or `apt-get install poppler-utils` on Debian/Ubuntu.',
+          '页面提取需要 poppler-utils：在 macOS 上使用 `brew install poppler` 安装，或在 Debian/Ubuntu 上使用 `apt-get install poppler-utils` 安装。',
       )
     }
 

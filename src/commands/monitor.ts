@@ -1,14 +1,11 @@
-/**
- * /monitor <command> — Start a background monitor task.
- *
- * Shortcut for the MonitorTool. Spawns a long-running shell command
- * as a background task visible in the footer pill (Shift+Down to view).
- *
- * Usage:
- *   /monitor tail -f /var/log/syslog
- *   /monitor watch -n 5 git status
- *   /monitor "while true; do curl -s http://localhost:3000/health; sleep 10; done"
- */
+/** /monitor <命令> — 启动一个后台监控任务。
+
+MonitorTool 的快捷方式。将一个长时间运行的 shell 命令作为后台任务启动，可在页脚药丸中查看（按 Shift+Down 查看）。
+
+用法：
+  /monitor tail -f /var/log/syslog
+  /monitor watch -n 5 git status
+  /monitor "while true; do curl -s http://localhost:3000/health; sleep 10; done" */
 import { feature } from 'bun:bundle'
 import type {
   Command,
@@ -20,7 +17,7 @@ import type { ToolUseContext } from '../Tool.js'
 const monitor = {
   type: 'local-jsx',
   name: 'monitor',
-  description: 'Start a background shell monitor (Shift+Down to view)',
+  description: '启动一个后台 shell 监控器（按 Shift+Down 查看）',
   isEnabled: () => {
     if (feature('MONITOR_TOOL')) {
       return true
@@ -40,14 +37,14 @@ const monitor = {
         if (!command) {
           onDone(
             process.platform === 'win32'
-              ? 'Usage: /monitor <command>\nExample: /monitor powershell -c "while(1){git status; Start-Sleep 5}"'
-              : 'Usage: /monitor <command>\nExample: /monitor watch -n 5 git status',
+              ? '用法：/monitor <命令>\n示例：/monitor powershell -c "while(1){git status; Start-Sleep 5}"'
+              : '用法：/monitor <命令>\n示例：/monitor watch -n 5 git status',
             { display: 'system' },
           )
           return null
         }
 
-        // Windows compatibility: convert `watch -n <sec> <cmd>` to a PowerShell loop
+        // Windows 兼容性：将 `watch -n <秒> <命令>` 转换为 PowerShell 循环
         if (process.platform === 'win32') {
           const watchMatch = command.match(/^watch\s+-n\s+(\d+)\s+(.+)$/)
           if (watchMatch) {
@@ -57,7 +54,7 @@ const monitor = {
           }
         }
 
-        // Dynamic require to stay behind feature gate
+        // 动态 require 以保持在功能门控之后
         const { spawnShellTask } =
           require('../tasks/LocalShellTask/LocalShellTask.js') as typeof import('../tasks/LocalShellTask/LocalShellTask.js')
         const { exec } =
@@ -90,12 +87,13 @@ const monitor = {
 
           const outputFile = getTaskOutputPath(handle.taskId)
           onDone(
-            `Monitor started (${handle.taskId}). Press Shift+Down to view.\nOutput: ${outputFile}`,
+            `监控已启动 (${handle.taskId})。按 Shift+Down 查看。
+输出：${outputFile}`,
             { display: 'system' },
           )
         } catch (err) {
           onDone(
-            `Monitor failed: ${err instanceof Error ? err.message : String(err)}`,
+            `监控失败：${err instanceof Error ? err.message : String(err)}`,
             { display: 'system' },
           )
         }

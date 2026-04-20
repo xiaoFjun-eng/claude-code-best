@@ -2,51 +2,47 @@ import { getBridgeDebugHandle } from '../bridge/bridgeDebug.js'
 import type { Command } from '../commands.js'
 import type { LocalCommandCall } from '../types/command.js'
 
-/**
- * Ant-only: inject bridge failure states to manually test recovery paths.
- *
- *   /bridge-kick close 1002            — fire ws_closed with code 1002
- *   /bridge-kick close 1006            — fire ws_closed with code 1006
- *   /bridge-kick poll 404              — next poll throws 404/not_found_error
- *   /bridge-kick poll 404 <type>       — next poll throws 404 with error_type
- *   /bridge-kick poll 401              — next poll throws 401 (auth)
- *   /bridge-kick poll transient        — next poll throws axios-style rejection
- *   /bridge-kick register fail         — next register (inside doReconnect) transient-fails
- *   /bridge-kick register fail 3       — next 3 registers transient-fail
- *   /bridge-kick register fatal        — next register 403s (terminal)
- *   /bridge-kick reconnect-session fail — POST /bridge/reconnect fails (→ Strategy 2)
- *   /bridge-kick heartbeat 401         — next heartbeat 401s (JWT expired)
- *   /bridge-kick reconnect             — call doReconnect directly (= SIGUSR2)
- *   /bridge-kick status                — print current bridge state
- *
- * Workflow: connect Remote Control, run a subcommand, `tail -f debug.log`
- * and watch [bridge:repl] / [bridge:debug] lines for the recovery reaction.
- *
- * Composite sequences — the failure modes in the BQ data are chains, not
- * single events. Queue faults then fire the trigger:
- *
- *   # #22148 residual: ws_closed → register transient-blips → teardown?
- *   /bridge-kick register fail 2
- *   /bridge-kick close 1002
- *   → expect: doReconnect tries register, fails, returns false → teardown
- *     (demonstrates the retry gap that needs fixing)
- *
- *   # Dead gate: poll 404/not_found_error → does onEnvironmentLost fire?
- *   /bridge-kick poll 404
- *   → expect: tengu_bridge_repl_fatal_error (gate is dead — 147K/wk)
- *     after fix: tengu_bridge_repl_env_lost → doReconnect
- */
+/** 仅限 Ant 用户：注入网桥故障状态以手动测试恢复路径。
 
-const USAGE = `/bridge-kick <subcommand>
-  close <code>              fire ws_closed with the given code (e.g. 1002)
-  poll <status> [type]      next poll throws BridgeFatalError(status, type)
-  poll transient            next poll throws axios-style rejection (5xx/net)
-  register fail [N]         next N registers transient-fail (default 1)
-  register fatal            next register 403s (terminal)
-  reconnect-session fail    next POST /bridge/reconnect fails
-  heartbeat <status>        next heartbeat throws BridgeFatalError(status)
-  reconnect                 call reconnectEnvironmentWithSession directly
-  status                    print bridge state`
+  /bridge-kick close 1002            — 触发 ws_closed 事件，代码为 1002
+  /bridge-kick close 1006            — 触发 ws_closed 事件，代码为 1006
+  /bridge-kick poll 404              — 下一次轮询抛出 404/not_found_error
+  /bridge-kick poll 404 <type>       — 下一次轮询抛出 404 并附带 error_type
+  /bridge-kick poll 401              — 下一次轮询抛出 401（认证错误）
+  /bridge-kick poll transient        — 下一次轮询抛出 axios 风格的拒绝错误
+  /bridge-kick register fail         — 下一次注册（在 doReconnect 内部）暂时性失败
+  /bridge-kick register fail 3       — 接下来 3 次注册暂时性失败
+  /bridge-kick register fatal        — 下一次注册返回 403（终止性错误）
+  /bridge-kick reconnect-session fail — POST /bridge/reconnect 失败（→ 策略 2）
+  /bridge-kick heartbeat 401         — 下一次心跳返回 401（JWT 过期）
+  /bridge-kick reconnect             — 直接调用 doReconnect（等同于 SIGUSR2）
+  /bridge-kick status                — 打印当前网桥状态
+
+工作流程：连接远程控制，运行子命令，`tail -f debug.log` 并观察 [bridge:repl] / [bridge:debug] 日志行以查看恢复反应。
+
+复合序列 — BQ 数据中的故障模式是链式事件，而非单一事件。先排队故障，然后触发：
+
+  # #22148 残留问题：ws_closed → 注册暂时性故障 → 是否拆除？
+  /bridge-kick register fail 2
+  /bridge-kick close 1002
+  → 预期：doReconnect 尝试注册，失败，返回 false → 拆除
+    （演示了需要修复的重试间隙）
+
+  # 死网关：poll 404/not_found_error → onEnvironmentLost 是否触发？
+  /bridge-kick poll 404
+  → 预期：tengu_bridge_repl_fatal_error（网关已死 — 147K/周）
+    修复后：tengu_bridge_repl_env_lost → doReconnect */
+
+const USAGE = `/bridge-kick <子命令>
+  close <代码>              触发 ws_closed 事件，使用给定代码（例如 1002）
+  poll <状态码> [类型]      下一次轮询抛出 BridgeFatalError(状态码, 类型)
+  poll transient            下一次轮询抛出 axios 风格的拒绝错误（5xx/网络）
+  register fail [N]         接下来 N 次注册暂时性失败（默认为 1）
+  register fatal            下一次注册返回 403（终止性错误）
+  reconnect-session fail    下一次 POST /bridge/reconnect 失败
+  heartbeat <状态码>        下一次心跳抛出 BridgeFatalError(状态码)
+  reconnect                 直接调用 reconnectEnvironmentWithSession
+  status                    打印网桥状态`
 
 const call: LocalCommandCall = async args => {
   const h = getBridgeDebugHandle()
@@ -54,7 +50,7 @@ const call: LocalCommandCall = async args => {
     return {
       type: 'text',
       value:
-        'No bridge debug handle registered. Remote Control must be connected (USER_TYPE=ant).',
+        '未注册网桥调试句柄。必须连接远程控制（USER_TYPE=ant）。',
     }
   }
 
@@ -64,12 +60,13 @@ const call: LocalCommandCall = async args => {
     case 'close': {
       const code = Number(a)
       if (!Number.isFinite(code)) {
-        return { type: 'text', value: `close: need a numeric code\n${USAGE}` }
+        return { type: 'text', value: `close: 需要一个数字代码
+${USAGE}` }
       }
       h.fireClose(code)
       return {
         type: 'text',
-        value: `Fired transport close(${code}). Watch debug.log for [bridge:repl] recovery.`,
+        value: `已触发传输层关闭(${code})。请观察 debug.log 中的 [bridge:repl] 恢复日志。`,
       }
     }
 
@@ -85,18 +82,19 @@ const call: LocalCommandCall = async args => {
         return {
           type: 'text',
           value:
-            'Next poll will throw a transient (axios rejection). Poll loop woken.',
+            '下一次轮询将抛出暂时性错误（axios 拒绝）。轮询循环已唤醒。',
         }
       }
       const status = Number(a)
       if (!Number.isFinite(status)) {
         return {
           type: 'text',
-          value: `poll: need 'transient' or a status code\n${USAGE}`,
+          value: `poll: 需要 'transient' 或一个状态码
+${USAGE}`,
         }
       }
-      // Default to what the server ACTUALLY sends for 404 (BQ-verified),
-      // so `/bridge-kick poll 404` reproduces the real 147K/week state.
+      // 默认使用服务器实际为 404 发送的内容（BQ 已验证），因此 `/bri
+      // dge-kick poll 404` 可重现真实的每周 147K 状态。
       const errorType =
         b ?? (status === 404 ? 'not_found_error' : 'authentication_error')
       h.injectFault({
@@ -109,7 +107,7 @@ const call: LocalCommandCall = async args => {
       h.wakePollLoop()
       return {
         type: 'text',
-        value: `Next poll will throw BridgeFatalError(${status}, ${errorType}). Poll loop woken.`,
+        value: `下一次轮询将抛出 BridgeFatalError(${status}, ${errorType})。轮询循环已唤醒。`,
       }
     }
 
@@ -125,7 +123,7 @@ const call: LocalCommandCall = async args => {
         return {
           type: 'text',
           value:
-            'Next registerBridgeEnvironment will 403. Trigger with close/reconnect.',
+            '下一次 registerBridgeEnvironment 将返回 403。通过 close/reconnect 触发。',
         }
       }
       const n = Number(b) || 1
@@ -137,7 +135,7 @@ const call: LocalCommandCall = async args => {
       })
       return {
         type: 'text',
-        value: `Next ${n} registerBridgeEnvironment call(s) will transient-fail. Trigger with close/reconnect.`,
+        value: `接下来 ${n} 次 registerBridgeEnvironment 调用将暂时性失败。通过 close/reconnect 触发。`,
       }
     }
 
@@ -152,7 +150,7 @@ const call: LocalCommandCall = async args => {
       return {
         type: 'text',
         value:
-          'Next 2 POST /bridge/reconnect calls will 404. doReconnect Strategy 1 falls through to Strategy 2.',
+          '接下来 2 次 POST /bridge/reconnect 调用将返回 404。doReconnect 策略 1 将回退到策略 2。',
       }
     }
 
@@ -167,7 +165,7 @@ const call: LocalCommandCall = async args => {
       })
       return {
         type: 'text',
-        value: `Next heartbeat will ${status}. Watch for onHeartbeatFatal → work-state teardown.`,
+        value: `下一次心跳将 ${status}。观察 onHeartbeatFatal → 工作状态拆除。`,
       }
     }
 
@@ -175,7 +173,7 @@ const call: LocalCommandCall = async args => {
       h.forceReconnect()
       return {
         type: 'text',
-        value: 'Called reconnectEnvironmentWithSession(). Watch debug.log.',
+        value: '已调用 reconnectEnvironmentWithSession()。请观察 debug.log。',
       }
     }
 
@@ -191,7 +189,7 @@ const call: LocalCommandCall = async args => {
 const bridgeKick = {
   type: 'local',
   name: 'bridge-kick',
-  description: 'Inject bridge failure states for manual recovery testing',
+  description: '注入网桥故障状态以进行手动恢复测试',
   isEnabled: () => process.env.USER_TYPE === 'ant',
   supportsNonInteractive: false,
   load: () => Promise.resolve({ call }),

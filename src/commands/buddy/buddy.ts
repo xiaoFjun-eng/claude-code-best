@@ -46,13 +46,13 @@ const SPECIES_PERSONALITY: Record<string, string> = {
     '热情如火，对架构充满激情。囤积好的变量名。',
   octopus:
     '非凡的多任务处理者。用触手同时缠绕每个问题。',
-  owl: 'Wise but verbose. Always says "let me think about that" for exactly 3 seconds.',
+  owl: '智慧但话多。总是说“让我想想”，并且恰好思考3秒钟。',
   penguin: '压力下保持冷静。优雅地滑过合并冲突。',
   turtle: '耐心且细致。相信慢而稳才能赢得部署。',
   snail: '有条不紊，留下一串有用的注释。从不匆忙。',
   ghost:
     '空灵，在最糟糕的时刻出现，带着令人毛骨悚然的见解。',
-  axolotl: '再生能力强且开朗。微笑着从任何 bug 中恢复。',
+  axolotl: '再生能力强且性格开朗。总是微笑着从任何bug中恢复。',
   capybara: '禅宗大师。周围一切着火时仍保持冷静。',
   cactus:
     '外表带刺但内心充满善意。在忽视中茁壮成长。',
@@ -93,7 +93,7 @@ export async function call(
   if (sub === 'pet') {
     const companion = getCompanion()
     if (!companion) {
-      onDone('no companion yet \u00b7 run /buddy first', { display: 'system' })
+      onDone('尚无伙伴 · 请先运行 /buddy', { display: 'system' })
       return null
     }
 
@@ -150,7 +150,7 @@ export async function call(
 
   const stars = RARITY_STARS[r.bones.rarity]
   const sprite = renderSprite(r.bones, 0)
-  const shiny = r.bones.shiny ? ' \u2728 Shiny!' : ''
+  const shiny = r.bones.shiny ? ' ✨ 闪闪发光！' : ''
 
   const lines = [
     '一位狂野的伙伴出现了！',
@@ -162,7 +162,7 @@ export async function call(
     `"${personality}"`,
     '',
     '你的伙伴现在将出现在你的输入框旁边！',
-    'Say its name to get its take \u00b7 /buddy pet \u00b7 /buddy off',
+    '说出它的名字以获取它的见解 · /buddy pet · /buddy off',
   ]
   onDone(lines.join('\n'), { display: 'system' })
   return null

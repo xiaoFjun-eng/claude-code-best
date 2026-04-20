@@ -112,7 +112,7 @@ import { buildMcpToolName } from './mcpStringUtils.js'
 import { normalizeNameForMCP } from './normalization.js'
 import { getLoggingSafeMcpBaseUrl } from './utils.js'
 
-// Package imports — delegate to mcp-client package utilities where applicable
+// 包导入——在适用时委托给 mcp-client 包的工具函数
 import {
   createMcpClient as createMcpClientFromPackage,
   captureStderr,
@@ -156,12 +156,7 @@ import type {
   ServerResource,
 } from './types.js'
 
-/**
- * Custom error class to indicate that an MCP tool call failed due to
- * authentication issues (e.g., expired OAuth token returning 401).
- * This error should be caught at the tool execution layer to update
- * the client's status to 'needs-auth'.
- */
+/** 自定义错误类，用于指示 MCP 工具调用因认证问题（例如，过期的 OAuth 令牌返回 401）而失败。此错误应在工具执行层捕获，以将客户端状态更新为 'needs-auth'。 */
 export class McpAuthError extends Error {
   serverName: string
   constructor(serverName: string, message: string) {
@@ -171,22 +166,15 @@ export class McpAuthError extends Error {
   }
 }
 
-/**
- * Thrown when an MCP session has expired and the connection cache has been cleared.
- * The caller should get a fresh client via ensureConnectedClient and retry.
- */
+/** 当 MCP 会话已过期且连接缓存已被清除时抛出。调用方应通过 ensureConnectedClient 获取新的客户端并重试。 */
 class McpSessionExpiredError extends Error {
   constructor(serverName: string) {
-    super(`MCP server "${serverName}" session expired`)
+    super(`MCP 服务器 "${serverName}" 会话已过期`)
     this.name = 'McpSessionExpiredError'
   }
 }
 
-/**
- * Thrown when an MCP tool returns `isError: true`. Carries the result's `_meta`
- * so SDK consumers can still receive it — per the MCP spec, `_meta` is on the
- * base Result type and is valid on error results.
- */
+/** 当 MCP 工具返回 `isError: true` 时抛出。携带结果的 `_meta` 数据，以便 SDK 使用者仍能接收到它——根据 MCP 规范，`_meta` 位于基础 Result 类型上，并且在错误结果上也是有效的。 */
 export class McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS extends TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS {
   constructor(
     message: string,
@@ -198,29 +186,16 @@ export class McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS extends T
   }
 }
 
-/**
- * Detects whether an error is an MCP "Session not found" error (HTTP 404 + JSON-RPC code -32001).
- * Per the MCP spec, servers return 404 when a session ID is no longer valid.
- * We check both signals to avoid false positives from generic 404s (wrong URL, server gone, etc.).
- */
+/** 检测错误是否为 MCP "Session not found" 错误（HTTP 404 + JSON-RPC 代码 -32001）。根据 MCP 规范，当会话 ID 不再有效时，服务器会返回 404。我们检查这两个信号，以避免来自通用 404（错误的 URL、服务器消失等）的误报。 */
 export const isMcpSessionExpiredError = isMcpSessionExpiredErrorFromPackage
 
-/**
- * Default timeout for MCP tool calls (effectively infinite - ~27.8 hours).
- */
+/** MCP 工具调用的默认超时时间（实际上是无限的——约 27.8 小时）。 */
 const DEFAULT_MCP_TOOL_TIMEOUT_MS = 100_000_000
 
-/**
- * Cap on MCP tool descriptions and server instructions sent to the model.
- * OpenAPI-generated MCP servers have been observed dumping 15-60KB of endpoint
- * docs into tool.description; this caps the p95 tail without losing the intent.
- */
+/** 发送给模型的 MCP 工具描述和服务器指令的长度上限。观察到 OpenAPI 生成的 MCP 服务器会将 15-60KB 的端点文档转储到 tool.description 中；此限制旨在控制尾部 p95 的长度，同时不丢失其意图。 */
 const MAX_MCP_DESCRIPTION_LENGTH = PKG_MAX_MCP_DESCRIPTION_LENGTH
 
-/**
- * Gets the timeout for MCP tool calls in milliseconds.
- * Uses MCP_TOOL_TIMEOUT environment variable if set, otherwise defaults to ~27.8 hours.
- */
+/** 获取 MCP 工具调用的超时时间（毫秒）。如果设置了 MCP_TOOL_TIMEOUT 环境变量则使用该值，否则默认约为 27.8 小时。 */
 function getMcpToolTimeoutMs(): number {
   return (
     parseInt(process.env.MCP_TOOL_TIMEOUT || '', 10) ||
@@ -230,14 +205,14 @@ function getMcpToolTimeoutMs(): number {
 
 import { isClaudeInChromeMCPServer } from '../../utils/claudeInChrome/common.js'
 
-// Lazy: toolRendering.tsx pulls React/ink; only needed when Claude-in-Chrome MCP server is connected
+// 懒加载：toolRendering.tsx 引入了 React/ink；仅在连接到 Claude-in-Chrome MCP 服务器时才需要
 /* eslint-disable @typescript-eslint/no-require-imports */
 const claudeInChromeToolRendering =
   (): typeof import('../../utils/claudeInChrome/toolRendering.js') =>
     require('../../utils/claudeInChrome/toolRendering.js')
-// Lazy: wrapper.tsx → hostAdapter.ts → executor.ts pulls both native modules
-// (@ant/computer-use-input + @ant/computer-use-swift). Runtime-gated by
-// GrowthBook tengu_malort_pedway (see gates.ts).
+// 懒加载：wrapper.tsx → hostAdapter.ts → executor.ts 引入了两个原生模块（@ant/c
+// omputer-use-input + @ant/computer-use-swift）。运行时由 GrowthBo
+// ok tengu_malort_pedway 控制（参见 gates.ts）。
 const computerUseWrapper = feature('CHICAGO_MCP')
   ? (): typeof import('../../utils/computerUse/wrapper.js') =>
       require('../../utils/computerUse/wrapper.js')
@@ -254,7 +229,7 @@ import { getClaudeConfigHomeDir } from '../../utils/envUtils.js'
 /* eslint-enable @typescript-eslint/no-require-imports */
 import { jsonParse, jsonStringify } from '../../utils/slowOperations.js'
 
-const MCP_AUTH_CACHE_TTL_MS = 15 * 60 * 1000 // 15 min
+const MCP_AUTH_CACHE_TTL_MS = 15 * 60 * 1000 // 15 分钟
 
 type McpAuthCacheData = Record<string, { timestamp: number }>
 
@@ -262,10 +237,10 @@ function getMcpAuthCachePath(): string {
   return join(getClaudeConfigHomeDir(), 'mcp-needs-auth-cache.json')
 }
 
-// Memoized so N concurrent isMcpAuthCached() calls during batched connection
-// share a single file read instead of N reads of the same file. Invalidated
-// on write (setMcpAuthCacheEntry) and clear (clearMcpAuthCache). Not using
-// lodash memoize because we need to null out the cache, not delete by key.
+// 已记忆化，以便在批量连接期间 N 个并发的 isMcpAuthCached()
+// 调用共享一次文件读取，而不是对同一文件进行 N 次读取。在写入（setMcpA
+// uthCacheEntry）和清除（clearMcpAuthCache）时失效
+// 。未使用 lodash memoize，因为我们需要清空缓存，而不是按键删除。
 let authCachePromise: Promise<McpAuthCacheData> | null = null
 
 function getMcpAuthCache(): Promise<McpAuthCacheData> {
@@ -286,8 +261,8 @@ async function isMcpAuthCached(serverId: string): Promise<boolean> {
   return Date.now() - entry.timestamp < MCP_AUTH_CACHE_TTL_MS
 }
 
-// Serialize cache writes through a promise chain to prevent concurrent
-// read-modify-write races when multiple servers return 401 in the same batch
+// 通过一个 Promise 链序列化缓存写入，以防止同
+// 一批次中多个服务器返回 401 时发生并发读-改-写竞争
 let writeChain = Promise.resolve()
 
 function setMcpAuthCacheEntry(serverId: string): void {
@@ -298,28 +273,24 @@ function setMcpAuthCacheEntry(serverId: string): void {
       const cachePath = getMcpAuthCachePath()
       await mkdir(dirname(cachePath), { recursive: true })
       await writeFile(cachePath, jsonStringify(cache))
-      // Invalidate the read cache so subsequent reads see the new entry.
-      // Safe because writeChain serializes writes: the next write's
-      // getMcpAuthCache() call will re-read the file with this entry present.
+      // 使读取缓存失效，以便后续读取能看到新条目。这是安全的，因为
+      // writeChain 序列化了写入：下一次写入的 ge
+      // tMcpAuthCache() 调用将重新读取包含此条目的文件。
       authCachePromise = null
     })
     .catch(() => {
-      // Best-effort cache write
+      // 尽力而为的缓存写入
     })
 }
 
 export function clearMcpAuthCache(): void {
   authCachePromise = null
   void unlink(getMcpAuthCachePath()).catch(() => {
-    // Cache file may not exist
+    // 缓存文件可能不存在
   })
 }
 
-/**
- * Spread-ready analytics field for the server's base URL. Calls
- * getLoggingSafeMcpBaseUrl once (not twice like the inline ternary it replaces).
- * Typed as AnalyticsMetadata since the URL is query-stripped and safe to log.
- */
+/** 用于服务器基础 URL 的、可直接展开的分析字段。调用 getLoggingSafeMcpBaseUrl 一次（不像它所替换的内联三元运算符那样调用两次）。类型为 AnalyticsMetadata，因为 URL 已去除查询参数，可以安全记录。 */
 function mcpBaseUrlAnalytics(serverRef: ScopedMcpServerConfig): {
   mcpServerBaseUrl?: AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
 } {
@@ -332,11 +303,7 @@ function mcpBaseUrlAnalytics(serverRef: ScopedMcpServerConfig): {
     : {}
 }
 
-/**
- * Shared handler for sse/http/claudeai-proxy auth failures during connect:
- * emits tengu_mcp_server_needs_auth, caches the needs-auth entry, and returns
- * the needs-auth connection result.
- */
+/** 连接期间 sse/http/claudeai-proxy 认证失败的共享处理程序：发出 tengu_mcp_server_needs_auth 事件，缓存 needs-auth 条目，并返回 needs-auth 连接结果。 */
 function handleRemoteAuthFailure(
   name: string,
   serverRef: ScopedMcpServerConfig,
@@ -350,43 +317,37 @@ function handleRemoteAuthFailure(
   const label: Record<typeof transportType, string> = {
     sse: 'SSE',
     http: 'HTTP',
-    'claudeai-proxy': 'claude.ai proxy',
+    'claudeai-proxy': 'claude.ai 代理',
   }
   logMCPDebug(
     name,
-    `Authentication required for ${label[transportType]} server`,
+    `${label[transportType]} 服务器需要认证`,
   )
   setMcpAuthCacheEntry(name)
   return { name, type: 'needs-auth', config: serverRef }
 }
 
-/**
- * Fetch wrapper for claude.ai proxy connections. Attaches the OAuth bearer
- * token and retries once on 401 via handleOAuth401Error (force-refresh).
- *
- * The Anthropic API path has this retry (withRetry.ts, grove.ts) to handle
- * memoize-cache staleness and clock drift. Without the same here, a single
- * stale token mass-401s every claude.ai connector and sticks them all in the
- * 15-min needs-auth cache.
- */
+/** 用于 claude.ai 代理连接的 Fetch 包装器。附加 OAuth Bearer 令牌，并在遇到 401 时通过 handleOAuth401Error（强制刷新）重试一次。
+
+Anthropic API 路径具有此重试逻辑（withRetry.ts, grove.ts）来处理记忆化缓存过期和时钟漂移。如果此处没有相同的逻辑，单个过期的令牌会导致每个 claude.ai 连接器都收到 401 错误，并使它们全部陷入 15 分钟的 needs-auth 缓存中。 */
 export function createClaudeAiProxyFetch(innerFetch: FetchLike): FetchLike {
   return async (url, init) => {
     const doRequest = async () => {
       await checkAndRefreshOAuthTokenIfNeeded()
       const currentTokens = getClaudeAIOAuthTokens()
       if (!currentTokens) {
-        throw new Error('No claude.ai OAuth token available')
+        throw new Error('没有可用的 claude.ai OAuth 令牌')
       }
       // eslint-disable-next-line eslint-plugin-n/no-unsupported-features/node-builtins
       const headers = new Headers(init?.headers)
       headers.set('Authorization', `Bearer ${currentTokens.accessToken}`)
       const response = await innerFetch(url, { ...init, headers })
-      // Return the exact token that was sent. Reading getClaudeAIOAuthTokens()
-      // again after the request is wrong under concurrent 401s: another
-      // connector's handleOAuth401Error clears the memoize cache, so we'd read
-      // the NEW token from keychain, pass it to handleOAuth401Error, which
-      // finds same-as-keychain → returns false → skips retry. Same pattern as
-      // bridgeApi.ts withOAuthRetry (token passed as fn param).
+      // 返回发送的确切令牌。在请求后再次读取 getClaudeAIOAuthTokens(
+      // ) 在并发 401 情况下是错误的：另一个连接器的 handleOAuth4
+      // 01Error 会清除记忆化缓存，因此我们会从密钥链读取新的令牌，将其传递给 han
+      // dleOAuth401Error，而 handleOAuth401Error 发
+      // 现与密钥链相同 → 返回 false → 跳过重试。与 bridgeApi.ts 中
+      // 的 withOAuthRetry 模式相同（令牌作为函数参数传递）。
       return { response, sentToken: currentTokens.accessToken }
     }
 
@@ -394,18 +355,18 @@ export function createClaudeAiProxyFetch(innerFetch: FetchLike): FetchLike {
     if (response.status !== 401) {
       return response
     }
-    // handleOAuth401Error returns true only if the token actually changed
-    // (keychain had a newer one, or force-refresh succeeded). Gate retry on
-    // that — otherwise we double round-trip time for every connector whose
-    // downstream service genuinely needs auth (the common case: 30+ servers
-    // with "MCP server requires authentication but no OAuth token configured").
+    // handleOAuth401Error 仅在令牌实际更改
+    // 时（密钥链中有更新的令牌，或强制刷新成功）返回 true。
+    // 根据此条件控制重试——否则，对于每个下游服务确实需要认证
+    // 的连接器（常见情况：30 多个服务器显示 "MCP 服务器
+    // 需要认证但未配置 OAuth 令牌"），我们将使往返时间加倍。
     const tokenChanged = await handleOAuth401Error(sentToken).catch(() => false)
     logEvent('tengu_mcp_claudeai_proxy_401', {
       tokenChanged:
         tokenChanged as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
     })
     if (!tokenChanged) {
-      // ELOCKED contention: another connector may have won the lockfile and refreshed — check if token changed underneath us
+      // ELOCKED 争用：另一个连接器可能已赢得锁文件并刷新了令牌——检查令牌是否在我们不知情的情况下发生了变化
       const now = getClaudeAIOAuthTokens()?.accessToken
       if (!now || now === sentToken) {
         return response
@@ -414,25 +375,22 @@ export function createClaudeAiProxyFetch(innerFetch: FetchLike): FetchLike {
     try {
       return (await doRequest()).response
     } catch {
-      // Retry itself failed (network error). Return the original 401 so the
-      // outer handler can classify it.
+      // 重试本身失败（网络错误）。返回原始的 401 状态码，以
+      // 便外部处理器能正确分类。
       return response
     }
   }
 }
 
-// Minimal interface for WebSocket instances passed to mcpWebSocketTransport
+// 传递给 mcpWebSocketTransport 的 WebSocket 实例的最小接口
 type WsClientLike = {
   readonly readyState: number
   close(): void
   send(data: string): void
 }
 
-/**
- * Create a ws.WebSocket client with the MCP protocol.
- * Bun's ws shim types lack the 3-arg constructor (url, protocols, options)
- * that the real ws package supports, so we cast the constructor here.
- */
+/** 创建一个遵循 MCP 协议的 ws.WebSocket 客户端。
+Bun 的 ws 垫片类型缺少真实 ws 包支持的三参数构造函数（url, protocols, options），因此我们在此处对构造函数进行类型转换。 */
 async function createNodeWsClient(
   url: string,
   options: Record<string, unknown>,
@@ -457,66 +415,51 @@ function getConnectionTimeoutMs(): number {
   return parseInt(process.env.MCP_TIMEOUT || '', 10) || 30000
 }
 
-/**
- * Default timeout for individual MCP requests (auth, tool calls, etc.)
- */
+/** 单个 MCP 请求（认证、工具调用等）的默认超时时间 */
 const MCP_REQUEST_TIMEOUT_MS = 60000
 
-/**
- * MCP Streamable HTTP spec requires clients to advertise acceptance of both
- * JSON and SSE on every POST. Servers that enforce this strictly reject
- * requests without it (HTTP 406).
- * https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#sending-messages-to-the-server
- */
+/** MCP 可流式 HTTP 规范要求客户端在每个 POST 请求中声明同时接受 JSON 和 SSE。严格执行此规范的服务器会拒绝不符合要求的请求（HTTP 406）。
+https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#sending-messages-to-the-server */
 const MCP_STREAMABLE_HTTP_ACCEPT = 'application/json, text/event-stream'
 
-/**
- * Wraps a fetch function to apply a fresh timeout signal to each request.
- * This avoids the bug where a single AbortSignal.timeout() created at connection
- * time becomes stale after 60 seconds, causing all subsequent requests to fail
- * immediately with "The operation timed out." Uses a 60-second timeout.
- *
- * Also ensures the Accept header required by the MCP Streamable HTTP spec is
- * present on POSTs. The MCP SDK sets this inside StreamableHTTPClientTransport.send(),
- * but it is attached to a Headers instance that passes through an object spread here,
- * and some runtimes/agents have been observed dropping it before it reaches the wire.
- * See https://github.com/anthropics/claude-agent-sdk-typescript/issues/202.
- * Normalizing here (the last wrapper before fetch()) guarantees it is sent.
- *
- * GET requests are excluded from the timeout since, for MCP transports, they are
- * long-lived SSE streams meant to stay open indefinitely. (Auth-related GETs use
- * a separate fetch wrapper with its own timeout in auth.ts.)
- *
- * @param baseFetch - The fetch function to wrap
- */
+/** 包装一个 fetch 函数，为每个请求应用新的超时信号。
+这避免了在连接时创建的单个 AbortSignal.timeout() 在 60 秒后失效的 bug，该 bug 会导致所有后续请求立即失败并提示“操作超时”。使用 60 秒超时。
+
+同时确保 MCP 可流式 HTTP 规范要求的 Accept 请求头出现在 POST 请求中。MCP SDK 在 StreamableHTTPClientTransport.send() 内部设置此头，但它附加在一个 Headers 实例上，该实例在此处通过对象展开运算符传递，并且观察到某些运行时/代理在请求发出前会丢弃它。
+参见 https://github.com/anthropics/claude-agent-sdk-typescript/issues/202。
+在此处（fetch() 之前的最后一个包装器）进行标准化，以保证它被发送。
+
+GET 请求被排除在超时之外，因为对于 MCP 传输层来说，它们是旨在无限期保持打开的长连接 SSE 流。（与认证相关的 GET 请求在 auth.ts 中使用单独的、带有自身超时的 fetch 包装器。）
+
+@param baseFetch - 要包装的 fetch 函数 */
 export function wrapFetchWithTimeout(baseFetch: FetchLike): FetchLike {
   return async (url: string | URL, init?: RequestInit) => {
     const method = (init?.method ?? 'GET').toUpperCase()
 
-    // Skip timeout for GET requests - in MCP transports, these are long-lived SSE streams.
-    // (OAuth discovery GETs in auth.ts use a separate createAuthFetch() with its own timeout.)
+    // 跳过 GET 请求的超时——在 MCP 传输层中，这些是长连接的 SSE 流。（auth.ts 中的
+    // OAuth 发现 GET 请求使用单独的、带有自身超时的 createAuthFetch() 函数。）
     if (method === 'GET') {
       return baseFetch(url, init)
     }
 
-    // Normalize headers and guarantee the Streamable-HTTP Accept value. new Headers()
-    // accepts HeadersInit | undefined and copies from plain objects, tuple arrays,
-    // and existing Headers instances — so whatever shape the SDK handed us, the
-    // Accept value survives the spread below as an own property of a concrete object.
-    // eslint-disable-next-line eslint-plugin-n/no-unsupported-features/node-builtins
+    // 标准化请求头并保证可流式 HTTP 的 Accept 值。new Headers() 接受 He
+    // adersInit | undefined 并从普通对象、元组数组和现有的 Headers
+    // 实例复制——因此无论 SDK 传递给我们什么格式，Accept 值都会在下面的展开操作中
+    // 作为具体对象的自有属性保留下来。eslint-disable-next-line eslint-
+    // plugin-n/no-unsupported-features/node-builtins
     const headers = new Headers(init?.headers)
     if (!headers.has('accept')) {
       headers.set('accept', MCP_STREAMABLE_HTTP_ACCEPT)
     }
 
-    // Use setTimeout instead of AbortSignal.timeout() so we can clearTimeout on
-    // completion. AbortSignal.timeout's internal timer is only released when the
-    // signal is GC'd, which in Bun is lazy — ~2.4KB of native memory per request
-    // lingers for the full 60s even when the request completes in milliseconds.
+    // 使用 setTimeout 代替 AbortSignal.timeout()，以便
+    // 我们可以在完成时 clearTimeout。AbortSignal.timeout
+    // 的内部计时器只有在信号被垃圾回收时才会释放，而在 Bun 中这是惰性的——即使请求在
+    // 几毫秒内完成，每个请求约 2.4KB 的原生内存也会在完整的 60 秒内持续存在。
     const controller = new AbortController()
     const timer = setTimeout(
       c =>
-        c.abort(new DOMException('The operation timed out.', 'TimeoutError')),
+        c.abort(new DOMException('操作超时。', 'TimeoutError')),
       MCP_REQUEST_TIMEOUT_MS,
       controller,
     )
@@ -564,7 +507,7 @@ function isLocalMcpServer(config: ScopedMcpServerConfig): boolean {
   return !config.type || config.type === 'stdio' || config.type === 'sdk'
 }
 
-// For the IDE MCP servers, we only include specific tools
+// 对于 IDE MCP 服务器，我们只包含特定的工具
 const ALLOWED_IDE_TOOLS = ['mcp__ide__executeCode', 'mcp__ide__getDiagnostics']
 function isIncludedMcpTool(tool: Tool): boolean {
   return (
@@ -572,12 +515,10 @@ function isIncludedMcpTool(tool: Tool): boolean {
   )
 }
 
-/**
- * Generates the cache key for a server connection
- * @param name Server name
- * @param serverRef Server configuration
- * @returns Cache key string
- */
+/** 为服务器连接生成缓存键
+@param name 服务器名称
+@param serverRef 服务器配置
+@returns 缓存键字符串 */
 export function getServerCacheKey(
   name: string,
   serverRef: ScopedMcpServerConfig,
@@ -585,13 +526,11 @@ export function getServerCacheKey(
   return `${name}-${jsonStringify(serverRef)}`
 }
 
-/**
- * TODO (ollie): The memoization here increases complexity by a lot, and im not sure it really improves performance
- * Attempts to connect to a single MCP server
- * @param name Server name
- * @param serverRef Scoped server configuration
- * @returns A wrapped client (either connected or failed)
- */
+/** TODO (ollie): 此处的记忆化大大增加了复杂性，我不确定它是否真的提升了性能
+尝试连接到单个 MCP 服务器
+@param name 服务器名称
+@param serverRef 作用域内的服务器配置
+@returns 一个包装后的客户端（已连接或已失败） */
 export const connectToServer = memoize(
   async (
     name: string,
@@ -612,23 +551,23 @@ export const connectToServer = memoize(
     try {
       let transport
 
-      // If we have the session ingress JWT, we will connect via the session ingress rather than
-      // to remote MCP's directly.
+      // 如果我们拥有会话入口 JWT，我们将通过会话入口连接，而不是直接连接到远
+      // 程 MCP 服务器。
       const sessionIngressToken = getSessionIngressAuthToken()
 
       if (serverRef.type === 'sse') {
-        // Create an auth provider for this server
+        // 为此服务器创建一个认证提供者
         const authProvider = new ClaudeAuthProvider(name, serverRef)
 
-        // Get combined headers (static + dynamic)
+        // 获取组合请求头（静态 + 动态）
         const combinedHeaders = await getMcpServerHeaders(name, serverRef)
 
-        // Use the auth provider with SSEClientTransport
+        // 将认证提供者与 SSEClientTransport 一起使用
         const transportOptions: SSEClientTransportOptions = {
           authProvider,
-          // Use fresh timeout per request to avoid stale AbortSignal bug.
-          // Step-up detection wraps innermost so the 403 is seen before the
-          // SDK's handler calls auth() → tokens().
+          // 每个请求使用新的超时以避免 AbortSignal 失效的 bug。权
+          // 限提升检测包装在最内层，以便 SDK 的处理器调用 auth() → to
+          // kens() 之前能检测到 403 状态码。
           fetch: wrapFetchWithTimeout(
             wrapFetchWithStepUpDetection(createFetchWithInit(), authProvider),
           ),
@@ -640,14 +579,14 @@ export const connectToServer = memoize(
           },
         }
 
-        // IMPORTANT: Always set eventSourceInit with a fetch that does NOT use the
-        // timeout wrapper. The EventSource connection is long-lived (stays open indefinitely
-        // to receive server-sent events), so applying a 60-second timeout would kill it.
-        // The timeout is only meant for individual API requests (POST, auth refresh), not
-        // the persistent SSE stream.
+        // 重要：始终将 eventSourceInit 设置为使用不包含
+        // 超时包装器的 fetch 函数。EventSource 连接是长连接的
+        // （无限期保持打开以接收服务器发送的事件），因此应用 60 秒超时会终
+        // 止它。超时仅适用于单个 API 请求（POST、认证刷新），而不适用
+        // 于持久的 SSE 流。
         transportOptions.eventSourceInit = {
           fetch: async (url: string | URL, init?: RequestInit) => {
-            // Get auth headers from the auth provider
+            // 从认证提供者获取认证请求头
             const authHeaders: Record<string, string> = {}
             const tokens = await authProvider.tokens()
             if (tokens) {
@@ -674,11 +613,11 @@ export const connectToServer = memoize(
           new URL(serverRef.url),
           transportOptions,
         )
-        logMCPDebug(name, `SSE transport initialized, awaiting connection`)
+        logMCPDebug(name, `SSE 传输层已初始化，正在等待连接`)
       } else if (serverRef.type === 'sse-ide') {
-        logMCPDebug(name, `Setting up SSE-IDE transport to ${serverRef.url}`)
-        // IDE servers don't need authentication
-        // TODO: Use the auth token provided in the lockfile
+        logMCPDebug(name, `正在设置到 ${serverRef.url} 的 SSE-IDE 传输层`)
+        // IDE 服务器不需要认证 T
+        // ODO: 使用锁文件中提供的认证令牌
         const proxyOptions = getProxyFetchOptions()
         const transportOptions: SSEClientTransportOptions =
           proxyOptions.dispatcher
@@ -716,8 +655,8 @@ export const connectToServer = memoize(
 
         let wsClient: WsClientLike
         if (typeof Bun !== 'undefined') {
-          // Bun's WebSocket supports headers/proxy/tls options but the DOM typings don't
-          // eslint-disable-next-line eslint-plugin-n/no-unsupported-features/node-builtins
+          // Bun 的 WebSocket 支持 headers/proxy/tls 选项，但 DOM 类型定义不支持 eslint-disa
+          // ble-next-line eslint-plugin-n/no-unsupported-features/node-builtins
           wsClient = new globalThis.WebSocket(serverRef.url, {
             protocols: ['mcp'],
             headers: wsHeaders,
@@ -735,7 +674,7 @@ export const connectToServer = memoize(
       } else if (serverRef.type === 'ws') {
         logMCPDebug(
           name,
-          `Initializing WebSocket transport to ${serverRef.url}`,
+          `正在初始化到 ${serverRef.url} 的 WebSocket 传输层`,
         )
 
         const combinedHeaders = await getMcpServerHeaders(name, serverRef)
@@ -749,14 +688,14 @@ export const connectToServer = memoize(
           ...combinedHeaders,
         }
 
-        // Redact sensitive headers before logging
+        // 在记录日志前隐藏敏感请求头
         const wsHeadersForLogging = mapValues(wsHeaders, (value, key) =>
           key.toLowerCase() === 'authorization' ? '[REDACTED]' : value,
         )
 
         logMCPDebug(
           name,
-          `WebSocket transport options: ${jsonStringify({
+          `WebSocket 传输选项：${jsonStringify({
             url: serverRef.url,
             headers: wsHeadersForLogging,
             hasSessionAuth: !!sessionIngressToken,
@@ -765,8 +704,8 @@ export const connectToServer = memoize(
 
         let wsClient: WsClientLike
         if (typeof Bun !== 'undefined') {
-          // Bun's WebSocket supports headers/proxy/tls options but the DOM typings don't
-          // eslint-disable-next-line eslint-plugin-n/no-unsupported-features/node-builtins
+          // Bun 的 WebSocket 支持 headers/proxy/tls 选项，但 DOM 类型定义不支持 eslint-disa
+          // ble-next-line eslint-plugin-n/no-unsupported-features/node-builtins
           wsClient = new globalThis.WebSocket(serverRef.url, {
             protocols: ['mcp'],
             headers: wsHeaders,
@@ -782,47 +721,47 @@ export const connectToServer = memoize(
         }
         transport = new WebSocketTransport(wsClient)
       } else if (serverRef.type === 'http') {
-        logMCPDebug(name, `Initializing HTTP transport to ${serverRef.url}`)
+        logMCPDebug(name, `正在初始化到 ${serverRef.url} 的 HTTP 传输`)
         logMCPDebug(
           name,
-          `Node version: ${process.version}, Platform: ${process.platform}`,
+          `Node 版本：${process.version}，平台：${process.platform}`,
         )
         logMCPDebug(
           name,
           `Environment: ${jsonStringify({
-            NODE_OPTIONS: process.env.NODE_OPTIONS || 'not set',
+            NODE_OPTIONS: process.env.NODE_OPTIONS || '未设置',
             UV_THREADPOOL_SIZE: process.env.UV_THREADPOOL_SIZE || 'default',
-            HTTP_PROXY: process.env.HTTP_PROXY || 'not set',
-            HTTPS_PROXY: process.env.HTTPS_PROXY || 'not set',
-            NO_PROXY: process.env.NO_PROXY || 'not set',
+            HTTP_PROXY: process.env.HTTP_PROXY || '未设置',
+            HTTPS_PROXY: process.env.HTTPS_PROXY || '未设置',
+            NO_PROXY: process.env.NO_PROXY || '未设置',
           })}`,
         )
 
-        // Create an auth provider for this server
+        // 为此服务器创建身份验证提供程序
         const authProvider = new ClaudeAuthProvider(name, serverRef)
 
-        // Get combined headers (static + dynamic)
+        // 获取合并后的请求头（静态 + 动态）
         const combinedHeaders = await getMcpServerHeaders(name, serverRef)
 
-        // Check if this server has stored OAuth tokens. If so, the SDK's
-        // authProvider will set Authorization — don't override with the
-        // session ingress token (SDK merges requestInit AFTER authProvider).
-        // CCR proxy URLs (ccr_shttp_mcp) have no stored OAuth, so they still
-        // get the ingress token. See PR #24454 discussion.
+        // 检查此服务器是否存储了 OAuth 令牌。如果是，SDK 的 authPro
+        // vider 将设置 Authorization 请求头 — 不要用会话入口
+        // 令牌覆盖（SDK 在 authProvider 之后合并 requestInit
+        // ）。CCR 代理 URL（ccr_shttp_mcp）没有存储 OAuth，因此
+        // 它们仍会获得入口令牌。请参阅 PR #24454 的讨论。
         const hasOAuthTokens = !!(await authProvider.tokens())
 
-        // Use the auth provider with StreamableHTTPClientTransport
+        // 将身份验证提供程序与 StreamableHTTPClientTransport 一起使用
         const proxyOptions = getProxyFetchOptions()
         logMCPDebug(
           name,
-          `Proxy options: ${proxyOptions.dispatcher ? 'custom dispatcher' : 'default'}`,
+          `代理选项：${proxyOptions.dispatcher ? 'custom dispatcher' : 'default'}`,
         )
 
         const transportOptions: StreamableHTTPClientTransportOptions = {
           authProvider,
-          // Use fresh timeout per request to avoid stale AbortSignal bug.
-          // Step-up detection wraps innermost so the 403 is seen before the
-          // SDK's handler calls auth() → tokens().
+          // 每个请求使用新的超时设置，以避免陈旧的 AbortSignal 错误。St
+          // ep-up 检测包装在最内层，以便在 SDK 的处理程序调用 auth() →
+          // tokens() 之前看到 403 状态码。
           fetch: wrapFetchWithTimeout(
             wrapFetchWithStepUpDetection(createFetchWithInit(), authProvider),
           ),
@@ -839,7 +778,7 @@ export const connectToServer = memoize(
           },
         }
 
-        // Redact sensitive headers before logging
+        // 在记录日志前隐藏敏感请求头
         const headersForLogging = transportOptions.requestInit?.headers
           ? mapValues(
               transportOptions.requestInit.headers as Record<string, string>,
@@ -850,7 +789,7 @@ export const connectToServer = memoize(
 
         logMCPDebug(
           name,
-          `HTTP transport options: ${jsonStringify({
+          `HTTP 传输选项：${jsonStringify({
             url: serverRef.url,
             headers: headersForLogging,
             hasAuthProvider: !!authProvider,
@@ -862,31 +801,31 @@ export const connectToServer = memoize(
           new URL(serverRef.url),
           transportOptions,
         )
-        logMCPDebug(name, `HTTP transport created successfully`)
+        logMCPDebug(name, `HTTP 传输创建成功`)
       } else if (serverRef.type === 'sdk') {
-        throw new Error('SDK servers should be handled in print.ts')
+        throw new Error('SDK 服务器应在 print.ts 中处理')
       } else if (serverRef.type === 'claudeai-proxy') {
         logMCPDebug(
           name,
-          `Initializing claude.ai proxy transport for server ${serverRef.id}`,
+          `正在为服务器 ${serverRef.id} 初始化 claude.ai 代理传输`,
         )
 
         const tokens = getClaudeAIOAuthTokens()
         if (!tokens) {
-          throw new Error('No claude.ai OAuth token found')
+          throw new Error('未找到 claude.ai OAuth 令牌')
         }
 
         const oauthConfig = getOauthConfig()
         const proxyUrl = `${oauthConfig.MCP_PROXY_URL}${oauthConfig.MCP_PROXY_PATH.replace('{server_id}', serverRef.id)}`
 
-        logMCPDebug(name, `Using claude.ai proxy at ${proxyUrl}`)
+        logMCPDebug(name, `正在使用位于 ${proxyUrl} 的 claude.ai 代理`)
 
         // eslint-disable-next-line eslint-plugin-n/no-unsupported-features/node-builtins
         const fetchWithAuth = createClaudeAiProxyFetch(globalThis.fetch)
 
         const proxyOptions = getProxyFetchOptions()
         const transportOptions: StreamableHTTPClientTransportOptions = {
-          // Wrap fetchWithAuth with fresh timeout per request
+          // 用每个请求的新超时设置包装 fetchWithAuth
           fetch: wrapFetchWithTimeout(fetchWithAuth),
           requestInit: {
             ...proxyOptions,
@@ -901,12 +840,12 @@ export const connectToServer = memoize(
           new URL(proxyUrl),
           transportOptions,
         )
-        logMCPDebug(name, `claude.ai proxy transport created successfully`)
+        logMCPDebug(name, `claude.ai 代理传输创建成功`)
       } else if (
         ((serverRef as ScopedMcpServerConfig).type === 'stdio' || !(serverRef as ScopedMcpServerConfig).type) &&
         isClaudeInChromeMCPServer(name)
       ) {
-        // Run the Chrome MCP server in-process to avoid spawning a ~325 MB subprocess
+        // 在进程内运行 Chrome MCP 服务器，以避免产生一个约 325 MB 的子进程
         const { createChromeContext } = await import(
           '../../utils/claudeInChrome/mcpServer.js'
         )
@@ -921,15 +860,15 @@ export const connectToServer = memoize(
         const [clientTransport, serverTransport] = createLinkedTransportPair()
         await inProcessServer.connect(serverTransport)
         transport = clientTransport
-        logMCPDebug(name, `In-process Chrome MCP server started`)
+        logMCPDebug(name, `进程内 Chrome MCP 服务器已启动`)
       } else if (
         feature('CHICAGO_MCP') &&
         ((serverRef as ScopedMcpServerConfig).type === 'stdio' || !(serverRef as ScopedMcpServerConfig).type) &&
         isComputerUseMCPServer!(name)
       ) {
-        // Run the Computer Use MCP server in-process — same rationale as
-        // Chrome above. The package's CallTool handler is a stub; real
-        // dispatch goes through wrapper.tsx's .call() override.
+        // 在进程内运行 Computer Use MCP 服务器 — 理由与上述 C
+        // hrome 相同。该包的 CallTool 处理程序是一个存根；实际的调
+        // 度通过 wrapper.tsx 的 .call() 重写进行。
         const { createComputerUseMcpServerForCli } = await import(
           '../../utils/computerUse/mcpServer.js'
         )
@@ -940,7 +879,7 @@ export const connectToServer = memoize(
         const [clientTransport, serverTransport] = createLinkedTransportPair()
         await inProcessServer.connect(serverTransport)
         transport = clientTransport
-        logMCPDebug(name, `In-process Computer Use MCP server started`)
+        logMCPDebug(name, `进程内 Computer Use MCP 服务器已启动`)
       } else if ((serverRef as ScopedMcpServerConfig).type === 'stdio' || !(serverRef as ScopedMcpServerConfig).type) {
         const stdioRef = serverRef as McpStdioServerConfig
         const finalCommand =
@@ -955,27 +894,27 @@ export const connectToServer = memoize(
             ...subprocessEnv(),
             ...stdioRef.env,
           } as Record<string, string>,
-          stderr: 'pipe', // prevents error output from the MCP server from printing to the UI
+          stderr: 'pipe', // 防止 MCP 服务器的错误输出打印到 UI
         })
       } else {
-        throw new Error(`Unsupported server type: ${(serverRef as ScopedMcpServerConfig).type}`)
+        throw new Error(`不支持的服务器类型：${(serverRef as ScopedMcpServerConfig).type}`)
       }
 
-      // Set up stderr logging for stdio transport before connecting in case there are any stderr
-      // outputs emitted during the connection start (this can be useful for debugging failed connections).
-      // Store handler reference for cleanup to prevent memory leaks
+      // 在连接前为标准输入输出传输设置标准错误日志记录，以防连
+      // 接启动期间产生任何标准错误输出（这对调试失败的连接很有用）。
+      // 存储处理程序引用以便清理，防止内存泄漏
       let stderrHandler: ((data: Buffer) => void) | undefined
       let stderrOutput = ''
       if (serverRef.type === 'stdio' || !serverRef.type) {
         const stdioTransport = transport as StdioClientTransport
         if (stdioTransport.stderr) {
           stderrHandler = (data: Buffer) => {
-            // Cap stderr accumulation to prevent unbounded memory growth
+            // 限制标准错误累积量，防止内存无限增长
             if (stderrOutput.length < 64 * 1024 * 1024) {
               try {
                 stderrOutput += data.toString()
               } catch {
-                // Ignore errors from exceeding max string length
+                // 忽略超出最大字符串长度导致的错误
               }
             }
           }
@@ -988,27 +927,27 @@ export const connectToServer = memoize(
           name: 'claude-code',
           title: 'Claude Code',
           version: MACRO.VERSION ?? 'unknown',
-          description: "Anthropic's agentic coding tool",
+          description: "Anthropic 的智能编码工具",
           websiteUrl: PRODUCT_URL,
         },
         {
           capabilities: {
             roots: {},
-            // Empty object declares the capability. Sending {form:{},url:{}}
-            // breaks Java MCP SDK servers (Spring AI) whose Elicitation class
-            // has zero fields and fails on unknown properties.
+            // 空对象声明该能力。发送 {form:{},url:{}} 会破坏
+            // Java MCP SDK 服务器（Spring AI），其 Eli
+            // citation 类没有字段，会在未知属性上失败。
             elicitation: {},
           },
         },
       )
 
-      // Add debug logging for client events if available
+      // 如果可用，为客户端事件添加调试日志记录
       if (serverRef.type === 'http') {
-        logMCPDebug(name, `Client created, setting up request handler`)
+        logMCPDebug(name, `客户端已创建，正在设置请求处理程序`)
       }
 
       client.setRequestHandler(ListRootsRequestSchema, async () => {
-        logMCPDebug(name, `Received ListRoots request from server`)
+        logMCPDebug(name, `收到来自服务器的 ListRoots 请求`)
         return {
           roots: [
             {
@@ -1018,31 +957,31 @@ export const connectToServer = memoize(
         }
       })
 
-      // Add a timeout to connection attempts to prevent tests from hanging indefinitely
+      // 为连接尝试添加超时，防止测试无限期挂起
       logMCPDebug(
         name,
-        `Starting connection with timeout of ${getConnectionTimeoutMs()}ms`,
+        `开始连接，超时时间为 ${getConnectionTimeoutMs()} 毫秒`,
       )
 
-      // For HTTP transport, try a basic connectivity test first
+      // 对于 HTTP 传输，首先尝试基本连通性测试
       if (serverRef.type === 'http') {
-        logMCPDebug(name, `Testing basic HTTP connectivity to ${serverRef.url}`)
+        logMCPDebug(name, `正在测试到 ${serverRef.url} 的基本 HTTP 连通性`)
         try {
           const testUrl = new URL(serverRef.url)
           logMCPDebug(
             name,
-            `Parsed URL: host=${testUrl.hostname}, port=${testUrl.port || 'default'}, protocol=${testUrl.protocol}`,
+            `解析后的 URL：主机=${testUrl.hostname}，端口=${testUrl.port || 'default'}，协议=${testUrl.protocol}`,
           )
 
-          // Log DNS resolution attempt
+          // 记录 DNS 解析尝试
           if (
             testUrl.hostname === '127.0.0.1' ||
             testUrl.hostname === 'localhost'
           ) {
-            logMCPDebug(name, `Using loopback address: ${testUrl.hostname}`)
+            logMCPDebug(name, `使用环回地址：${testUrl.hostname}`)
           }
         } catch (urlError) {
-          logMCPDebug(name, `Failed to parse URL: ${urlError}`)
+          logMCPDebug(name, `解析 URL 失败：${urlError}`)
         }
       }
 
@@ -1052,7 +991,7 @@ export const connectToServer = memoize(
           const elapsed = Date.now() - connectStartTime
           logMCPDebug(
             name,
-            `Connection timeout triggered after ${elapsed}ms (limit: ${getConnectionTimeoutMs()}ms)`,
+            `连接超时在 ${elapsed} 毫秒后触发（限制：${getConnectionTimeoutMs()} 毫秒）`,
           )
           if (inProcessServer) {
             inProcessServer.close().catch(() => {})
@@ -1060,13 +999,13 @@ export const connectToServer = memoize(
           transport.close().catch(() => {})
           reject(
             new TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
-              `MCP server "${name}" connection timed out after ${getConnectionTimeoutMs()}ms`,
-              'MCP connection timeout',
+              `MCP 服务器 "${name}" 的连接在 ${getConnectionTimeoutMs()} 毫秒后超时`,
+              'MCP 连接超时',
             ),
           )
         }, getConnectionTimeoutMs())
 
-        // Clean up timeout if connect resolves or rejects
+        // 如果连接解析或拒绝，清理超时
         connectPromise.then(
           () => {
             clearTimeout(timeoutId)
@@ -1080,21 +1019,21 @@ export const connectToServer = memoize(
       try {
         await Promise.race([connectPromise, timeoutPromise])
         if (stderrOutput) {
-          logMCPError(name, `Server stderr: ${stderrOutput}`)
-          stderrOutput = '' // Release accumulated string to prevent memory growth
+          logMCPError(name, `服务器标准错误：${stderrOutput}`)
+          stderrOutput = '' // 释放累积的字符串，防止内存增长
         }
         const elapsed = Date.now() - connectStartTime
         logMCPDebug(
           name,
-          `Successfully connected (transport: ${serverRef.type || 'stdio'}) in ${elapsed}ms`,
+          `成功连接（传输：${serverRef.type || 'stdio'}），耗时 ${elapsed} 毫秒`,
         )
       } catch (error) {
         const elapsed = Date.now() - connectStartTime
-        // SSE-specific error logging
+        // SSE 特定的错误日志记录
         if (serverRef.type === 'sse' && error instanceof Error) {
           logMCPDebug(
             name,
-            `SSE Connection failed after ${elapsed}ms: ${jsonStringify({
+            `SSE 连接在 ${elapsed} 毫秒后失败：${jsonStringify({
               url: serverRef.url,
               error: error.message,
               errorType: error.constructor.name,
@@ -1115,7 +1054,7 @@ export const connectToServer = memoize(
           }
           logMCPDebug(
             name,
-            `HTTP Connection failed after ${elapsed}ms: ${error.message} (code: ${errorObj.code || 'none'}, errno: ${errorObj.errno || 'none'})`,
+            `HTTP 连接在 ${elapsed} 毫秒后失败：${error.message}（代码：${errorObj.code || 'none'}，错误号：${errorObj.errno || 'none'}）`,
           )
           logMCPError(name, error)
 
@@ -1128,11 +1067,11 @@ export const connectToServer = memoize(
         ) {
           logMCPDebug(
             name,
-            `claude.ai proxy connection failed after ${elapsed}ms: ${error.message}`,
+            `claude.ai 代理连接在 ${elapsed} 毫秒后失败：${error.message}`,
           )
           logMCPError(name, error)
 
-          // StreamableHTTPError has a `code` property with the HTTP status
+          // StreamableHTTPError 有一个包含 HTTP 状态的 `code` 属性
           const errorCode = (error as Error & { code?: number }).code
           if (errorCode === 401) {
             return handleRemoteAuthFailure(name, serverRef, 'claudeai-proxy')
@@ -1150,7 +1089,7 @@ export const connectToServer = memoize(
         }
         transport.close().catch(() => {})
         if (stderrOutput) {
-          logMCPError(name, `Server stderr: ${stderrOutput}`)
+          logMCPError(name, `服务器标准错误：${stderrOutput}`)
         }
         throw error
       }
@@ -1164,17 +1103,17 @@ export const connectToServer = memoize(
         rawInstructions.length > MAX_MCP_DESCRIPTION_LENGTH
       ) {
         instructions =
-          rawInstructions.slice(0, MAX_MCP_DESCRIPTION_LENGTH) + '… [truncated]'
+          rawInstructions.slice(0, MAX_MCP_DESCRIPTION_LENGTH) + '… [已截断]'
         logMCPDebug(
           name,
-          `Server instructions truncated from ${rawInstructions.length} to ${MAX_MCP_DESCRIPTION_LENGTH} chars`,
+          `服务器指令从 ${rawInstructions.length} 字符截断至 ${MAX_MCP_DESCRIPTION_LENGTH} 字符`,
         )
       }
 
-      // Log successful connection details
+      // 记录成功连接的详细信息
       logMCPDebug(
         name,
-        `Connection established with capabilities: ${jsonStringify({
+        `连接已建立，支持的能力：${jsonStringify({
           hasTools: !!capabilities?.tools,
           hasPrompts: !!capabilities?.prompts,
           hasResources: !!capabilities?.resources,
@@ -1183,16 +1122,16 @@ export const connectToServer = memoize(
         })}`,
       )
       logForDebugging(
-        `[MCP] Server "${name}" connected with subscribe=${!!capabilities?.resources?.subscribe}`,
+        `[MCP] 服务器 "${name}" 已连接，订阅状态 subscribe=${!!capabilities?.resources?.subscribe}`,
       )
 
-      // Register default elicitation handler that returns cancel during the
-      // window before registerElicitationHandler overwrites it in
-      // onConnectionAttempt (useManageMCPConnections).
+      // 注册默认的引导处理程序，该程序在 registerElicitationHandle
+      // r 于 onConnectionAttempt（useManageMCP
+      // Connections）中覆盖它之前的窗口期内返回取消。
       client.setRequestHandler(ElicitRequestSchema, async request => {
         logMCPDebug(
           name,
-          `Elicitation request received during initialization: ${jsonStringify(request)}`,
+          `初始化期间收到引导请求：${jsonStringify(request)}`,
         )
         return { action: 'cancel' as const }
       })
@@ -1209,41 +1148,41 @@ export const connectToServer = memoize(
         } catch (error) {
           logMCPError(
             name,
-            `Failed to send ide_connected notification: ${error}`,
+            `发送 ide_connected 通知失败：${error}`,
           )
         }
       }
 
-      // Enhanced connection drop detection and logging for all transport types
+      // 为所有传输类型增强连接断开检测和日志记录
       const connectionStartTime = Date.now()
       let hasErrorOccurred = false
 
-      // Store original handlers
+      // 存储原始处理程序
       const originalOnerror = client.onerror
       const originalOnclose = client.onclose
 
-      // The SDK's transport calls onerror on connection failures but doesn't call onclose,
-      // which CC uses to trigger reconnection. We bridge this gap by tracking consecutive
-      // terminal errors and manually closing after MAX_ERRORS_BEFORE_RECONNECT failures.
+      // SDK 的传输层在连接失败时会调用 onerror，但不会调用 onclose（CC
+      // 使用 onclose 来触发重连）。我们通过跟踪连续的终端错误并在达到 MAX_
+      // ERRORS_BEFORE_RECONNECT 次失败后手动关闭来弥合这一差距。
       let consecutiveConnectionErrors = 0
       const MAX_ERRORS_BEFORE_RECONNECT = 3
 
-      // Guard against re-entry: close() aborts in-flight streams which may fire
-      // onerror again before the close chain completes.
+      // 防止重入：close() 会中止进行中的流，这些流可能在关
+      // 闭链完成之前再次触发 onerror。
       let hasTriggeredClose = false
 
-      // client.close() → transport.close() → transport.onclose → SDK's _onclose():
-      // rejects all pending request handlers (so hung callTool() promises fail with
-      // McpError -32000 "Connection closed") and then invokes our client.onclose
-      // handler below (which clears the memo cache so the next call reconnects).
-      // Calling client.onclose?.() directly would only clear the cache — pending
-      // tool calls would stay hung.
+      // client.close() → transport.close() → transport
+      // .onclose → SDK 的 _onclose()：拒绝所有待处理的请求处理程序（因此挂
+      // 起的 callTool() 承诺会以 McpError -32000 "连接已关闭" 失败
+      // ），然后调用我们下面的 client.onclose 处理程序（该处理程序会清除备忘录缓存
+      // ，以便下次调用重新连接）。直接调用 client.onclose?.() 只会清除缓存——
+      // 待处理的工具调用将保持挂起状态。
       const closeTransportAndRejectPending = (reason: string) => {
         if (hasTriggeredClose) return
         hasTriggeredClose = true
-        logMCPDebug(name, `Closing transport (${reason})`)
+        logMCPDebug(name, `正在关闭传输 (${reason})`)
         void client.close().catch(e => {
-          logMCPDebug(name, `Error during close: ${errorMessage(e)}`)
+          logMCPDebug(name, `关闭期间出错：${errorMessage(e)}`)
         })
       }
 
@@ -1254,94 +1193,94 @@ export const connectToServer = memoize(
           msg.includes('EPIPE') ||
           msg.includes('EHOSTUNREACH') ||
           msg.includes('ECONNREFUSED') ||
-          msg.includes('Body Timeout Error') ||
+          msg.includes('请求体超时错误') ||
           msg.includes('terminated') ||
-          // SDK SSE reconnection intermediate errors — may be wrapped around the
-          // actual network error, so the substrings above won't match
-          msg.includes('SSE stream disconnected') ||
-          msg.includes('Failed to reconnect SSE stream')
+          // SDK SSE 重连中间错误——可能包装了实际
+          // 的网络错误，因此上述子字符串将无法匹配
+          msg.includes('SSE 流已断开') ||
+          msg.includes('重新连接 SSE 流失败')
         )
       }
 
-      // Enhanced error handler with detailed logging
+      // 增强的错误处理程序，带有详细日志记录
       client.onerror = (error: Error) => {
         const uptime = Date.now() - connectionStartTime
         hasErrorOccurred = true
         const transportType = serverRef.type || 'stdio'
 
-        // Log the connection drop with context
+        // 记录带有上下文的连接断开
         logMCPDebug(
           name,
-          `${transportType.toUpperCase()} connection dropped after ${Math.floor(uptime / 1000)}s uptime`,
+          `${transportType.toUpperCase()} 连接在运行 ${Math.floor(uptime / 1000)} 秒后断开`,
         )
 
-        // Log specific error details for debugging
+        // 记录特定错误详情以供调试
         if (error.message) {
           if (error.message.includes('ECONNRESET')) {
             logMCPDebug(
               name,
-              `Connection reset - server may have crashed or restarted`,
+              `连接重置 - 服务器可能已崩溃或重启`,
             )
           } else if (error.message.includes('ETIMEDOUT')) {
             logMCPDebug(
               name,
-              `Connection timeout - network issue or server unresponsive`,
+              `连接超时 - 网络问题或服务器无响应`,
             )
           } else if (error.message.includes('ECONNREFUSED')) {
-            logMCPDebug(name, `Connection refused - server may be down`)
+            logMCPDebug(name, `连接被拒绝 - 服务器可能已关闭`)
           } else if (error.message.includes('EPIPE')) {
             logMCPDebug(
               name,
-              `Broken pipe - server closed connection unexpectedly`,
+              `管道损坏 - 服务器意外关闭了连接`,
             )
           } else if (error.message.includes('EHOSTUNREACH')) {
-            logMCPDebug(name, `Host unreachable - network connectivity issue`)
+            logMCPDebug(name, `主机不可达 - 网络连接问题`)
           } else if (error.message.includes('ESRCH')) {
             logMCPDebug(
               name,
-              `Process not found - stdio server process terminated`,
+              `进程未找到 - stdio 服务器进程已终止`,
             )
           } else if (error.message.includes('spawn')) {
             logMCPDebug(
               name,
-              `Failed to spawn process - check command and permissions`,
+              `启动进程失败 - 请检查命令和权限`,
             )
           } else {
-            logMCPDebug(name, `Connection error: ${error.message}`)
+            logMCPDebug(name, `连接错误：${error.message}`)
           }
         }
 
-        // For HTTP transports, detect session expiry (404 + JSON-RPC -32001)
-        // and close the transport so pending tool calls reject and the next
-        // call reconnects with a fresh session ID.
+        // 对于 HTTP 传输，检测会话过期（404 + JSON-RP
+        // C -32001）并关闭传输，以便挂起的工具调用被拒绝，且下
+        // 一次调用使用新的会话 ID 重新连接。
         if (
           (transportType === 'http' || transportType === 'claudeai-proxy') &&
           isMcpSessionExpiredError(error)
         ) {
           logMCPDebug(
             name,
-            `MCP session expired (server returned 404 with session-not-found), triggering reconnection`,
+            `MCP 会话已过期（服务器返回 404 并提示会话未找到），触发重新连接`,
           )
-          closeTransportAndRejectPending('session expired')
+          closeTransportAndRejectPending('会话已过期')
           if (originalOnerror) {
             originalOnerror(error)
           }
           return
         }
 
-        // For remote transports (SSE/HTTP), track terminal connection errors
-        // and trigger reconnection via close if we see repeated failures.
+        // 对于远程传输（SSE/HTTP），跟踪终端连接错误
+        // ，并在检测到重复失败时通过关闭操作触发重新连接。
         if (
           transportType === 'sse' ||
           transportType === 'http' ||
           transportType === 'claudeai-proxy'
         ) {
-          // The SDK's StreamableHTTP transport fires this after exhausting its
-          // own SSE reconnect attempts (default maxRetries: 2) — but it never
-          // calls onclose, so pending callTool() promises hang indefinitely.
-          // This is the definitive "transport gave up" signal.
-          if (error.message.includes('Maximum reconnection attempts')) {
-            closeTransportAndRejectPending('SSE reconnection exhausted')
+          // SDK 的 StreamableHTTP 传输在其自身的 SSE 重
+          // 连尝试（默认 maxRetries: 2）耗尽后会触发此事件——但它
+          // 从不调用 onclose，因此挂起的 callTool() Pro
+          // mise 会无限期挂起。这是明确的“传输已放弃”信号。
+          if (error.message.includes('最大重连尝试次数')) {
+            closeTransportAndRejectPending('SSE 重连已耗尽')
             if (originalOnerror) {
               originalOnerror(error)
             }
@@ -1352,41 +1291,41 @@ export const connectToServer = memoize(
             consecutiveConnectionErrors++
             logMCPDebug(
               name,
-              `Terminal connection error ${consecutiveConnectionErrors}/${MAX_ERRORS_BEFORE_RECONNECT}`,
+              `终端连接错误 ${consecutiveConnectionErrors}/${MAX_ERRORS_BEFORE_RECONNECT}`,
             )
 
             if (consecutiveConnectionErrors >= MAX_ERRORS_BEFORE_RECONNECT) {
               consecutiveConnectionErrors = 0
-              closeTransportAndRejectPending('max consecutive terminal errors')
+              closeTransportAndRejectPending('最大连续终端错误数')
             }
           } else {
-            // Non-terminal error (e.g., transient issue), reset counter
+            // 非终端错误（例如，暂时性问题），重置计数器
             consecutiveConnectionErrors = 0
           }
         }
 
-        // Call original handler
+        // 调用原始处理程序
         if (originalOnerror) {
           originalOnerror(error)
         }
       }
 
-      // Enhanced close handler with connection drop context
+      // 增强的关闭处理程序，包含连接断开上下文
       client.onclose = () => {
         const uptime = Date.now() - connectionStartTime
         const transportType = serverRef.type ?? 'unknown'
 
         logMCPDebug(
           name,
-          `${transportType.toUpperCase()} connection closed after ${Math.floor(uptime / 1000)}s (${hasErrorOccurred ? 'with errors' : 'cleanly'})`,
+          `${transportType.toUpperCase()} 连接在 ${Math.floor(uptime / 1000)} 秒后关闭（${hasErrorOccurred ? 'with errors' : 'cleanly'}）`,
         )
 
-        // Clear the memoization cache so next operation reconnects
+        // 清除记忆化缓存，以便下一次操作重新连接
         const key = getServerCacheKey(name, serverRef)
 
-        // Also clear fetch caches (keyed by server name). Reconnection
-        // creates a new connection object; without clearing, the next
-        // fetch would return stale tools/resources from the old connection.
+        // 同时清除 fetch 缓存（以服务器名称作为键）。
+        // 重新连接会创建一个新的连接对象；如果不进行清除，
+        // 下一次 fetch 将返回来自旧连接的过时工具/资源。
         fetchToolsForClient.cache.delete(name)
         fetchResourcesForClient.cache.delete(name)
         fetchCommandsForClient.cache.delete(name)
@@ -1395,7 +1334,7 @@ export const connectToServer = memoize(
         }
 
         connectToServer.cache.delete(key)
-        logMCPDebug(name, `Cleared connection cache for reconnection`)
+        logMCPDebug(name, `已清除连接缓存以便重新连接`)
 
         if (originalOnclose) {
           originalOnclose()
@@ -1403,97 +1342,97 @@ export const connectToServer = memoize(
       }
 
       const cleanup = async () => {
-        // In-process servers (e.g. Chrome MCP) don't have child processes or stderr
+        // 进程内服务器（例如 Chrome MCP）没有子进程或 stderr
         if (inProcessServer) {
           try {
             await inProcessServer.close()
           } catch (error) {
-            logMCPDebug(name, `Error closing in-process server: ${error}`)
+            logMCPDebug(name, `关闭进程内服务器时出错：${error}`)
           }
           try {
             await client.close()
           } catch (error) {
-            logMCPDebug(name, `Error closing client: ${error}`)
+            logMCPDebug(name, `关闭客户端时出错：${error}`)
           }
           return
         }
 
-        // Remove stderr event listener to prevent memory leaks
+        // 移除 stderr 事件监听器以防止内存泄漏
         if (stderrHandler && (serverRef.type === 'stdio' || !serverRef.type)) {
           const stdioTransport = transport as StdioClientTransport
           stdioTransport.stderr?.off('data', stderrHandler)
         }
 
-        // For stdio transports, explicitly terminate the child process with proper signals
-        // NOTE: StdioClientTransport.close() only sends an abort signal, but many MCP servers
-        // (especially Docker containers) need explicit SIGINT/SIGTERM signals to trigger graceful shutdown
+        // 对于 stdio 传输，使用适当的信号显式终止子进程 注意：StdioCli
+        // entTransport.close() 仅发送中止信号，但许多 MCP 服务
+        // 器（尤其是 Docker 容器）需要显式的 SIGINT/SIGTERM 信号来触发优雅关闭
         if (serverRef.type === 'stdio') {
           try {
             const stdioTransport = transport as StdioClientTransport
             const childPid = stdioTransport.pid
 
             if (childPid) {
-              logMCPDebug(name, 'Sending SIGINT to MCP server process')
+              logMCPDebug(name, '正在向 MCP 服务器进程发送 SIGINT 信号')
 
-              // First try SIGINT (like Ctrl+C)
+              // 首先尝试 SIGINT（类似 Ctrl+C）
               try {
                 process.kill(childPid, 'SIGINT')
               } catch (error) {
-                logMCPDebug(name, `Error sending SIGINT: ${error}`)
+                logMCPDebug(name, `发送 SIGINT 时出错：${error}`)
                 return
               }
 
-              // Wait for graceful shutdown with rapid escalation (total 500ms to keep CLI responsive)
+              // 等待优雅关闭，并快速升级（总计 500 毫秒以保持 CLI 响应性）
               await new Promise<void>(async resolve => {
                 let resolved = false
 
-                // Set up a timer to check if process still exists
+                // 设置一个计时器来检查进程是否仍然存在
                 const checkInterval = setInterval(() => {
                   try {
-                    // process.kill(pid, 0) checks if process exists without killing it
+                    // process.kill(pid, 0) 检查进程是否存在而不杀死它
                     process.kill(childPid, 0)
                   } catch {
-                    // Process no longer exists
+                    // 进程已不存在
                     if (!resolved) {
                       resolved = true
                       clearInterval(checkInterval)
                       clearTimeout(failsafeTimeout)
-                      logMCPDebug(name, 'MCP server process exited cleanly')
+                      logMCPDebug(name, 'MCP 服务器进程已干净退出')
                       resolve()
                     }
                   }
                 }, 50)
 
-                // Absolute failsafe: clear interval after 600ms no matter what
+                // 绝对安全措施：无论发生什么，600 毫秒后清除定时器
                 const failsafeTimeout = setTimeout(() => {
                   if (!resolved) {
                     resolved = true
                     clearInterval(checkInterval)
                     logMCPDebug(
                       name,
-                      'Cleanup timeout reached, stopping process monitoring',
+                      '清理超时已到，停止进程监控',
                     )
                     resolve()
                   }
                 }, 600)
 
                 try {
-                  // Wait 100ms for SIGINT to work (usually much faster)
+                  // 等待 100 毫秒让 SIGINT 生效（通常快得多）
                   await sleep(100)
 
                   if (!resolved) {
-                    // Check if process still exists
+                    // 检查进程是否仍然存在
                     try {
                       process.kill(childPid, 0)
-                      // Process still exists, SIGINT failed, try SIGTERM
+                      // 进程仍然存在，SIGINT 失败，尝试 SIGTERM
                       logMCPDebug(
                         name,
-                        'SIGINT failed, sending SIGTERM to MCP server process',
+                        'SIGINT 失败，向 MCP 服务器进程发送 SIGTERM',
                       )
                       try {
                         process.kill(childPid, 'SIGTERM')
                       } catch (termError) {
-                        logMCPDebug(name, `Error sending SIGTERM: ${termError}`)
+                        logMCPDebug(name, `发送 SIGTERM 时出错：${termError}`)
                         resolved = true
                         clearInterval(checkInterval)
                         clearTimeout(failsafeTimeout)
@@ -1501,7 +1440,7 @@ export const connectToServer = memoize(
                         return
                       }
                     } catch {
-                      // Process already exited
+                      // 进程已退出
                       resolved = true
                       clearInterval(checkInterval)
                       clearTimeout(failsafeTimeout)
@@ -1509,28 +1448,28 @@ export const connectToServer = memoize(
                       return
                     }
 
-                    // Wait 400ms for SIGTERM to work (slower than SIGINT, often used for cleanup)
+                    // 等待 400 毫秒让 SIGTERM 生效（比 SIGINT 慢，通常用于清理）
                     await sleep(400)
 
                     if (!resolved) {
-                      // Check if process still exists
+                      // 检查进程是否仍然存在
                       try {
                         process.kill(childPid, 0)
-                        // Process still exists, SIGTERM failed, force kill with SIGKILL
+                        // 进程仍然存在，SIGTERM 失败，使用 SIGKILL 强制终止
                         logMCPDebug(
                           name,
-                          'SIGTERM failed, sending SIGKILL to MCP server process',
+                          'SIGTERM 失败，向 MCP 服务器进程发送 SIGKILL',
                         )
                         try {
                           process.kill(childPid, 'SIGKILL')
                         } catch (killError) {
                           logMCPDebug(
                             name,
-                            `Error sending SIGKILL: ${killError}`,
+                            `发送 SIGKILL 时出错：${killError}`,
                           )
                         }
                       } catch {
-                        // Process already exited
+                        // 进程已退出
                         resolved = true
                         clearInterval(checkInterval)
                         clearTimeout(failsafeTimeout)
@@ -1539,7 +1478,7 @@ export const connectToServer = memoize(
                     }
                   }
 
-                  // Final timeout - always resolve after 500ms max (total cleanup time)
+                  // 最终超时 - 最多 500 毫秒后始终解析（总清理时间）
                   if (!resolved) {
                     resolved = true
                     clearInterval(checkInterval)
@@ -1547,7 +1486,7 @@ export const connectToServer = memoize(
                     resolve()
                   }
                 } catch {
-                  // Handle any errors in the escalation sequence
+                  // 处理升级序列中的任何错误
                   if (!resolved) {
                     resolved = true
                     clearInterval(checkInterval)
@@ -1558,23 +1497,23 @@ export const connectToServer = memoize(
               })
             }
           } catch (processError) {
-            logMCPDebug(name, `Error terminating process: ${processError}`)
+            logMCPDebug(name, `终止进程时出错：${processError}`)
           }
         }
 
-        // Close the client connection (which also closes the transport)
+        // 关闭客户端连接（同时也会关闭传输层）
         try {
           await client.close()
         } catch (error) {
-          logMCPDebug(name, `Error closing client: ${error}`)
+          logMCPDebug(name, `关闭客户端时出错：${error}`)
         }
       }
 
-      // Register cleanup for all transport types - even network transports might need cleanup
-      // This ensures all MCP servers get properly terminated, not just stdio ones
+      // 为所有传输类型注册清理 - 即使是网络传输也可能需要清理。这确保所有
+      // MCP 服务器都能被正确终止，而不仅仅是 stdio 类型的
       const cleanupUnregister = registerCleanup(cleanup)
 
-      // Create the wrapped cleanup that includes unregistering
+      // 创建包含注销操作的包装清理函数
       const wrappedCleanup = async () => {
         cleanupUnregister?.()
         await cleanup()
@@ -1623,9 +1562,9 @@ export const connectToServer = memoize(
       })
       logMCPDebug(
         name,
-        `Connection failed after ${connectionDurationMs}ms: ${errorMessage(error)}`,
+        `连接在 ${connectionDurationMs} 毫秒后失败：${errorMessage(error)}`,
       )
-      logMCPError(name, `Connection failed: ${errorMessage(error)}`)
+      logMCPError(name, `连接失败：${errorMessage(error)}`)
 
       if (inProcessServer) {
         inProcessServer.close().catch(() => {})
@@ -1641,11 +1580,9 @@ export const connectToServer = memoize(
   getServerCacheKey,
 )
 
-/**
- * Clears the memoize cache for a specific server
- * @param name Server name
- * @param serverRef Server configuration
- */
+/** 清除特定服务器的记忆缓存
+@param name 服务器名称
+@param serverRef 服务器配置 */
 export async function clearServerCache(
   name: string,
   serverRef: ScopedMcpServerConfig,
@@ -1659,11 +1596,11 @@ export async function clearServerCache(
       await wrappedClient.cleanup()
     }
   } catch {
-    // Ignore errors - server might have failed to connect
+    // 忽略错误 - 服务器可能连接失败
   }
 
-  // Clear from cache (both connection and fetch caches so reconnect
-  // fetches fresh tools/resources/commands instead of stale ones)
+  // 从缓存中清除（包括连接缓存和获取缓存，以便重新
+  // 连接时获取新的工具/资源/命令，而不是过时的）
   connectToServer.cache.delete(key)
   fetchToolsForClient.cache.delete(name)
   fetchResourcesForClient.cache.delete(name)
@@ -1673,23 +1610,20 @@ export async function clearServerCache(
   }
 }
 
-/**
- * Ensures a valid connected client for an MCP server.
- * For most server types, uses the memoization cache if available, or reconnects
- * if the cache was cleared (e.g., after onclose). This ensures tool/resource
- * calls always use a valid connection.
- *
- * SDK MCP servers run in-process and are handled separately via setupSdkMcpClients,
- * so they are returned as-is without going through connectToServer.
- *
- * @param client The connected MCP server client
- * @returns Connected MCP server client (same or reconnected)
- * @throws Error if server cannot be connected
- */
+/** 确保 MCP 服务器拥有有效的已连接客户端。
+对于大多数服务器类型，如果可用则使用记忆缓存，如果缓存被清除（例如，在 onclose 之后）则重新连接。
+这确保工具/资源调用始终使用有效的连接。
+
+SDK MCP 服务器在进程内运行，通过 setupSdkMcpClients 单独处理，
+因此它们会原样返回，而不经过 connectToServer。
+
+@param client 已连接的 MCP 服务器客户端
+@returns 已连接的 MCP 服务器客户端（相同或重新连接）
+@throws 如果服务器无法连接则抛出错误 */
 export async function ensureConnectedClient(
   client: ConnectedMCPServer,
 ): Promise<ConnectedMCPServer> {
-  // SDK MCP servers run in-process and are handled separately via setupSdkMcpClients
+  // SDK MCP 服务器在进程内运行，通过 setupSdkMcpClients 单独处理
   if (client.config.type === 'sdk') {
     return client
   }
@@ -1697,40 +1631,36 @@ export async function ensureConnectedClient(
   const connectedClient = await connectToServer(client.name, client.config)
   if (connectedClient.type !== 'connected') {
     throw new TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
-      `MCP server "${client.name}" is not connected`,
-      'MCP server not connected',
+      `MCP 服务器 "${client.name}" 未连接`,
+      'MCP 服务器未连接',
     )
   }
   return connectedClient
 }
 
-/**
- * Compares two MCP server configurations to determine if they are equivalent.
- * Used to detect when a server needs to be reconnected due to config changes.
- */
+/** 比较两个 MCP 服务器配置以判断它们是否等效。
+用于检测何时因配置变更需要重新连接服务器。 */
 export function areMcpConfigsEqual(
   a: ScopedMcpServerConfig,
   b: ScopedMcpServerConfig,
 ): boolean {
-  // Quick type check first
+  // 先进行快速类型检查
   if (a.type !== b.type) return false
 
-  // Compare by serializing - this handles all config variations
-  // We exclude 'scope' from comparison since it's metadata, not connection config
+  // 通过序列化进行比较 - 这能处理所有配置变体。我们
+  // 将 'scope' 排除在比较之外，因为它是元数据，而非连接配置。
   const { scope: _scopeA, ...configA } = a
   const { scope: _scopeB, ...configB } = b
   return jsonStringify(configA) === jsonStringify(configB)
 }
 
-// Max cache size for fetch* caches. Keyed by server name (stable across
-// reconnects), bounded to prevent unbounded growth with many MCP servers.
+// fetch* 缓存的最大容量。以服务器名称作为键（在重新连接时保
+// 持稳定），并设置上限以防止随着 MCP 服务器数量增多而无限增长。
 const MCP_FETCH_CACHE_SIZE = 20
 
-/**
- * Encode MCP tool input for the auto-mode security classifier.
- * Exported so the auto-mode eval scripts can mirror production encoding
- * for `mcp__*` tool stubs without duplicating this logic.
- */
+/** 为自动模式安全分类器编码 MCP 工具输入。
+导出此功能，以便自动模式评估脚本可以镜像生产环境的编码方式
+用于 `mcp__*` 工具存根，而无需重复此逻辑。 */
 export function mcpToolInputToAutoClassifierInput(
   input: Record<string, unknown>,
   toolName: string,
@@ -1755,28 +1685,28 @@ export const fetchToolsForClient = memoizeWithLRU(
         ListToolsResultSchema,
       )) as ListToolsResult
 
-      // Sanitize tool data from MCP server
+      // 清理来自 MCP 服务器的工具数据
       const toolsToProcess = recursivelySanitizeUnicode(result.tools)
 
-      // Check if we should skip the mcp__ prefix for SDK MCP servers
+      // 检查是否应为 SDK MCP 服务器跳过 mcp__ 前缀
       const skipPrefix =
         client.config.type === 'sdk' &&
         isEnvTruthy(process.env.CLAUDE_AGENT_SDK_MCP_NO_PREFIX)
 
-      // Convert MCP tools to our Tool format
+      // 将 MCP 工具转换为我们内部的 Tool 格式
       return toolsToProcess
         .map((tool): Tool => {
           const fullyQualifiedName = buildMcpToolName(client.name, tool.name)
           return {
             ...MCPTool,
-            // In skip-prefix mode, use the original name for model invocation so MCP tools
-            // can override builtins by name. mcpInfo is used for permission checking.
+            // 在跳过前缀模式下，使用原始名称进行模型调用，以便 MCP 工具
+            // 可以通过名称覆盖内置工具。mcpInfo 用于权限检查。
             name: skipPrefix ? tool.name : fullyQualifiedName,
             mcpInfo: { serverName: client.name, toolName: tool.name },
             isMcp: true,
-            // Collapse whitespace: _meta is open to external MCP servers, and
-            // a newline here would inject orphan lines into the deferred-tool
-            // list (formatDeferredToolLine joins on '\n').
+            // 压缩空白字符：_meta 对外部 MCP 服务器开放，此处的换
+            // 行符会将孤立行注入到延迟工具列表中（formatDeferre
+            // dToolLine 以 '\n' 连接）。
             searchHint:
               typeof tool._meta?.['anthropic/searchHint'] === 'string'
                 ? tool._meta['anthropic/searchHint']
@@ -1790,7 +1720,7 @@ export const fetchToolsForClient = memoizeWithLRU(
             async prompt() {
               const desc = tool.description ?? ''
               return desc.length > MAX_MCP_DESCRIPTION_LENGTH
-                ? desc.slice(0, MAX_MCP_DESCRIPTION_LENGTH) + '… [truncated]'
+                ? desc.slice(0, MAX_MCP_DESCRIPTION_LENGTH) + '… [已截断]'
                 : desc
             },
             isConcurrencySafe() {
@@ -1815,7 +1745,7 @@ export const fetchToolsForClient = memoizeWithLRU(
             async checkPermissions() {
               return {
                 behavior: 'passthrough' as const,
-                message: 'MCPTool requires permission.',
+                message: 'MCPTool 需要权限。',
                 suggestions: [
                   {
                     type: 'addRules' as const,
@@ -1843,7 +1773,7 @@ export const fetchToolsForClient = memoizeWithLRU(
                 ? { 'claudecode/toolUseId': toolUseId }
                 : {}
 
-              // Emit progress when tool starts
+              // 工具启动时发出进度通知
               if (onProgress && toolUseId) {
                 onProgress({
                   toolUseID: toolUseId,
@@ -1881,7 +1811,7 @@ export const fetchToolsForClient = memoizeWithLRU(
                     handleElicitation: context.handleElicitation,
                   })
 
-                  // Emit progress when tool completes successfully
+                  // 工具成功完成时发出进度通知
                   if (onProgress && toolUseId) {
                     onProgress({
                       toolUseID: toolUseId,
@@ -1909,20 +1839,20 @@ export const fetchToolsForClient = memoizeWithLRU(
                     }),
                   }
                 } catch (error) {
-                  // Session expired — the connection cache has been
-                  // cleared, so retry with a fresh client.
+                  // 会话已过期 — 连接缓存已被清
+                  // 空，请使用新的客户端重试。
                   if (
                     error instanceof McpSessionExpiredError &&
                     attempt < MAX_SESSION_RETRIES
                   ) {
                     logMCPDebug(
                       client.name,
-                      `Retrying tool '${tool.name}' after session recovery`,
+                      `会话恢复后重试工具 '${tool.name}'`,
                     )
                     continue
                   }
 
-                  // Emit progress when tool fails
+                  // 工具失败时发出进度通知
                   if (onProgress && toolUseId) {
                     onProgress({
                       toolUseID: toolUseId,
@@ -1935,10 +1865,10 @@ export const fetchToolsForClient = memoizeWithLRU(
                       },
                     })
                   }
-                  // Wrap MCP SDK errors so telemetry gets useful context
-                  // instead of just "Error" or "McpError" (the constructor
-                  // name). MCP SDK errors are protocol-level messages and
-                  // don't contain user file paths or code.
+                  // 包装 MCP SDK 错误，以便遥测获得有用的上下
+                  // 文，而不仅仅是 "Error" 或 "McpErro
+                  // r"（构造函数名称）。MCP SDK 错误是协议级
+                  // 别的消息，不包含用户文件路径或代码。
                   if (
                     error instanceof Error &&
                     !(
@@ -1953,8 +1883,8 @@ export const fetchToolsForClient = memoizeWithLRU(
                         error.message.slice(0, 200),
                       )
                     }
-                    // McpError has a numeric `code` with the JSON-RPC error
-                    // code (e.g. -32000 ConnectionClosed, -32001 RequestTimeout)
+                    // McpError 有一个数字类型的 `code`，代表 JSON-RPC 错误码（例如
+                    // -32000 ConnectionClosed, -32001 RequestTimeout）
                     if (
                       name === 'McpError' &&
                       'code' in error &&
@@ -1971,7 +1901,7 @@ export const fetchToolsForClient = memoizeWithLRU(
               }
             },
             userFacingName() {
-              // Prefer title annotation if available, otherwise use tool name
+              // 优先使用标题注解（如果可用），否则使用工具名称
               const displayName = tool.annotations?.title || tool.name
               return `${client.name} - ${displayName} (MCP)`
             },
@@ -1990,7 +1920,7 @@ export const fetchToolsForClient = memoizeWithLRU(
         })
         .filter(isIncludedMcpTool)
     } catch (error) {
-      logMCPError(client.name, `Failed to fetch tools: ${errorMessage(error)}`)
+      logMCPError(client.name, `获取工具失败：${errorMessage(error)}`)
       return []
     }
   },
@@ -2014,7 +1944,7 @@ export const fetchResourcesForClient = memoizeWithLRU(
 
       if (!result.resources) return []
 
-      // Add server name to each resource
+      // 为每个资源添加服务器名称
       return result.resources.map(resource => ({
         ...resource,
         server: client.name,
@@ -2022,7 +1952,7 @@ export const fetchResourcesForClient = memoizeWithLRU(
     } catch (error) {
       logMCPError(
         client.name,
-        `Failed to fetch resources: ${errorMessage(error)}`,
+        `获取资源失败：${errorMessage(error)}`,
       )
       return []
     }
@@ -2040,7 +1970,7 @@ export const fetchCommandsForClient = memoizeWithLRU(
         return []
       }
 
-      // Request prompts list from client
+      // 向客户端请求提示列表
       const result = (await client.client.request(
         { method: 'prompts/list' },
         ListPromptsResultSchema,
@@ -2048,10 +1978,10 @@ export const fetchCommandsForClient = memoizeWithLRU(
 
       if (!result.prompts) return []
 
-      // Sanitize prompt data from MCP server
+      // 清理来自 MCP 服务器的提示数据
       const promptsToProcess = recursivelySanitizeUnicode(result.prompts)
 
-      // Convert MCP prompts to our Command format
+      // 将 MCP 提示转换为我们内部的 Command 格式
       return promptsToProcess.map(prompt => {
         const argNames = Object.values(prompt.arguments ?? {}).map(k => k.name)
         return {
@@ -2059,14 +1989,14 @@ export const fetchCommandsForClient = memoizeWithLRU(
           name: 'mcp__' + normalizeNameForMCP(client.name) + '__' + prompt.name,
           description: prompt.description ?? '',
           hasUserSpecifiedDescription: !!prompt.description,
-          contentLength: 0, // Dynamic MCP content
+          contentLength: 0, // 动态 MCP 内容
           isEnabled: () => true,
           isHidden: false,
           isMcp: true,
           progressMessage: 'running',
           userFacingName() {
-            // Use prompt.name (programmatic identifier) not prompt.title (display name)
-            // to avoid spaces breaking slash command parsing
+            // 使用 prompt.name（编程标识符）而非 prompt.tit
+            // le（显示名称），以避免空格破坏斜杠命令解析
             return `${client.name}:${prompt.name} (MCP)`
           },
           argNames,
@@ -2088,7 +2018,7 @@ export const fetchCommandsForClient = memoizeWithLRU(
             } catch (error) {
               logMCPError(
                 client.name,
-                `Error running command '${prompt.name}': ${errorMessage(error)}`,
+                `运行命令 '${prompt.name}' 时出错：${errorMessage(error)}`,
               )
               throw error
             }
@@ -2098,7 +2028,7 @@ export const fetchCommandsForClient = memoizeWithLRU(
     } catch (error) {
       logMCPError(
         client.name,
-        `Failed to fetch commands: ${errorMessage(error)}`,
+        `获取命令失败：${errorMessage(error)}`,
       )
       return []
     }
@@ -2107,13 +2037,11 @@ export const fetchCommandsForClient = memoizeWithLRU(
   MCP_FETCH_CACHE_SIZE,
 )
 
-/**
- * Call an IDE tool directly as an RPC
- * @param toolName The name of the tool to call
- * @param args The arguments to pass to the tool
- * @param client The IDE client to use for the RPC call
- * @returns The result of the tool call
- */
+/** 将 IDE 工具直接作为 RPC 调用
+@param toolName 要调用的工具名称
+@param args 传递给工具的参数
+@param client 用于 RPC 调用的 IDE 客户端
+@returns 工具调用的结果 */
 export async function callIdeRpc(
   toolName: string,
   args: Record<string, unknown>,
@@ -2128,13 +2056,10 @@ export async function callIdeRpc(
   return result.content
 }
 
-/**
- * Note: This should not be called by UI components directly, they should use the reconnectMcpServer
- * function from useManageMcpConnections.
- * @param name Server name
- * @param config Server configuration
- * @returns Object containing the client connection and its resources
- */
+/** 注意：UI 组件不应直接调用此函数，它们应使用 useManageMcpConnections 中的 reconnectMcpServer 函数。
+@param name 服务器名称
+@param config 服务器配置
+@returns 包含客户端连接及其资源的对象 */
 export async function reconnectMcpServerImpl(
   name: string,
   config: ScopedMcpServerConfig,
@@ -2145,11 +2070,11 @@ export async function reconnectMcpServerImpl(
   resources?: ServerResource[]
 }> {
   try {
-    // Invalidate the keychain cache so we read fresh credentials from disk.
-    // This is necessary when another process (e.g. the VS Code extension host)
-    // has modified stored tokens (cleared auth, saved new OAuth tokens) and then
-    // asks the CLI subprocess to reconnect.  Without this, the subprocess would
-    // use stale cached data and never notice the tokens were removed.
+    // 使密钥链缓存失效，以便从磁盘读取最新的凭据。当另一个进
+    // 程（例如 VS Code 扩展主机）修改了存储的令牌（清
+    // 除身份验证、保存新的 OAuth 令牌）然后要求 CLI
+    // 子进程重新连接时，这是必要的。如果没有这一步，子进程将
+    // 使用过时的缓存数据，永远不会注意到令牌已被移除。
     clearKeychainCache()
 
     await clearServerCache(name, config)
@@ -2179,10 +2104,10 @@ export async function reconnectMcpServerImpl(
     ])
     const commands = [...mcpCommands, ...mcpSkills]
 
-    // Check if we need to add resource tools
+    // 检查是否需要添加资源工具
     const resourceTools: Tool[] = []
     if (supportsResources) {
-      // Only add resource tools if no other server has them
+      // 仅当没有其他服务器拥有资源工具时才添加
       const hasResourceTools = [ListMcpResourcesTool, ReadMcpResourceTool].some(
         tool => tools.some(t => toolMatchesName(t, tool.name)),
       )
@@ -2198,10 +2123,10 @@ export async function reconnectMcpServerImpl(
       resources: resources.length > 0 ? resources : undefined,
     }
   } catch (error) {
-    // Handle errors gracefully - connection might have closed during fetch
-    logMCPError(name, `Error during reconnection: ${errorMessage(error)}`)
+    // 优雅地处理错误 - 连接可能在获取期间已关闭
+    logMCPError(name, `重新连接期间出错：${errorMessage(error)}`)
 
-    // Return with failed status
+    // 返回失败状态
     return {
       client: { name, type: 'failed' as const, config },
       tools: [],
@@ -2210,12 +2135,12 @@ export async function reconnectMcpServerImpl(
   }
 }
 
-// Replaced 2026-03: previous implementation ran fixed-size sequential batches
-// (await batch 1 fully, then start batch 2). That meant one slow server in
-// batch N held up ALL servers in batch N+1, even if the other 19 slots were
-// idle. pMap frees each slot as soon as its server completes, so a single
-// slow server only occupies one slot instead of blocking an entire batch
-// boundary. Same concurrency ceiling, same results, better scheduling.
+// 已于 2026-03 替换：之前的实现运行固定大小的顺序批次（
+// 等待批次 1 完全完成，然后开始批次 2）。这意味着批次 N
+// 中的一个慢速服务器会阻塞批次 N+1 中的所有服务器，即使
+// 其他 19 个槽位处于空闲状态。pMap 会在每个服务器完成
+// 后立即释放其槽位，因此单个慢速服务器只占用一个槽位，而不会
+// 阻塞整个批次边界。相同的并发上限，相同的结果，更好的调度。
 async function processBatched<T>(
   items: T[],
   concurrency: number,
@@ -2239,8 +2164,8 @@ export async function getMcpToolsCommandsAndResources(
     mcpConfigs ?? (await getAllMcpConfigs()).servers,
   )
 
-  // Partition into disabled and active entries — disabled servers should
-  // never generate HTTP connections or flow through batch processing
+  // 划分为禁用和活跃条目 —— 禁用的服务器永远
+  // 不应生成 HTTP 连接或进入批处理流程
   const configEntries: typeof allConfigEntries = []
   for (const entry of allConfigEntries) {
     if (isMcpServerDisabled(entry[0])) {
@@ -2254,7 +2179,7 @@ export async function getMcpToolsCommandsAndResources(
     }
   }
 
-  // Calculate transport counts for logging
+  // 计算传输计数以供日志记录
   const totalServers = configEntries.length
   const stdioCount = count(configEntries, ([_, c]) => c.type === 'stdio')
   const sseCount = count(configEntries, ([_, c]) => c.type === 'sse')
@@ -2262,8 +2187,8 @@ export async function getMcpToolsCommandsAndResources(
   const sseIdeCount = count(configEntries, ([_, c]) => c.type === 'sse-ide')
   const wsIdeCount = count(configEntries, ([_, c]) => c.type === 'ws-ide')
 
-  // Split servers by type: local (stdio/sdk) need lower concurrency due to
-  // process spawning, remote servers can connect with higher concurrency
+  // 按类型划分服务器：本地服务器（stdio/sdk）由于进
+  // 程生成需要较低的并发度，远程服务器可以以更高的并发度连接
   const localServers = configEntries.filter(([_, config]) =>
     isLocalMcpServer(config),
   )
@@ -2285,7 +2210,7 @@ export async function getMcpToolsCommandsAndResources(
     ScopedMcpServerConfig,
   ]): Promise<void> => {
     try {
-      // Check if server is disabled - if so, just add it to state without connecting
+      // 检查服务器是否被禁用 - 如果是，则仅将其添加到状态中而不连接
       if (isMcpServerDisabled(name)) {
         onConnectionAttempt({
           client: {
@@ -2299,12 +2224,12 @@ export async function getMcpToolsCommandsAndResources(
         return
       }
 
-      // Skip connection for servers that recently returned 401 (15min TTL),
-      // or that we have probed before but hold no token for. The second
-      // check closes the gap the TTL leaves open: without it, every 15min
-      // we re-probe servers that cannot succeed until the user runs /mcp.
-      // Each probe is a network round-trip for connect-401 plus OAuth
-      // discovery, and print mode awaits the whole batch (main.tsx:3503).
+      // 跳过最近返回 401 的服务器（15 分钟 TTL），或者我们
+      // 之前探测过但没有持有令牌的服务器。第二次检查弥补了 TTL
+      // 留下的空白：如果没有它，每 15 分钟我们会重新探测那些在
+      // 用户运行 /mcp 之前无法成功的服务器。每次探测都涉及一次
+      // 网络往返（connect-401）加上 OAuth 发现
+      // ，并且打印模式会等待整个批次（main.tsx:3503）。
       if (
         (config.type === 'claudeai-proxy' ||
           config.type === 'http' ||
@@ -2313,7 +2238,7 @@ export async function getMcpToolsCommandsAndResources(
           ((config.type === 'http' || config.type === 'sse') &&
             hasMcpDiscoveryButNoToken(name, config)))
       ) {
-        logMCPDebug(name, `Skipping connection (cached needs-auth)`)
+        logMCPDebug(name, `跳过连接（缓存的需要身份验证）`)
         onConnectionAttempt({
           client: { name, type: 'needs-auth' as const, config },
           tools: [createMcpAuthTool(name, config)],
@@ -2345,19 +2270,19 @@ export async function getMcpToolsCommandsAndResources(
       const [tools, mcpCommands, mcpSkills, resources] = await Promise.all([
         fetchToolsForClient(client),
         fetchCommandsForClient(client),
-        // Discover skills from skill:// resources
+        // 从 skill:// 资源中发现技能
         feature('MCP_SKILLS') && supportsResources
           ? fetchMcpSkillsForClient!(client)
           : Promise.resolve([]),
-        // Fetch resources if supported
+        // 如果支持则获取资源
         supportsResources
           ? fetchResourcesForClient(client)
           : Promise.resolve([]),
       ])
       const commands = [...mcpCommands, ...mcpSkills]
 
-      // If this server resources and we haven't added resource tools yet,
-      // include our resource tools with this client's tools
+      // 如果这是服务器资源并且我们尚未添加资源工具，则将
+      // 此客户端的工具与我们的资源工具一起包含
       const resourceTools: Tool[] = []
       if (supportsResources && !resourceToolsAdded) {
         resourceToolsAdded = true
@@ -2371,13 +2296,13 @@ export async function getMcpToolsCommandsAndResources(
         resources: resources.length > 0 ? resources : undefined,
       })
     } catch (error) {
-      // Handle errors gracefully - connection might have closed during fetch
+      // 优雅地处理错误 - 连接可能在获取期间已关闭
       logMCPError(
         name,
-        `Error fetching tools/commands/resources: ${errorMessage(error)}`,
+        `获取工具/命令/资源时出错：${errorMessage(error)}`,
       )
 
-      // Still update with the client but no tools/commands
+      // 仍然使用客户端更新，但没有工具/命令
       onConnectionAttempt({
         client: { name, type: 'failed' as const, config },
         tools: [],
@@ -2386,9 +2311,9 @@ export async function getMcpToolsCommandsAndResources(
     }
   }
 
-  // Process both groups concurrently, each with their own concurrency limits:
-  // - Local servers (stdio/sdk): lower concurrency to avoid process spawning resource contention
-  // - Remote servers: higher concurrency since they're just network connections
+  // 并发处理两组，每组都有自己的并发限制：- 本地服务
+  // 器（stdio/sdk）：较低的并发度以避免进程生成资源争用
+  // - 远程服务器：较高的并发度，因为它们只是网络连接
   await Promise.all([
     processBatched(
       localServers,
@@ -2403,9 +2328,9 @@ export async function getMcpToolsCommandsAndResources(
   ])
 }
 
-// Not memoized: called only 2-3 times at startup/reconfig. The inner work
-// (connectToServer, fetch*ForClient) is already cached. Memoizing here by
-// mcpConfigs object ref leaked — main.tsx creates fresh config objects each call.
+// 未记忆化：仅在启动/重新配置时调用 2-3 次。内部工作（connectToSe
+// rver, fetch*ForClient）已被缓存。此处通过 mcpConfi
+// gs 对象引用进行记忆化会导致泄漏 —— main.tsx 每次调用都会创建新的配置对象。
 export function prefetchAllMcpResources(
   mcpConfigs: Record<string, ScopedMcpServerConfig>,
 ): Promise<{
@@ -2461,9 +2386,9 @@ export function prefetchAllMcpResources(
     }, mcpConfigs).catch(error => {
       logMCPError(
         'prefetchAllMcpResources',
-        `Failed to get MCP resources: ${errorMessage(error)}`,
+        `获取 MCP 资源失败：${errorMessage(error)}`,
       )
-      // Still resolve with empty results
+      // 仍然解析，但返回空结果
       void resolve({
         clients: [],
         tools: [],
@@ -2473,9 +2398,7 @@ export function prefetchAllMcpResources(
   })
 }
 
-/**
- * Transform result content from an MCP tool or MCP prompt into message blocks
- */
+/** 将 MCP 工具或 MCP 提示的结果内容转换为消息块 */
 export async function transformResultContent(
   resultContent: PromptMessage['content'],
   serverName: string,
@@ -2498,11 +2421,11 @@ export async function transformResultContent(
         Buffer.from(audioData.data, 'base64'),
         audioData.mimeType,
         serverName,
-        `[Audio from ${serverName}] `,
+        `[音频来自 ${serverName}] `,
       )
     }
     case 'image': {
-      // Resize and compress image data, enforcing API dimension limits
+      // 调整大小并压缩图像数据，强制执行 API 维度限制
       const imageBuffer = Buffer.from(String(resultContent.data), 'base64')
       const ext = resultContent.mimeType?.split('/')[1] || 'png'
       const resized = await maybeResizeAndDownsampleImageBuffer(
@@ -2524,7 +2447,7 @@ export async function transformResultContent(
     }
     case 'resource': {
       const resource = resultContent.resource
-      const prefix = `[Resource from ${serverName} at ${resource.uri}] `
+      const prefix = `[来自 ${serverName} 的资源，时间 ${resource.uri}]`
 
       if ('text' in resource) {
         return [
@@ -2537,7 +2460,7 @@ export async function transformResultContent(
         const isImage = IMAGE_MIME_TYPES.has(resource.mimeType ?? '')
 
         if (isImage) {
-          // Resize and compress image blob, enforcing API dimension limits
+          // 调整图像 blob 大小并进行压缩，强制执行 API 尺寸限制
           const imageBuffer = Buffer.from(resource.blob, 'base64')
           const ext = resource.mimeType?.split('/')[1] || 'png'
           const resized = await maybeResizeAndDownsampleImageBuffer(
@@ -2575,7 +2498,7 @@ export async function transformResultContent(
     }
     case 'resource_link': {
       const resourceLink = resultContent as ResourceLink
-      let text = `[Resource link: ${resourceLink.name}] ${resourceLink.uri}`
+      let text = `[资源链接：${resourceLink.name}] ${resourceLink.uri}`
       if (resourceLink.description) {
         text += ` (${resourceLink.description})`
       }
@@ -2591,11 +2514,7 @@ export async function transformResultContent(
   }
 }
 
-/**
- * Decode base64 binary content, write it to disk with the proper extension,
- * and return a small text block with the file path. Replaces the old behavior
- * of dumping raw base64 into the context.
- */
+/** 解码 base64 二进制内容，使用正确的扩展名将其写入磁盘，并返回一个包含文件路径的小文本块。取代了将原始 base64 数据转储到上下文中的旧行为。 */
 async function persistBlobToTextBlock(
   bytes: Buffer,
   mimeType: string | undefined,
@@ -2609,7 +2528,7 @@ async function persistBlobToTextBlock(
     return [
       {
         type: 'text',
-        text: `${sourceDescription}Binary content (${mimeType || 'unknown type'}, ${bytes.length} bytes) could not be saved to disk: ${result.error}`,
+        text: `${sourceDescription}二进制内容 (${mimeType || 'unknown type'}, ${bytes.length} 字节) 无法保存到磁盘：${result.error}`,
       },
     ]
   }
@@ -2627,9 +2546,7 @@ async function persistBlobToTextBlock(
   ]
 }
 
-/**
- * Processes MCP tool result into a normalized format.
- */
+/** 将 MCP 工具结果处理为标准化格式。 */
 export type MCPResultType = 'toolResult' | 'structuredContent' | 'contentArray'
 
 export type TransformedMCPResult = {
@@ -2638,10 +2555,8 @@ export type TransformedMCPResult = {
   schema?: string
 }
 
-/**
- * Generates a compact, jq-friendly type signature for a value.
- * e.g. "{title: string, items: [{id: number, name: string}]}"
- */
+/** 为值生成一个紧凑的、jq 友好的类型签名。
+例如："{title: string, items: [{id: number, name: string}]}" */
 export function inferCompactSchema(value: unknown, depth = 2): string {
   if (value === null) return 'null'
   if (Array.isArray(value)) {
@@ -2662,8 +2577,8 @@ export function inferCompactSchema(value: unknown, depth = 2): string {
 
 export async function transformMCPResult(
   result: unknown,
-  tool: string, // Tool name for validation (e.g., "search")
-  name: string, // Server name for transformation (e.g., "slack")
+  tool: string, // 用于验证的工具名称（例如 "search"）
+  name: string, // 用于转换的服务器名称（例如 "slack"）
 ): Promise<TransformedMCPResult> {
   if (result && typeof result === 'object') {
     if ('toolResult' in result) {
@@ -2698,19 +2613,16 @@ export async function transformMCPResult(
     }
   }
 
-  const errorMessage = `MCP server "${name}" tool "${tool}": unexpected response format`
+  const errorMessage = `MCP 服务器 "${name}" 的工具 "${tool}"：响应格式异常`
   logMCPError(name, errorMessage)
   throw new TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
     errorMessage,
-    'MCP tool unexpected response format',
+    'MCP 工具响应格式异常',
   )
 }
 
-/**
- * Check if MCP content contains any image blocks.
- * Used to decide whether to persist to file (images should use truncation instead
- * to preserve image compression and viewability).
- */
+/** 检查 MCP 内容是否包含任何图像块。
+用于决定是否持久化到文件（图像应改用截断以保持图像压缩和可查看性）。 */
 function contentContainsImages(content: MCPToolResult): boolean {
   if (!content || typeof content === 'string') {
     return false
@@ -2720,25 +2632,25 @@ function contentContainsImages(content: MCPToolResult): boolean {
 
 export async function processMCPResult(
   result: unknown,
-  tool: string, // Tool name for validation (e.g., "search")
-  name: string, // Server name for IDE check and transformation (e.g., "slack")
+  tool: string, // 用于验证的工具名称（例如 "search"）
+  name: string, // 用于 IDE 检查和转换的服务器名称（例如 "slack"）
 ): Promise<MCPToolResult> {
   const { content, type, schema } = await transformMCPResult(result, tool, name)
 
-  // IDE tools are not going to the model directly, so we don't need to
-  // handle large output.
+  // IDE 工具不会直接发送给模型，因此我们不需要
+  // 处理大型输出。
   if (name === 'ide') {
     return content
   }
 
-  // Check if content needs truncation (i.e., is too large)
+  // 检查内容是否需要截断（即是否过大）
   if (!(await mcpContentNeedsTruncation(content))) {
     return content
   }
 
   const sizeEstimateTokens = getContentSizeEstimate(content)
 
-  // If large output files feature is disabled, fall back to old truncation behavior
+  // 如果大型输出文件功能被禁用，则回退到旧的截断行为
   if (isEnvDefinedFalsy(process.env.ENABLE_MCP_LARGE_OUTPUT_FILES)) {
     logEvent('tengu_mcp_large_result_handled', {
       outcome: 'truncated',
@@ -2748,14 +2660,14 @@ export async function processMCPResult(
     return await truncateMcpContentIfNeeded(content)
   }
 
-  // Save large output to file and return instructions for reading it
-  // Content is guaranteed to exist at this point (we checked mcpContentNeedsTruncation)
+  // 将大型输出保存到文件并返回读取说明。此时内容保证存在
+  // （我们已检查 mcpContentNeedsTruncation）
   if (!content) {
     return content
   }
 
-  // If content contains images, fall back to truncation - persisting images as JSON
-  // defeats the image compression logic and makes them non-viewable
+  // 如果内容包含图像，则回退到截断 - 将图像持久化为
+  // JSON 会破坏图像压缩逻辑并使其无法查看
   if (contentContainsImages(content)) {
     logEvent('tengu_mcp_large_result_handled', {
       outcome: 'truncated',
@@ -2765,23 +2677,23 @@ export async function processMCPResult(
     return await truncateMcpContentIfNeeded(content)
   }
 
-  // Generate a unique ID for the persisted file (server__tool-timestamp)
+  // 为持久化文件生成唯一 ID（server__tool-timestamp）
   const timestamp = Date.now()
   const persistId = `mcp-${normalizeNameForMCP(name)}-${normalizeNameForMCP(tool)}-${timestamp}`
-  // Convert to string for persistence (persistToolResult expects string or specific block types)
+  // 转换为字符串以便持久化（persistToolResult 期望字符串或特定的块类型）
   const contentStr =
     typeof content === 'string' ? content : jsonStringify(content, null, 2)
   const persistResult = await persistToolResult(contentStr, persistId)
 
   if (isPersistError(persistResult)) {
-    // If file save failed, fall back to returning truncated content info
+    // 如果文件保存失败，则回退到返回截断的内容信息
     const contentLength = contentStr.length
     logEvent('tengu_mcp_large_result_handled', {
       outcome: 'truncated',
       reason: 'persist_failed',
       sizeEstimateTokens,
     } as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS)
-    return `Error: result (${contentLength.toLocaleString()} characters) exceeds maximum allowed tokens. Failed to save output to file: ${persistResult.error}. If this MCP server provides pagination or filtering tools, use them to retrieve specific portions of the data.`
+    return `错误：结果（${contentLength.toLocaleString()} 个字符）超出允许的最大 token 数。无法将输出保存到文件：${persistResult.error}。如果此 MCP 服务器提供分页或过滤工具，请使用它们来检索数据的特定部分。`
   }
 
   logEvent('tengu_mcp_large_result_handled', {
@@ -2799,18 +2711,14 @@ export async function processMCPResult(
   )
 }
 
-/**
- * Call an MCP tool, handling UrlElicitationRequiredError (-32042) by
- * displaying the URL elicitation to the user, waiting for the completion
- * notification, and retrying the tool call.
- */
+/** 调用 MCP 工具，通过向用户显示 URL 请求、等待完成通知并重试工具调用来处理 UrlElicitationRequiredError (-32042)。 */
 type MCPToolCallResult = {
   content: MCPToolResult
   _meta?: Record<string, unknown>
   structuredContent?: Record<string, unknown>
 }
 
-/** @internal Exported for testing. */
+/** @internal 为测试而导出。 */
 export async function callMCPToolWithUrlElicitationRetry({
   client: connectedClient,
   clientConnection,
@@ -2831,7 +2739,7 @@ export async function callMCPToolWithUrlElicitationRetry({
   signal: AbortSignal
   setAppState: (f: (prev: AppState) => AppState) => void
   onProgress?: (data: MCPProgress) => void
-  /** Injectable for testing. Defaults to callMCPTool. */
+  /** 可注入用于测试。默认为 callMCPTool。 */
   callToolFn?: (opts: {
     client: ConnectedMCPServer
     tool: string
@@ -2840,8 +2748,8 @@ export async function callMCPToolWithUrlElicitationRetry({
     signal: AbortSignal
     onProgress?: (data: MCPProgress) => void
   }) => Promise<MCPToolCallResult>
-  /** Handler for URL elicitations when no hook handles them.
-   * In print/SDK mode, delegates to structuredIO. In REPL, falls back to queue. */
+  /** 当没有钩子处理 URL 请求时的处理程序。
+在 print/SDK 模式下，委托给 structuredIO。在 REPL 中，回退到队列。 */
   handleElicitation?: (
     serverName: string,
     params: ElicitRequestURLParams,
@@ -2860,8 +2768,8 @@ export async function callMCPToolWithUrlElicitationRetry({
         onProgress,
       })
     } catch (error) {
-      // The MCP SDK's Protocol creates plain McpError (not UrlElicitationRequiredError)
-      // for error responses, so we check the error code instead of instanceof.
+      // MCP SDK 的协议会为错误响应创建普通的 McpError（而不是 UrlElicitatio
+      // nRequiredError），因此我们检查错误代码而不是使用 instanceof。
       if (
         !(error instanceof McpError) ||
         error.code !== ErrorCode.UrlElicitationRequired
@@ -2869,7 +2777,7 @@ export async function callMCPToolWithUrlElicitationRetry({
         throw error
       }
 
-      // Limit the number of URL elicitation retries
+      // 限制 URL 引导重试次数
       if (attempt >= MAX_URL_ELICITATION_RETRIES) {
         throw error
       }
@@ -2883,7 +2791,7 @@ export async function callMCPToolWithUrlElicitationRetry({
           ? (errorData.elicitations as unknown[])
           : []
 
-      // Validate each element has the required fields for ElicitRequestURLParams
+      // 验证每个元素是否包含 ElicitRequestURLParams 所需的字段
       const elicitations = rawElicitations.filter(
         (e): e is ElicitRequestURLParams => {
           if (e == null || typeof e !== 'object') return false
@@ -2905,23 +2813,23 @@ export async function callMCPToolWithUrlElicitationRetry({
       if (elicitations.length === 0) {
         logMCPDebug(
           serverName,
-          `Tool '${tool}' returned -32042 but no valid elicitations in error data`,
+          `工具 '${tool}' 返回了 -32042 错误，但错误数据中没有有效的引导信息`,
         )
         throw error
       }
 
       logMCPDebug(
         serverName,
-        `Tool '${tool}' requires URL elicitation (error -32042, attempt ${attempt + 1}), processing ${elicitations.length} elicitation(s)`,
+        `工具 '${tool}' 需要 URL 引导（错误 -32042，第 ${attempt + 1} 次尝试），正在处理 ${elicitations.length} 个引导`,
       )
 
-      // Process each URL elicitation from the error.
-      // The completion notification handler (in registerElicitationHandler) sets
-      // `completed: true` on the matching queue event; the dialog reacts to this flag.
+      // 处理错误中的每个 URL 引导。完成通知处理程
+      // 序（在 registerElicitationHandler 中）会在匹配
+      // 的队列事件上设置 `completed: true`；对话框会对此标志做出反应。
       for (const elicitation of elicitations) {
         const { elicitationId } = elicitation
 
-        // Run elicitation hooks — they can resolve URL elicitations programmatically
+        // 运行引导钩子 —— 它们可以通过编程方式解析 URL 引导
         const hookResponse = await runElicitationHooks(
           serverName,
           elicitation,
@@ -2930,26 +2838,26 @@ export async function callMCPToolWithUrlElicitationRetry({
         if (hookResponse) {
           logMCPDebug(
             serverName,
-            `URL elicitation ${elicitationId} resolved by hook: ${jsonStringify(hookResponse)}`,
+            `URL 引导 ${elicitationId} 已通过钩子解析：${jsonStringify(hookResponse)}`,
           )
           if (hookResponse.action !== 'accept') {
             return {
-              content: `URL elicitation was ${hookResponse.action === 'decline' ? 'declined' : hookResponse.action + 'ed'} by a hook. The tool "${tool}" could not complete because it requires the user to open a URL.`,
+              content: `URL 引导被钩子 ${hookResponse.action === 'decline' ? 'declined' : hookResponse.action + 'ed'}。工具 "${tool}" 无法完成，因为它需要用户打开一个 URL。`,
             }
           }
-          // Hook accepted — skip the UI and proceed to retry
+          // 钩子已接受 —— 跳过 UI 并继续重试
           continue
         }
 
-        // Resolve the URL elicitation via callback (print/SDK mode) or queue (REPL mode).
+        // 通过回调（打印/SDK 模式）或队列（REPL 模式）解析 URL 引导。
         let userResult: ElicitResult
         if (handleElicitation) {
-          // Print/SDK mode: delegate to structuredIO which sends a control request
+          // 打印/SDK 模式：委托给 structuredIO，它会发送一个控制请求
           userResult = await handleElicitation(serverName, elicitation, signal)
         } else {
-          // REPL mode: queue for ElicitationDialog with two-phase consent/waiting flow
+          // REPL 模式：为 ElicitationDialog 排队，采用两阶段同意/等待流程
           const waitingState: ElicitationWaitingState = {
-            actionLabel: 'Retry now',
+            actionLabel: '立即重试',
             showCancel: true,
           }
           userResult = await new Promise<ElicitResult>(resolve => {
@@ -2974,11 +2882,11 @@ export async function callMCPToolWithUrlElicitationRetry({
                     signal,
                     waitingState,
                     respond: result => {
-                      // Phase 1 consent: accept is a no-op (doesn't resolve retry Promise)
+                      // 阶段 1 同意：接受是一个空操作（不会解析重试 Promise）
                       if (result.action === 'accept') {
                         return
                       }
-                      // Decline or cancel: resolve the retry Promise
+                      // 拒绝或取消：解析重试 Promise
                       signal.removeEventListener('abort', onAbort)
                       void resolve(result)
                     },
@@ -2997,7 +2905,7 @@ export async function callMCPToolWithUrlElicitationRetry({
           })
         }
 
-        // Run ElicitationResult hooks — they can modify or block the response
+        // 运行 ElicitationResult 钩子 —— 它们可以修改或阻止响应
         const finalResult = await runElicitationResultHooks(
           serverName,
           userResult,
@@ -3009,20 +2917,20 @@ export async function callMCPToolWithUrlElicitationRetry({
         if (finalResult.action !== 'accept') {
           logMCPDebug(
             serverName,
-            `User ${finalResult.action === 'decline' ? 'declined' : finalResult.action + 'ed'} URL elicitation ${elicitationId}`,
+            `用户 ${finalResult.action === 'decline' ? 'declined' : finalResult.action + 'ed'} URL 引导 ${elicitationId}`,
           )
           return {
-            content: `URL elicitation was ${finalResult.action === 'decline' ? 'declined' : finalResult.action + 'ed'} by the user. The tool "${tool}" could not complete because it requires the user to open a URL.`,
+            content: `URL 引导被用户 ${finalResult.action === 'decline' ? 'declined' : finalResult.action + 'ed'}。工具 "${tool}" 无法完成，因为它需要用户打开一个 URL。`,
           }
         }
 
         logMCPDebug(
           serverName,
-          `Elicitation ${elicitationId} completed, retrying tool call`,
+          `引导 ${elicitationId} 已完成，正在重试工具调用`,
         )
       }
 
-      // Loop back to retry the tool call
+      // 循环返回以重试工具调用
     }
   }
 }
@@ -3050,24 +2958,24 @@ async function callMCPTool({
   let progressInterval: NodeJS.Timeout | undefined
 
   try {
-    logMCPDebug(name, `Calling MCP tool: ${tool}`)
+    logMCPDebug(name, `正在调用 MCP 工具：${tool}`)
 
-    // Set up progress logging for long-running tools (every 30 seconds)
+    // 为长时间运行的工具设置进度日志记录（每 30 秒）
     progressInterval = setInterval(
       (startTime, name, tool) => {
         const elapsed = Date.now() - startTime
         const elapsedSeconds = Math.floor(elapsed / 1000)
         const duration = `${elapsedSeconds}s`
-        logMCPDebug(name, `Tool '${tool}' still running (${duration} elapsed)`)
+        logMCPDebug(name, `工具 '${tool}' 仍在运行（已耗时 ${duration}）`)
       },
-      30000, // Log every 30 seconds
+      30000, // 每 30 秒记录一次
       toolStartTime,
       name,
       tool,
     )
 
-    // Use Promise.race with our own timeout to handle cases where SDK's
-    // internal timeout doesn't work (e.g., SSE stream breaks mid-request)
+    // 使用 Promise.race 和我们自己的超时来处理 SD
+    // K 内部超时不起作用的情况（例如，SSE 流在请求中途中断）
     const timeoutMs = getMcpToolTimeoutMs()
     let timeoutId: NodeJS.Timeout | undefined
 
@@ -3076,8 +2984,8 @@ async function callMCPTool({
         (reject, name, tool, timeoutMs) => {
           reject(
             new TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
-              `MCP server "${name}" tool "${tool}" timed out after ${Math.floor(timeoutMs / 1000)}s`,
-              'MCP tool timeout',
+              `MCP 服务器 "${name}" 的工具 "${tool}" 在 ${Math.floor(timeoutMs / 1000)} 秒后超时`,
+              'MCP 工具超时',
             ),
           )
         },
@@ -3123,7 +3031,7 @@ async function callMCPTool({
     })
 
     if ('isError' in result && result.isError) {
-      let errorDetails = 'Unknown error'
+      let errorDetails = '未知错误'
       if (
         'content' in result &&
         Array.isArray(result.content) &&
@@ -3138,13 +3046,13 @@ async function callMCPTool({
           errorDetails = firstContent.text
         }
       } else if ('error' in result) {
-        // Fallback for legacy error format
+        // 旧版错误格式的回退处理
         errorDetails = String(result.error)
       }
       logMCPError(name, errorDetails)
       throw new McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
         errorDetails,
-        'MCP tool returned error',
+        'MCP 工具返回错误',
         '_meta' in result && result._meta ? { _meta: result._meta } : undefined,
       )
     }
@@ -3154,11 +3062,11 @@ async function callMCPTool({
         ? `${elapsed}ms`
         : elapsed < 60000
           ? `${Math.floor(elapsed / 1000)}s`
-          : `${Math.floor(elapsed / 60000)}m ${Math.floor((elapsed % 60000) / 1000)}s`
+          : `${Math.floor(elapsed / 60000)}分 ${Math.floor((elapsed % 60000) / 1000)}秒`
 
-    logMCPDebug(name, `Tool '${tool}' completed successfully in ${duration}`)
+    logMCPDebug(name, `工具 '${tool}' 在 ${duration} 内成功完成`)
 
-    // Log code indexing tool usage
+    // 记录代码索引工具使用情况
     const codeIndexingTool = detectCodeIndexingFromMcpServerName(name)
     if (codeIndexingTool) {
       logEvent('tengu_code_indexing_tool_used', {
@@ -3178,7 +3086,7 @@ async function callMCPTool({
         | undefined,
     }
   } catch (e) {
-    // Clear intervals on error
+    // 出错时清除定时器
     if (progressInterval !== undefined) {
       clearInterval(progressInterval)
     }
@@ -3188,43 +3096,43 @@ async function callMCPTool({
     if (e instanceof Error && e.name !== 'AbortError') {
       logMCPDebug(
         name,
-        `Tool '${tool}' failed after ${Math.floor(elapsed / 1000)}s: ${e.message}`,
+        `工具 '${tool}' 在 ${Math.floor(elapsed / 1000)} 秒后失败：${e.message}`,
       )
     }
 
-    // Check for 401 errors indicating expired/invalid OAuth tokens
-    // The MCP SDK's StreamableHTTPError has a `code` property with the HTTP status
+    // 检查表示 OAuth 令牌过期/无效的 401 错误。MCP SDK 的
+    // StreamableHTTPError 有一个包含 HTTP 状态的 `code` 属性
     if (e instanceof Error) {
       const errorCode = 'code' in e ? (e.code as number | undefined) : undefined
       if (errorCode === 401 || e instanceof UnauthorizedError) {
         logMCPDebug(
           name,
-          `Tool call returned 401 Unauthorized - token may have expired`,
+          `工具调用返回 401 未授权 - 令牌可能已过期`,
         )
         logEvent('tengu_mcp_tool_call_auth_error', {})
         throw new McpAuthError(
           name,
-          `MCP server "${name}" requires re-authorization (token expired)`,
+          `MCP 服务器 "${name}" 需要重新授权（令牌已过期）`,
         )
       }
 
-      // Check for session expiry — two error shapes can surface here:
-      // 1. Direct 404 + JSON-RPC -32001 from the server (StreamableHTTPError)
-      // 2. -32000 "Connection closed" (McpError) — the SDK closes the transport
-      //    after the onerror handler fires, so the pending callTool() rejects
-      //    with this derived error instead of the original 404.
-      // In both cases, clear the connection cache so the next tool call
-      // creates a fresh session.
+      // 检查会话过期 — 这里可能出现两种错误形式：1. 服务器直接返
+      // 回 404 + JSON-RPC -32001 (Streamable
+      // HTTPError)。2. -32000 "连接已关闭" (McpErr
+      // or) — SDK 在 onerror 处理程序触发后关闭传输，因此
+      // 待处理的 callTool() 会拒绝并返回此派生错误
+      // ，而不是原始的 404。在这两种情况下，请清除连接缓存，以便下一
+      // 次工具调用创建新的会话。
       const isSessionExpired = isMcpSessionExpiredError(e)
       const isConnectionClosedOnHttp =
         'code' in e &&
         (e as Error & { code?: number }).code === -32000 &&
-        e.message.includes('Connection closed') &&
+        e.message.includes('连接已关闭') &&
         (config.type === 'http' || config.type === 'claudeai-proxy')
       if (isSessionExpired || isConnectionClosedOnHttp) {
         logMCPDebug(
           name,
-          `MCP session expired during tool call (${isSessionExpired ? '404/-32001' : 'connection closed'}), clearing connection cache for re-initialization`,
+          `工具调用期间 MCP 会话已过期 (${isSessionExpired ? '404/-32001' : 'connection closed'})，正在清除连接缓存以重新初始化`,
         )
         logEvent('tengu_mcp_session_expired', {})
         await clearServerCache(name, config)
@@ -3232,13 +3140,13 @@ async function callMCPTool({
       }
     }
 
-    // When the users hits esc, avoid logspew
+    // 当用户按下 esc 键时，避免日志刷屏
     if (!(e instanceof Error) || e.name !== 'AbortError') {
       throw e
     }
     return { content: undefined }
   } finally {
-    // Always clear intervals
+    // 始终清除定时器
     if (progressInterval !== undefined) {
       clearInterval(progressInterval)
     }
@@ -3253,14 +3161,12 @@ function extractToolUseId(message: AssistantMessage): string | undefined {
   return firstBlock.id
 }
 
-/**
- * Sets up SDK MCP clients by creating transports and connecting them.
- * This is used for SDK MCP servers that run in the same process as the SDK.
- *
- * @param sdkMcpConfigs - The SDK MCP server configurations
- * @param sendMcpMessage - Callback to send MCP messages through the control channel
- * @returns Connected clients, their tools, and transport map for message routing
- */
+/** 通过创建传输并连接它们来设置 SDK MCP 客户端。
+这用于与 SDK 在同一进程中运行的 SDK MCP 服务器。
+
+@param sdkMcpConfigs - SDK MCP 服务器配置
+@param sendMcpMessage - 通过控制通道发送 MCP 消息的回调函数
+@returns 已连接的客户端、它们的工具以及用于消息路由的传输映射 */
 export async function setupSdkMcpClients(
   sdkMcpConfigs: Record<string, McpSdkServerConfig>,
   sendMcpMessage: (
@@ -3274,7 +3180,7 @@ export async function setupSdkMcpClients(
   const clients: MCPServerConnection[] = []
   const tools: Tool[] = []
 
-  // Connect to all servers in parallel
+  // 并行连接到所有服务器
   const results = await Promise.allSettled(
     Object.entries(sdkMcpConfigs).map(async ([name, config]) => {
       const transport = new SdkControlClientTransport(name, sendMcpMessage)
@@ -3284,7 +3190,7 @@ export async function setupSdkMcpClients(
           name: 'claude-code',
           title: 'Claude Code',
           version: MACRO.VERSION ?? 'unknown',
-          description: "Anthropic's agentic coding tool",
+          description: "Anthropic 的智能编码工具",
           websiteUrl: PRODUCT_URL,
         },
         {
@@ -3293,13 +3199,13 @@ export async function setupSdkMcpClients(
       )
 
       try {
-        // Connect the client
+        // 连接客户端
         await client.connect(transport)
 
-        // Get capabilities from the server
+        // 从服务器获取能力
         const capabilities = client.getServerCapabilities()
 
-        // Create the connected client object
+        // 创建已连接的客户端对象
         const connectedClient: MCPServerConnection = {
           type: 'connected',
           name,
@@ -3311,7 +3217,7 @@ export async function setupSdkMcpClients(
           },
         }
 
-        // Fetch tools if the server has them
+        // 如果服务器有工具，则获取工具
         const serverTools: Tool[] = []
         if (capabilities?.tools) {
           const sdkTools = await fetchToolsForClient(connectedClient)
@@ -3323,8 +3229,8 @@ export async function setupSdkMcpClients(
           tools: serverTools,
         }
       } catch (error) {
-        // If connection fails, return failed server
-        logMCPError(name, `Failed to connect SDK MCP server: ${error}`)
+        // 如果连接失败，返回失败的服务器
+        logMCPError(name, `连接 SDK MCP 服务器失败：${error}`)
         return {
           client: {
             type: 'failed' as const,
@@ -3337,13 +3243,13 @@ export async function setupSdkMcpClients(
     }),
   )
 
-  // Process results and collect clients and tools
+  // 处理结果并收集客户端和工具
   for (const result of results) {
     if (result.status === 'fulfilled') {
       clients.push(result.value.client)
       tools.push(...result.value.tools)
     }
-    // If rejected (unexpected), the error was already logged inside the promise
+    // 如果被拒绝（意外情况），错误已在 Promise 内部记录
   }
 
   return { clients, tools }

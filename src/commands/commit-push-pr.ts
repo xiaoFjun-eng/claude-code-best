@@ -29,23 +29,23 @@ function getPromptContent(
 ): string {
   const { commit: commitAttribution, pr: defaultPrAttribution } =
     getAttributionTexts()
-  // Use provided PR attribution or fall back to default
+  // 使用提供的 PR 归属信息，否则回退到默认值
   const effectivePrAttribution = prAttribution ?? defaultPrAttribution
   const safeUser = process.env.SAFEUSER || ''
   const username = process.env.USER || ''
 
   let prefix = ''
-  let reviewerArg = ' and `--reviewer anthropics/claude-code`'
-  let addReviewerArg = ' (and add `--add-reviewer anthropics/claude-code`)'
+  let reviewerArg = ' 和 `--reviewer anthropics/claude-code`'
+  let addReviewerArg = ' (并添加 `--add-reviewer anthropics/claude-code`)'
   let changelogSection = `
 
-## Changelog
+## 更新日志
 <!-- CHANGELOG:START -->
-[If this PR contains user-facing changes, add a changelog entry here. Otherwise, remove this section.]
+[如果此 PR 包含面向用户的变更，请在此处添加更新日志条目。否则，请移除此部分。]
 <!-- CHANGELOG:END -->`
   let slackStep = `
 
-5. After creating/updating the PR, check if the user's CLAUDE.md mentions posting to Slack channels. If it does, use ToolSearch to search for "slack send message" tools. If ToolSearch finds a Slack tool, ask the user if they'd like you to post the PR URL to the relevant Slack channel. Only post if the user confirms. If ToolSearch returns no results or errors, skip this step silently—do not mention the failure, do not attempt workarounds, and do not try alternative approaches.`
+5. 创建/更新 PR 后，检查用户的 CLAUDE.md 是否提及要发布到 Slack 频道。如果是，请使用 ToolSearch 搜索 "slack send message" 工具。如果 ToolSearch 找到了 Slack 工具，询问用户是否希望你将 PR URL 发布到相关的 Slack 频道。仅在用户确认后才发布。如果 ToolSearch 没有返回结果或出错，请静默跳过此步骤——不要提及失败，不要尝试变通方法，也不要尝试替代方案。`
   if (process.env.USER_TYPE === 'ant' && isUndercover()) {
     prefix = getUndercoverInstructions() + '\n'
     reviewerArg = ''
@@ -54,7 +54,7 @@ function getPromptContent(
     slackStep = ''
   }
 
-  return `${prefix}## Context
+  return `${prefix}## 上下文
 
 - \`SAFEUSER\`: ${safeUser}
 - \`whoami\`: ${username}
@@ -64,70 +64,74 @@ function getPromptContent(
 - \`git diff ${defaultBranch}...HEAD\`: !\`git diff ${defaultBranch}...HEAD\`
 - \`gh pr view --json number 2>/dev/null || true\`: !\`gh pr view --json number 2>/dev/null || true\`
 
-## Git Safety Protocol
+## Git 安全协议
 
-- NEVER update the git config
-- NEVER run destructive/irreversible git commands (like push --force, hard reset, etc) unless the user explicitly requests them
-- NEVER skip hooks (--no-verify, --no-gpg-sign, etc) unless the user explicitly requests it
-- NEVER run force push to main/master, warn the user if they request it
-- Do not commit files that likely contain secrets (.env, credentials.json, etc)
-- Never use git commands with the -i flag (like git rebase -i or git add -i) since they require interactive input which is not supported
+- 切勿更新 git 配置
+- 切勿运行破坏性/不可逆的 git 命令（如 push --force、hard reset 等），除非用户明确要求
+- 切勿跳过钩子（--no-verify、--no-gpg-sign 等），除非用户明确要求
+- 切勿强制推送到 main/master 分支，如果用户要求，请警告用户
+- 不要提交可能包含机密的文件（.env、credentials.json 等）
+- 切勿使用带有 -i 标志的 git 命令（如 git rebase -i 或 git add -i），因为它们需要交互式输入，而当前环境不支持
 
-## Your task
+## 你的任务
 
-Analyze all changes that will be included in the pull request, making sure to look at all relevant commits (NOT just the latest commit, but ALL commits that will be included in the pull request from the git diff ${defaultBranch}...HEAD output above).
+分析将包含在拉取请求中的所有变更，确保查看所有相关的提交（不仅仅是最近的提交，而是上面 git diff ${defaultBranch}...HEAD 输出中所有将包含在拉取请求中的提交）。
 
-Based on the above changes:
-1. Create a new branch if on ${defaultBranch} (use SAFEUSER from context above for the branch name prefix, falling back to whoami if SAFEUSER is empty, e.g., \`username/feature-name\`)
-2. Create a single commit with an appropriate message using heredoc syntax${commitAttribution ? `, ending with the attribution text shown in the example below` : ''}:
+基于上述变更：
+1. 如果当前在 ${defaultBranch} 分支上，则创建一个新分支（使用上面上下文中的 SAFEUSER 作为分支名前缀，如果 SAFEUSER 为空则回退到 whoami，例如 \`username/feature-name\`）
+2. 使用 heredoc 语法创建一个包含适当提交信息的单个提交${commitAttribution ? `, ending with the attribution text shown in the example below` : ''}：
 \`\`\`
 git commit -m "$(cat <<'EOF'
-Commit message here.${commitAttribution ? `\n\n${commitAttribution}` : ''}
+提交信息在此处。${commitAttribution ? `\n\n${commitAttribution}` : ''}
 EOF
 )"
 \`\`\`
-3. Push the branch to origin
-4. If a PR already exists for this branch (check the gh pr view output above), update the PR title and body using \`gh pr edit\` to reflect the current diff${addReviewerArg}. Otherwise, create a pull request using \`gh pr create\` with heredoc syntax for the body${reviewerArg}.
-   - IMPORTANT: Keep PR titles short (under 70 characters). Use the body for details.
+3. 将分支推送到 origin
+4. 如果此分支已存在 PR（检查上面的 gh pr view 输出），则使用 \`gh pr edit\` 更新 PR 标题和正文以反映当前的差异${addReviewerArg}。否则，使用 \`gh pr create\` 创建拉取请求，并使用 heredoc 语法作为正文${reviewerArg}。
+   - 重要：保持 PR 标题简短（少于 70 个字符）。使用正文提供详细信息。
 \`\`\`
-gh pr create --title "Short, descriptive title" --body "$(cat <<'EOF'
-## Summary
-<1-3 bullet points>
+gh pr create --title "简短、描述性的标题" --body "$(cat <<'EOF'
+## 摘要
+<1-3 个要点>
 
-## Test plan
-[Bulleted markdown checklist of TODOs for testing the pull request...]${changelogSection}${effectivePrAttribution ? `\n\n${effectivePrAttribution}` : ''}
+## 测试计划
+[用于测试拉取请求的待办事项的要点式 Markdown 清单...]${changelogSection}${effectivePrAttribution ? `\n\n${effectivePrAttribution}` : ''}
 EOF
 )"
 \`\`\`
 
-You have the capability to call multiple tools in a single response. You MUST do all of the above in a single message.${slackStep}
+你能够在单次响应中调用多个工具。你必须在单条消息中完成上述所有操作。${slackStep}
 
-Return the PR URL when you're done, so the user can see it.`
+完成后返回 PR URL，以便用户查看。`
 }
 
 const command = {
   type: 'prompt',
   name: 'commit-push-pr',
-  description: 'Commit, push, and open a PR',
+  description: '提交、推送并打开 PR',
   allowedTools: ALLOWED_TOOLS,
   get contentLength() {
-    // Use 'main' as estimate for content length calculation
+    // 使用 'main' 作为内容长度计算的估算依据
     return getPromptContent('main').length
   },
-  progressMessage: 'creating commit and PR',
+  progressMessage: '正在创建提交和 PR',
   source: 'builtin',
   async getPromptForCommand(args, context) {
-    // Get default branch and enhanced PR attribution
+    // 获取默认分支和增强的 PR 归属信息
     const [defaultBranch, prAttribution] = await Promise.all([
       getDefaultBranch(),
       getEnhancedPRAttribution(context.getAppState),
     ])
     let promptContent = getPromptContent(defaultBranch, prAttribution)
 
-    // Append user instructions if args provided
+    // 如果提供了参数，则附加用户指令
     const trimmedArgs = args?.trim()
     if (trimmedArgs) {
-      promptContent += `\n\n## Additional instructions from user\n\n${trimmedArgs}`
+      promptContent += `
+
+## 来自用户的附加指令
+
+${trimmedArgs}`
     }
 
     const finalContent = await executeShellCommandsInPrompt(

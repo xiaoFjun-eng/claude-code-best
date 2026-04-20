@@ -66,18 +66,18 @@ function RateLimitOptionsMenu({
     if (extraUsage.isEnabled()) {
       const hasBillingAccess = hasClaudeAiBillingAccess()
       const needsToRequestFromAdmin = isTeamOrEnterprise && !hasBillingAccess
-      // Org spend cap depleted - non-admins can't request more since there's nothing to allocate
-      // - out_of_credits: wallet empty
-      // - org_level_disabled_until: org spend cap hit for the month
-      // - org_service_zero_credit_limit: org service has zero credit limit
+      // 组织支出限额已耗尽 - 非管理员无法请求更多额度，因为已无可分配资源 - out_of_credits
+      // : 钱包为空 - org_level
+      // _disabled_until: 本月组织支出限额已用完 - org
+      // _service_zero_credit_limit: 组织服务的信用额度为零
       const isOrgSpendCapDepleted =
         claudeAiLimits.overageDisabledReason === 'out_of_credits' ||
         claudeAiLimits.overageDisabledReason === 'org_level_disabled_until' ||
         claudeAiLimits.overageDisabledReason === 'org_service_zero_credit_limit'
 
-      // Hide for non-admin Team/Enterprise users when org spend cap is depleted
+      // 当组织支出限额耗尽时，对非管理员团队/企业用户隐藏
       if (needsToRequestFromAdmin && isOrgSpendCapDepleted) {
-        // Don't show extra-usage option
+        // 不显示额外用量选项
       } else {
         const isOverageState =
           claudeAiLimits.overageStatus === 'rejected' ||
@@ -85,11 +85,11 @@ function RateLimitOptionsMenu({
 
         let label: string
         if (needsToRequestFromAdmin) {
-          label = isOverageState ? 'Request more' : 'Request extra usage'
+          label = isOverageState ? '请求更多' : '请求额外用量'
         } else {
           label = hasExtraUsageEnabled
-            ? 'Add funds to continue with extra usage'
-            : 'Switch to extra usage'
+            ? '添加资金以继续使用额外用量'
+            : '切换到额外用量'
         }
 
         actionOptions.push({
@@ -101,14 +101,14 @@ function RateLimitOptionsMenu({
 
     if (!isMax20x && !isTeamOrEnterprise && upgrade.isEnabled()) {
       actionOptions.push({
-        label: 'Upgrade your plan',
+        label: '升级您的套餐',
         value: 'upgrade',
       })
     }
 
     const cancelOption: OptionWithDescription<RateLimitOptionsMenuOptionType> =
       {
-        label: 'Stop and wait for limit to reset',
+        label: '停止并等待限额重置',
         value: 'cancel',
       }
 
@@ -156,7 +156,7 @@ function RateLimitOptionsMenu({
 
   return (
     <Dialog
-      title="What do you want to do?"
+      title="您想要做什么？"
       onCancel={handleCancel}
       color="suggestion"
     >

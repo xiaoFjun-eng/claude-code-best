@@ -22,7 +22,7 @@ function PlanDisplay({
 }): React.ReactNode {
   return (
     <Box flexDirection="column">
-      <Text bold>Current Plan</Text>
+      <Text bold>当前计划</Text>
       <Text dimColor>{planPath}</Text>
       <Box marginTop={1}>
         <Text>{planContent}</Text>
@@ -30,7 +30,7 @@ function PlanDisplay({
       {editorName && (
         <Box marginTop={1}>
           <Text dimColor>&quot;/plan open&quot;</Text>
-          <Text dimColor> to edit this plan in </Text>
+          <Text dimColor> 以在编辑器中编辑此计划</Text>
           <Text bold dimColor>
             {editorName}
           </Text>
@@ -49,7 +49,7 @@ export async function call(
   const appState = getAppState()
   const currentMode = appState.toolPermissionContext.mode
 
-  // If not in plan mode, enable it
+  // 如果未处于计划模式，请启用它
   if (currentMode !== 'plan') {
     handlePlanModeTransition(currentMode, 'plan')
     setAppState(prev => ({
@@ -61,30 +61,30 @@ export async function call(
     }))
     const description = args.trim()
     if (description && description !== 'open') {
-      onDone('Enabled plan mode', { shouldQuery: true })
+      onDone('已启用计划模式', { shouldQuery: true })
     } else {
-      onDone('Enabled plan mode')
+      onDone('已启用计划模式')
     }
     return null
   }
 
-  // Already in plan mode - show the current plan
+  // 已处于计划模式 - 显示当前计划
   const planContent = getPlan()
   const planPath = getPlanFilePath()
 
   if (!planContent) {
-    onDone('Already in plan mode. No plan written yet.')
+    onDone('已处于计划模式。尚未编写任何计划。')
     return null
   }
 
-  // If user typed "/plan open", open in editor
+  // 如果用户输入了 "/plan open"，则在编辑器中打开
   const argList = args.trim().split(/\s+/)
   if (argList[0] === 'open') {
     const result = await editFileInEditor(planPath)
     if (result.error) {
-      onDone(`Failed to open plan in editor: ${result.error}`)
+      onDone(`在编辑器中打开计划失败: ${result.error}`)
     } else {
-      onDone(`Opened plan in editor: ${planPath}`)
+      onDone(`在编辑器中打开了计划: ${planPath}`)
     }
     return null
   }
@@ -100,7 +100,7 @@ export async function call(
     />
   )
 
-  // Render to string and pass to onDone like local commands do
+  // 渲染为字符串并传递给 onDone，就像本地命令所做的那样
   const output = await renderToString(display)
   onDone(output)
   return null

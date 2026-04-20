@@ -1,7 +1,7 @@
 import figures from 'figures'
 import React, { useCallback, useState } from 'react'
 import { Dialog } from '@anthropic/ink'
-// eslint-disable-next-line custom-rules/prefer-use-keybindings -- raw text input for config dialog
+// eslint-disable-next-line custom-rules/prefer-use-keybindings -- 配置对话框的原始文本输入
 import { Box, Text, useInput, stringWidth } from '@anthropic/ink'
 import {
   useKeybinding,
@@ -13,18 +13,11 @@ import type {
   PluginOptionValues,
 } from '../../utils/plugins/pluginOptionsStorage.js'
 
-/**
- * Build the onSave payload from collected string inputs.
- *
- * Sensitive fields are never prepopulated in the text buffer (security), so
- * by the time the user reaches the last field every sensitive field they
- * stepped through contains '' in collected. To avoid silently wiping saved
- * secrets on reconfigure: if a sensitive field is '' AND initialValues has
- * a value for it, OMIT the key entirely. savePluginOptions only writes keys
- * it receives, so omitting = keep existing.
- *
- * Exported for unit testing.
- */
+/** 根据收集的字符串输入构建 onSave 负载。
+
+敏感字段永远不会预填充到文本缓冲区中（出于安全考虑），因此当用户到达最后一个字段时，他们经过的每个敏感字段在收集的数据中都包含 ''。为了避免在重新配置时静默擦除已保存的密钥：如果一个敏感字段为 '' 且 initialValues 中该字段有值，则完全省略该键。savePluginOptions 只写入它接收到的键，因此省略意味着保留现有值。
+
+导出用于单元测试。 */
 export function buildFinalValues(
   fields: string[],
   collected: Record<string, string>,
@@ -45,8 +38,8 @@ export function buildFinalValues(
     }
 
     if (schema?.type === 'number') {
-      // Number('') returns 0, not NaN — omit blank number inputs so
-      // validateUserConfig's required check actually catches them.
+      // Number('') 返回 0，而不是 NaN —— 省略空白的数字输入
+      // ，以便 validateUserConfig 的必填检查能真正捕获它们。
       if (value.trim() === '') continue
       const num = Number(value)
       finalValues[fieldKey] = Number.isNaN(num) ? value : num
@@ -63,7 +56,7 @@ type Props = {
   title: string
   subtitle: string
   configSchema: PluginOptionSchema
-  /** Pre-fill fields when reconfiguring. Sensitive fields are not prepopulated. */
+  /** 重新配置时预填充字段。敏感字段不会预填充。 */
   initialValues?: PluginOptionValues
   onSave: (config: PluginOptionValues) => void
   onCancel: () => void
@@ -79,8 +72,8 @@ export function PluginOptionsDialog({
 }: Props): React.ReactNode {
   const fields = Object.keys(configSchema)
 
-  // Prepopulate from initialValues but skip sensitive fields — we don't
-  // want to echo secrets back into the text buffer.
+  // 从 initialValues 预填充，但跳过敏感字段 —
+  // — 我们不希望将密钥回显到文本缓冲区中。
   const initialFor = useCallback(
     (key: string): string => {
       if (configSchema[key]?.sensitive === true) return ''
@@ -99,11 +92,11 @@ export function PluginOptionsDialog({
   const currentField = fields[currentFieldIndex]
   const fieldSchema = currentField ? configSchema[currentField] : null
 
-  // Use Settings context so 'n' key doesn't cancel (allows typing 'n' in input).
-  // isCancelActive={false} on Dialog keeps its own confirm:no out of the way.
+  // 使用 Settings 上下文，以便 'n' 键不会取消（允许在输入框中输入 'n'）。在 Dial
+  // og 上设置 isCancelActive={false} 可以使其自身的确认/取消按钮不碍事。
   useKeybinding('confirm:no', onCancel, { context: 'Settings' })
 
-  // Tab to next field
+  // Tab 键跳转到下一个字段
   const handleNextField = useCallback(() => {
     if (currentFieldIndex < fields.length - 1 && currentField) {
       setValues(prev => ({ ...prev, [currentField]: currentInput }))
@@ -113,7 +106,7 @@ export function PluginOptionsDialog({
     }
   }, [currentFieldIndex, fields, currentField, currentInput, initialFor])
 
-  // Enter to save current field and move to next, or save all if last
+  // Enter 键保存当前字段并移至下一个，如果是最后一个字段则保存所有
   const handleConfirm = useCallback(() => {
     if (!currentField) return
 
@@ -122,7 +115,7 @@ export function PluginOptionsDialog({
     if (currentFieldIndex === fields.length - 1) {
       onSave(buildFinalValues(fields, newValues, configSchema, initialValues))
     } else {
-      // Move to next field
+      // 移至下一个字段
       setValues(newValues)
       setCurrentFieldIndex(prev => prev + 1)
       const nextKey = fields[currentFieldIndex + 1]
@@ -148,15 +141,15 @@ export function PluginOptionsDialog({
     { context: 'Confirmation' },
   )
 
-  // Character input handling (backspace, typing)
+  // 字符输入处理（退格键、输入）
   useInput((char, key) => {
-    // Backspace
+    // 退格键
     if (key.backspace || key.delete) {
       setCurrentInput(prev => prev.slice(0, -1))
       return
     }
 
-    // Regular character input
+    // 常规字符输入
     if (char && !key.ctrl && !key.meta && !key.tab && !key.return) {
       setCurrentInput(prev => prev + char)
     }
@@ -201,11 +194,10 @@ export function PluginOptionsDialog({
         </Text>
         {currentFieldIndex < fields.length - 1 && (
           <Text dimColor={true}>
-            Tab: Next field · Enter: Save and continue
-          </Text>
+            Tab 键：下一个字段 · Enter 键：保存并继续</Text>
         )}
         {currentFieldIndex === fields.length - 1 && (
-          <Text dimColor={true}>Enter: Save configuration</Text>
+          <Text dimColor={true}>Enter 键：保存配置</Text>
         )}
       </Box>
     </Dialog>

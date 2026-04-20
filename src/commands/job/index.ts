@@ -4,7 +4,7 @@ import { feature } from 'bun:bundle'
 const job = {
   type: 'local-jsx',
   name: 'job',
-  description: 'Manage template jobs',
+  description: '管理模板任务',
   argumentHint: '[list|new|reply|status]',
   isEnabled: () => {
     if (feature('TEMPLATES')) return true

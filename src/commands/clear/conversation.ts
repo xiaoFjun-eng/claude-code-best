@@ -228,7 +228,7 @@ export async function clearConversation({
   // （appendEntry 会重新读取 getSessionId()）。重新指向符号链接，
   // 使 TaskOutput 读取实时文件而非冻结的清理前快照。仅重新指向运行中的任务——
   // 已完成的任务不会再写入，重新指向会将有效符号链接替换为悬空链接。
-  // again, so re-pointing would replace a valid symlink with a dangling one.
+  // 再次，重新指向会用无效的符号链接替换有效的符号链接。
   // 主会话任务使用相同的每个代理路径（它们通过 recordSidechainTranscript
   // 写入 getAgentTranscriptPath），因此无需特殊处理。
   for (const task of preservedLocalAgents) {

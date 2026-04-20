@@ -15,19 +15,19 @@ type Props = {
 export function ValidatePlugin({ onComplete, path }: Props): React.ReactNode {
   useEffect(() => {
     async function runValidation() {
-      // If no path provided, show usage
+      // 如果未提供路径，则显示用法
       if (!path) {
         onComplete(
-          'Usage: /plugin validate <path>\n\n' +
-            'Validate a plugin or marketplace manifest file or directory.\n\n' +
+          '用法：/plugin validate <路径>\n\n' +
+            '验证插件或市场清单文件或目录。\n\n' +
             'Examples:\n' +
             '  /plugin validate .claude-plugin/plugin.json\n' +
             '  /plugin validate /path/to/plugin-directory\n' +
             '  /plugin validate .\n\n' +
-            'When given a directory, automatically validates .claude-plugin/marketplace.json\n' +
-            'or .claude-plugin/plugin.json (prefers marketplace if both exist).\n\n' +
-            'Or from the command line:\n' +
-            '  claude plugin validate <path>',
+            '当给定目录时，自动验证 .claude-plugin/marketplace.json\n' +
+            '或 .claude-plugin/plugin.json（如果两者都存在，则优先使用 marketplace）。\n\n' +
+            '或在命令行中：\n' +
+            '  claude plugin validate <路径>',
         )
         return
       }
@@ -37,12 +37,16 @@ export function ValidatePlugin({ onComplete, path }: Props): React.ReactNode {
 
         let output = ''
 
-        // Add header
-        output += `Validating ${result.fileType} manifest: ${result.filePath}\n\n`
+        // 添加标题
+        output += `正在验证 ${result.fileType} 清单：${result.filePath}
 
-        // Show errors
+`
+
+        // 显示错误
         if (result.errors.length > 0) {
-          output += `${figures.cross} Found ${result.errors.length} ${plural(result.errors.length, 'error')}:\n\n`
+          output += `${figures.cross} 发现 ${result.errors.length} 个 ${plural(result.errors.length, 'error')}：
+
+`
 
           result.errors.forEach(error => {
             output += `  ${figures.pointer} ${error.path}: ${error.message}\n`
@@ -51,9 +55,11 @@ export function ValidatePlugin({ onComplete, path }: Props): React.ReactNode {
           output += '\n'
         }
 
-        // Show warnings
+        // 显示警告
         if (result.warnings.length > 0) {
-          output += `${figures.warning} Found ${result.warnings.length} ${plural(result.warnings.length, 'warning')}:\n\n`
+          output += `${figures.warning} 发现 ${result.warnings.length} 个 ${plural(result.warnings.length, 'warning')}：
+
+`
 
           result.warnings.forEach(warning => {
             output += `  ${figures.pointer} ${warning.path}: ${warning.message}\n`
@@ -62,32 +68,35 @@ export function ValidatePlugin({ onComplete, path }: Props): React.ReactNode {
           output += '\n'
         }
 
-        // Show success or failure
+        // 显示成功或失败
         if (result.success) {
           if (result.warnings.length > 0) {
-            output += `${figures.tick} Validation passed with warnings\n`
+            output += `${figures.tick} 验证通过，但有警告
+`
           } else {
-            output += `${figures.tick} Validation passed\n`
+            output += `${figures.tick} 验证通过
+`
           }
 
-          // Exit with code 0 (success)
+          // 以代码 0 退出（成功）
           process.exitCode = 0
         } else {
-          output += `${figures.cross} Validation failed\n`
+          output += `${figures.cross} 验证失败
+`
 
-          // Exit with code 1 (validation failure)
+          // 以代码 1 退出（验证失败）
           process.exitCode = 1
         }
 
         onComplete(output)
       } catch (error) {
-        // Exit with code 2 (unexpected error)
+        // 以代码 2 退出（意外错误）
         process.exitCode = 2
 
         logError(error)
 
         onComplete(
-          `${figures.cross} Unexpected error during validation: ${errorMessage(error)}`,
+          `${figures.cross} 验证期间发生意外错误：${errorMessage(error)}`,
         )
       }
     }
@@ -97,7 +106,7 @@ export function ValidatePlugin({ onComplete, path }: Props): React.ReactNode {
 
   return (
     <Box flexDirection="column">
-      <Text>Running validation...</Text>
+      <Text>正在运行验证...</Text>
     </Box>
   )
 }

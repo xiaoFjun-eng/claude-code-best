@@ -1,7 +1,7 @@
 import { describe, test, expect } from 'bun:test'
 
-describe('/daemon command', () => {
-  test('index exports a valid Command', async () => {
+describe('/daemon 命令', () => {
+  test('index 导出一个有效的 Command', async () => {
     const mod = await import('../index.js')
     const cmd = mod.default
     expect(cmd.name).toBe('daemon')
@@ -10,12 +10,12 @@ describe('/daemon command', () => {
     expect(cmd.description).toContain('daemon')
   })
 
-  test('daemon module exports call function', async () => {
+  test('daemon 模块导出 call 函数', async () => {
     const mod = await import('../daemon.js')
     expect(typeof mod.call).toBe('function')
   })
 
-  test('argumentHint lists subcommands', async () => {
+  test('argumentHint 列出子命令', async () => {
     const mod = await import('../index.js')
     const cmd = mod.default
     expect(cmd.argumentHint).toContain('status')

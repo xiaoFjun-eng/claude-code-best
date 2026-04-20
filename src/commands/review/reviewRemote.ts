@@ -1,13 +1,11 @@
-/**
- * Teleported /ultrareview execution. Creates a CCR session with the current repo,
- * sends the review prompt as the initial message, and registers a
- * RemoteAgentTask so the polling loop pipes results back into the local
- * session via task-notification. Mirrors the /ultraplan → CCR flow.
- *
- * TODO(#22051): pass useBundleMode once landed so local-only / uncommitted
- * repo state is captured. The GitHub-clone path (current) only works for
- * pushed branches on repos with the Claude GitHub app installed.
- */
+/** 已远程执行 /ultrareview。使用当前仓库创建 CCR 会话，
+将评审提示作为初始消息发送，并注册一个
+RemoteAgentTask，以便轮询循环通过任务通知将结果传回本地
+会话。镜像了 /ultraplan → CCR 流程。
+
+TODO(#22051)：功能落地后传递 useBundleMode，以便捕获仅限本地/未提交的
+仓库状态。GitHub 克隆路径（当前）仅适用于
+已安装 Claude GitHub 应用且分支已推送的仓库。 */
 
 import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
@@ -31,9 +29,9 @@ import { execFileNoThrow } from '../../utils/execFileNoThrow.js'
 import { getDefaultBranch, gitExe } from '../../utils/git.js'
 import { teleportToRemote } from '../../utils/teleport.js'
 
-// One-time session flag: once the user confirms overage billing via the
-// dialog, all subsequent /ultrareview invocations in this session proceed
-// without re-prompting.
+// 一次性会话标志：一旦用户通过对话框确认超额计费，本次会
+// 话中所有后续的 /ultrareview 调用都将直接进
+// 行，无需再次提示。
 let sessionOverageConfirmed = false
 
 export function confirmOverage(): void {
@@ -46,14 +44,12 @@ export type OverageGate =
   | { kind: 'low-balance'; available: number }
   | { kind: 'needs-confirm' }
 
-/**
- * Determine whether the user can launch an ultrareview and under what
- * billing terms. Fetches quota and utilization in parallel.
- */
+/** 判断用户是否可以启动 ultrareview 以及适用的
+计费条款。并行获取配额和使用量信息。 */
 export async function checkOverageGate(): Promise<OverageGate> {
-  // Team and Enterprise plans include ultrareview — no free-review quota
-  // or Extra Usage dialog. The quota endpoint is scoped to consumer plans
-  // (pro/max); hitting it on team/ent would surface a confusing dialog.
+  // 团队版和企业版计划包含 ultrareview —— 没有免
+  // 费评审配额或额外用量对话框。配额端点仅适用于个人计划（pro/
+  // max）；在团队/企业版上调用该端点会显示令人困惑的对话框。
   if (isTeamSubscriber() || isEnterpriseSubscriber()) {
     return { kind: 'proceed', billingNote: '' }
   }
@@ -63,8 +59,8 @@ export async function checkOverageGate(): Promise<OverageGate> {
     fetchUtilization().catch(() => null),
   ])
 
-  // No quota info (non-subscriber or endpoint down) — let it through,
-  // server-side billing will handle it.
+  // 无配额信息（非订阅用户或端点故障）—— 允许通
+  // 过，服务器端计费会处理。
   if (!quota) {
     return { kind: 'proceed', billingNote: '' }
   }
@@ -72,24 +68,24 @@ export async function checkOverageGate(): Promise<OverageGate> {
   if (quota.reviews_remaining > 0) {
     return {
       kind: 'proceed',
-      billingNote: ` This is free ultrareview ${quota.reviews_used + 1} of ${quota.reviews_limit}.`,
+      billingNote: `这是第 ${quota.reviews_used + 1} 次免费 ultrareview，共 ${quota.reviews_limit} 次。`,
     }
   }
 
-  // Utilization fetch failed (transient network error, timeout, etc.) —
-  // let it through, same rationale as the quota fallback above.
+  // 使用量获取失败（临时网络错误、超时等）——
+  // 允许通过，理由与上述配额回退方案相同。
   if (!utilization) {
     return { kind: 'proceed', billingNote: '' }
   }
 
-  // Free reviews exhausted — check Extra Usage setup.
+  // 免费评审次数已用尽 —— 请检查额外用量设置。
   const extraUsage = utilization.extra_usage
   if (!extraUsage?.is_enabled) {
     logEvent('tengu_review_overage_not_enabled', {})
     return { kind: 'not-enabled' }
   }
 
-  // Check available balance (null monthly_limit = unlimited).
+  // 检查可用余额（monthly_limit 为 null 表示无限制）。
   const monthlyLimit = extraUsage.monthly_limit
   const usedCredits = extraUsage.used_credits ?? 0
   const available =
@@ -109,33 +105,30 @@ export async function checkOverageGate(): Promise<OverageGate> {
 
   return {
     kind: 'proceed',
-    billingNote: ' This review bills as Extra Usage.',
+    billingNote: '本次评审将按额外用量计费。',
   }
 }
 
-/**
- * Launch a teleported review session. Returns ContentBlockParam[] describing
- * the launch outcome for injection into the local conversation (model is then
- * queried with this content, so it can narrate the launch to the user).
- *
- * Returns ContentBlockParam[] with user-facing error messages on recoverable
- * failures (missing merge-base, empty diff, bundle too large), or null on
- * other failures so the caller falls through to the local-review prompt.
- * Reason is captured in analytics.
- *
- * Caller must run checkOverageGate() BEFORE calling this function
- * (ultrareviewCommand.tsx handles the dialog).
- */
+/** 启动远程评审会话。返回 ContentBlockParam[] 描述
+启动结果，以便注入本地对话（随后模型将使用此内容进行查询，
+从而向用户描述启动过程）。
+
+对于可恢复的故障（缺少合并基准、差异为空、bundle 过大），返回包含面向用户错误信息的 ContentBlockParam[]；
+对于其他故障返回 null，以便调用方回退到本地评审提示。
+原因已记录在分析数据中。
+
+调用方必须在调用此函数之前运行 checkOverageGate()
+（ultrareviewCommand.tsx 负责处理对话框）。 */
 export async function launchRemoteReview(
   args: string,
   context: ToolUseContext,
   billingNote?: string,
 ): Promise<ContentBlockParam[] | null> {
   const eligibility = await checkRemoteAgentEligibility()
-  // Synthetic DEFAULT_CODE_REVIEW_ENVIRONMENT_ID works without per-org CCR
-  // setup, so no_remote_environment isn't a blocker. Server-side quota
-  // consume at session creation routes billing: first N zero-rate, then
-  // anthropic:cccr org-service-key (overage-only).
+  // 合成的 DEFAULT_CODE_REVIEW_ENVIRONMENT_ID 无需按
+  // 组织配置 CCR 即可工作，因此 no_remote_environment 不
+  // 是阻碍。服务器端在会话创建时消耗配额以路由计费：前 N 次零费率，然后使用 ant
+  // hropic:cccr 组织服务密钥（仅用于超额部分）。
   if (!eligibility.eligible) {
     const blockers = (eligibility as { eligible: false; errors: Array<{ type: string }> }).errors.filter(
       e => e.type !== 'no_remote_environment',
@@ -152,7 +145,8 @@ export async function launchRemoteReview(
       return [
         {
           type: 'text',
-          text: `Ultrareview cannot launch:\n${reasons}`,
+          text: `无法启动 Ultrareview：
+${reasons}`,
         },
       ]
     }
@@ -162,19 +156,19 @@ export async function launchRemoteReview(
 
   const prNumber = args.trim()
   const isPrNumber = /^\d+$/.test(prNumber)
-  // Synthetic code_review env. Go taggedid.FromUUID(TagEnvironment,
-  // UUID{...,0x02}) encodes with version prefix '01' — NOT Python's
-  // legacy tagged_id() format. Verified in prod.
+  // 合成的 code_review 环境。Go 语言的 taggedid.FromUUID(TagEn
+  // vironment, UUID{...,0x02}) 使用版本前缀 '01' 编码 —— 而非 P
+  // ython 遗留的 tagged_id() 格式。已在生产环境验证。
   const CODE_REVIEW_ENV_ID = 'env_011111111111111111111113'
-  // Lite-review bypasses bughunter.go entirely, so it doesn't see the
-  // webhook's bug_hunter_config (different GB project). These env vars are
-  // the only tuning surface — without them, run_hunt.sh's bash defaults
-  // apply (60min, 120s agent timeout), and 120s kills verifiers mid-run
-  // which causes infinite respawn.
+  // Lite-review 完全绕过 bughunter.go，因此它看不到 w
+  // ebhook 的 bug_hunter_config（属于不同的 GB 项目）。这
+  // 些环境变量是唯一的调优入口 —— 如果没有它们，将应用 run_hunt.sh
+  // 的 bash 默认值（60分钟，120秒代理超时），而 120 秒超时会在验
+  // 证器运行中途将其终止，导致无限重启。
   //
-  // total_wallclock must stay below RemoteAgentTask's 30min poll timeout
-  // with headroom for finalization (~3min synthesis). Per-field guards
-  // match autoDream.ts — GB cache can return stale wrong-type values.
+  // total_wallclock 必须保持在 RemoteAgentTask 的 30
+  // 分钟轮询超时限制以下，并为最终处理留出余量（约 3 分钟合成）。各字段的防护措施
+  // 与 autoDream.ts 保持一致 —— GB 缓存可能返回过期的错误类型值。
   const raw = getFeatureValue_CACHED_MAY_BE_STALE<Record<
     string,
     unknown
@@ -185,9 +179,9 @@ export async function launchRemoteReview(
     if (n <= 0) return fallback
     return max !== undefined && n > max ? fallback : n
   }
-  // Upper bounds: 27min on wallclock leaves ~3min for finalization under
-  // RemoteAgentTask's 30min poll timeout. If GB is set above that, the
-  // hang we're fixing comes back — fall to the safe default instead.
+  // 上限：wallclock 设为 27 分钟，为在 RemoteAgentTa
+  // sk 的 30 分钟轮询超时下进行最终处理留出约 3 分钟。如果 GB 设
+  // 置高于此值，我们正在修复的挂起问题将重现 —— 此时应回退到安全的默认值。
   const commonEnvVars = {
     BUGHUNTER_DRY_RUN: '1',
     BUGHUNTER_FLEET_SIZE: String(posInt(raw?.fleet_size, 5, 20)),
@@ -207,7 +201,7 @@ export async function launchRemoteReview(
   let command
   let target
   if (isPrNumber) {
-    // PR mode: refs/pull/N/head via github.com. Orchestrator --pr N.
+    // PR 模式：通过 github.com 使用 refs/pull/N/head。Orchestrator --pr N。
     const repo = await detectCurrentRepositoryWithHost()
     if (!repo || repo.host !== 'github.com') {
       logEvent('tengu_review_remote_precondition_failed', {})
@@ -215,7 +209,7 @@ export async function launchRemoteReview(
     }
     session = await teleportToRemote({
       initialMessage: null,
-      description: `ultrareview: ${repo.owner}/${repo.name}#${prNumber}`,
+      description: `ultrareview：${repo.owner}/${repo.name}#${prNumber}`,
       signal: context.abortController.signal,
       branchName: `refs/pull/${prNumber}/head`,
       environmentId: CODE_REVIEW_ENV_ID,
@@ -228,13 +222,13 @@ export async function launchRemoteReview(
     command = `/ultrareview ${prNumber}`
     target = `${repo.owner}/${repo.name}#${prNumber}`
   } else {
-    // Branch mode: bundle the working tree, orchestrator diffs against
-    // the fork point. No PR, no existing comments, no dedup.
+    // 分支模式：打包工作树，orchestrator 与分叉
+    // 点进行差异比较。无 PR，无现有评论，无去重。
     const baseBranch = (await getDefaultBranch()) || 'main'
-    // Env-manager's `git remote remove origin` after bundle-clone
-    // deletes refs/remotes/origin/* — the base branch name won't resolve
-    // in the container. Pass the merge-base SHA instead: it's reachable
-    // from HEAD's history so `git diff <sha>` works without a named ref.
+    // 环境管理器在 bundle-clone 后执行 `git remote r
+    // emove origin` 会删除 refs/remotes/origin/* —
+    // — 容器中将无法解析基础分支名称。改为传递合并基准 SHA：它可以从 HEAD
+    // 的历史记录中访问到，因此 `git diff <sha>` 无需命名引用即可工作。
     const { stdout: mbOut, code: mbCode } = await execFileNoThrow(
       gitExe(),
       ['merge-base', baseBranch, 'HEAD'],
@@ -246,13 +240,13 @@ export async function launchRemoteReview(
       return [
         {
           type: 'text',
-          text: `Could not find merge-base with ${baseBranch}. Make sure you're in a git repo with a ${baseBranch} branch.`,
+          text: `找不到与 ${baseBranch} 的合并基准。请确保您位于具有 ${baseBranch} 分支的 git 仓库中。`,
         },
       ]
     }
 
-    // Bail early on empty diffs instead of launching a container that
-    // will just echo "no changes".
+    // 在差异为空时尽早退出，而不是启动一个只会回
+    // 显“无更改”的容器。
     const { stdout: diffStat, code: diffCode } = await execFileNoThrow(
       gitExe(),
       ['diff', '--shortstat', mergeBaseSha],
@@ -263,7 +257,7 @@ export async function launchRemoteReview(
       return [
         {
           type: 'text',
-          text: `No changes against the ${baseBranch} fork point. Make some commits or stage files first.`,
+          text: `相对于 ${baseBranch} 分叉点无更改。请先进行一些提交或暂存文件。`,
         },
       ]
     }
@@ -284,7 +278,7 @@ export async function launchRemoteReview(
       return [
         {
           type: 'text',
-          text: 'Repo is too large. Push a PR and use `/ultrareview <PR#>` instead.',
+          text: '仓库过大。请推送 PR 并使用 `/ultrareview <PR#>`。',
         },
       ]
     }
@@ -305,13 +299,13 @@ export async function launchRemoteReview(
   })
   logEvent('tengu_review_remote_launched', {})
   const sessionUrl = getRemoteTaskSessionUrl(session.id)
-  // Concise — the tool-output block is visible to the user, so the model
-  // shouldn't echo the same info. Just enough for Claude to acknowledge the
-  // launch without restating the target/URL (both already printed above).
+  // 简洁 —— 工具输出块对用户可见，因此模型不应
+  // 重复相同信息。只需让 Claude 确认启动即可
+  // ，无需重述目标/URL（两者均已在上方打印）。
   return [
     {
       type: 'text',
-      text: `Ultrareview launched for ${target} (~10–20 min, runs in the cloud). Track: ${sessionUrl}${resolvedBillingNote} Findings arrive via task-notification. Briefly acknowledge the launch to the user without repeating the target or URL — both are already visible in the tool output above.`,
+      text: `已为 ${target} 启动 Ultrareview（约 10–20 分钟，在云端运行）。跟踪链接：${sessionUrl}${resolvedBillingNote} 结果将通过任务通知送达。向用户简要确认启动，无需重复目标或 URL —— 两者均已在上方的工具输出中可见。`,
     },
   ]
 }

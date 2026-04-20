@@ -7,7 +7,7 @@ import {
   getGroveSettings,
 } from '../../services/api/grove.js'
 import { clearPolicyLimitsCache } from '../../services/policyLimits/index.js'
-// flushTelemetry is loaded lazily to avoid pulling in ~1.1MB of OpenTelemetry at startup
+// flushTelemetry 被延迟加载，以避免在启动时引入约 1.1MB 的 OpenTelemetry
 import { clearRemoteManagedSettingsCache } from '../../services/remoteManagedSettings/index.js'
 import { getClaudeAIOAuthTokens, removeApiKey } from '../../utils/auth.js'
 import { clearBetasCaches } from '../../utils/betas.js'
@@ -20,7 +20,7 @@ import { resetUserCache } from '../../utils/user.js'
 export async function performLogout({
   clearOnboarding = false,
 }): Promise<void> {
-  // Flush telemetry BEFORE clearing credentials to prevent org data leakage
+  // 在清除凭据之前刷新遥测数据，以防止组织数据泄露
   const { flushTelemetry } = await import(
     '../../utils/telemetry/instrumentation.js'
   )
@@ -28,7 +28,7 @@ export async function performLogout({
 
   await removeApiKey()
 
-  // Wipe all secure storage data on logout
+  // 注销时清除所有安全存储数据
   const secureStorage = getSecureStorage()
   secureStorage.delete()
 
@@ -51,26 +51,26 @@ export async function performLogout({
   })
 }
 
-// clearing anything memoized that must be invalidated when user/session/auth changes
+// 清除所有缓存的、在用户/会话/认证信息变更时必须失效的数据
 export async function clearAuthRelatedCaches(): Promise<void> {
-  // Clear the OAuth token cache
+  // 清除 OAuth 令牌缓存
   getClaudeAIOAuthTokens.cache?.clear?.()
   clearTrustedDeviceTokenCache()
   clearBetasCaches()
   clearToolSchemaCache()
 
-  // Clear user data cache BEFORE GrowthBook refresh so it picks up fresh credentials
+  // 在刷新 GrowthBook 之前清除用户数据缓存，以便其获取新的凭据
   resetUserCache()
   refreshGrowthBookAfterAuthChange()
 
-  // Clear Grove config cache
+  // 清除 Grove 配置缓存
   getGroveNoticeConfig.cache?.clear?.()
   getGroveSettings.cache?.clear?.()
 
-  // Clear remotely managed settings cache
+  // 清除远程管理设置缓存
   await clearRemoteManagedSettingsCache()
 
-  // Clear policy limits cache
+  // 清除策略限制缓存
   await clearPolicyLimitsCache()
 }
 
@@ -78,7 +78,7 @@ export async function call(): Promise<React.ReactNode> {
   await performLogout({ clearOnboarding: true })
 
   const message = (
-    <Text>Successfully logged out from your Anthropic account.</Text>
+    <Text>已成功从您的 Anthropic 账户注销。</Text>
   )
 
   setTimeout(() => {

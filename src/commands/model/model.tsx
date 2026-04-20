@@ -49,7 +49,7 @@ function ModelPickerWrapper({
         'cancel' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
     })
     const displayModel = renderModelLabel(mainLoopModel)
-    onDone(`Kept model as ${chalk.bold(displayModel)}`, {
+    onDone(`模型保持为 ${chalk.bold(displayModel)}`, {
       display: 'system',
     })
   }
@@ -72,12 +72,12 @@ function ModelPickerWrapper({
       mainLoopModelForSession: null,
     }))
 
-    let message = `Set model to ${chalk.bold(renderModelLabel(model))}`
+    let message = `将模型设置为 ${chalk.bold(renderModelLabel(model))}`
     if (effort !== undefined) {
-      message += ` with ${chalk.bold(effort)} effort`
+      message += `，使用 ${chalk.bold(effort)} 强度`
     }
 
-    // Turn off fast mode if switching to unsupported model
+    // 如果切换到不支持的模型，请关闭快速模式
     let wasFastModeToggledOn = undefined
     if (isFastModeEnabled()) {
       clearFastModeCooldown()
@@ -87,13 +87,13 @@ function ModelPickerWrapper({
           fastMode: false,
         }))
         wasFastModeToggledOn = false
-        // Do not update fast mode in settings since this is an automatic downgrade
+        // 不要更新设置中的快速模式，因为这是自动降级
       } else if (
         isFastModeSupportedByModel(model) &&
         isFastModeAvailable() &&
         isFastMode
       ) {
-        message += ` · Fast mode ON`
+        message += ` · 快速模式 开启`
         wasFastModeToggledOn = true
       }
     }
@@ -105,12 +105,12 @@ function ModelPickerWrapper({
         isOpus1mMergeEnabled(),
       )
     ) {
-      message += ` · Billed as extra usage`
+      message += ` · 按额外使用量计费`
     }
 
     if (wasFastModeToggledOn === false) {
-      // Fast mode was toggled off, show suffix after extra usage billing
-      message += ` · Fast mode OFF`
+      // 快速模式已关闭，在额外使用量计费后显示后缀
+      message += ` · 快速模式 关闭`
     }
 
     onDone(message)
@@ -151,16 +151,16 @@ function SetModelAndClose({
     async function handleModelChange(): Promise<void> {
       if (model && !isModelAllowed(model)) {
         onDone(
-          `Model '${model}' is not available. Your organization restricts model selection.`,
+          `模型 '${model}' 不可用。您的组织限制了模型选择。`,
           { display: 'system' },
         )
         return
       }
 
-      // @[MODEL LAUNCH]: Update check for 1M access.
+      // @[模型发布]: 为 1M 访问权限更新检查。
       if (model && isOpus1mUnavailable(model)) {
         onDone(
-          `Opus 4.6 with 1M context is not available for your account. Learn more: https://code.claude.com/docs/en/model-config#extended-context-with-1m`,
+          `您的账户无法使用具有 1M 上下文的 Opus 4.6。了解更多：https://code.claude.com/docs/en/model-config#extended-context-with-1m`,
           { display: 'system' },
         )
         return
@@ -168,39 +168,39 @@ function SetModelAndClose({
 
       if (model && isSonnet1mUnavailable(model)) {
         onDone(
-          `Sonnet 4.6 with 1M context is not available for your account. Learn more: https://code.claude.com/docs/en/model-config#extended-context-with-1m`,
+          `您的账户无法使用具有 1M 上下文的 Sonnet 4.6。了解更多：https://code.claude.com/docs/en/model-config#extended-context-with-1m`,
           { display: 'system' },
         )
         return
       }
 
-      // Skip validation for default model
+      // 跳过默认模型的验证
       if (!model) {
         setModel(null)
         return
       }
 
-      // Skip validation for known aliases - they're predefined and should work
+      // 跳过已知别名的验证 - 它们是预定义的，应该可以工作
       if (isKnownAlias(model)) {
         setModel(model)
         return
       }
 
-      // Validate and set custom model
+      // 验证并设置自定义模型
       try {
-        // Don't use parseUserSpecifiedModel for non-aliases since it lowercases the input
-        // and model names are case-sensitive
+        // 不要对非别名使用 parseUserSpecifiedModel，因为它会将输入
+        // 转为小写，而模型名称是区分大小写的
         const { valid, error } = await validateModel(model)
 
         if (valid) {
           setModel(model)
         } else {
-          onDone(error || `Model '${model}' not found`, {
+          onDone(error || `未找到模型 '${model}'`, {
             display: 'system',
           })
         }
       } catch (error) {
-        onDone(`Failed to validate model: ${(error as Error).message}`, {
+        onDone(`验证模型失败：${(error as Error).message}`, {
           display: 'system',
         })
       }
@@ -212,7 +212,7 @@ function SetModelAndClose({
         mainLoopModel: modelValue,
         mainLoopModelForSession: null,
       }))
-      let message = `Set model to ${chalk.bold(renderModelLabel(modelValue))}`
+      let message = `将模型设置为 ${chalk.bold(renderModelLabel(modelValue))}`
 
       let wasFastModeToggledOn = undefined
       if (isFastModeEnabled()) {
@@ -223,9 +223,9 @@ function SetModelAndClose({
             fastMode: false,
           }))
           wasFastModeToggledOn = false
-          // Do not update fast mode in settings since this is an automatic downgrade
+          // 不要更新设置中的快速模式，因为这是自动降级
         } else if (isFastModeSupportedByModel(modelValue) && isFastMode) {
-          message += ` · Fast mode ON`
+          message += ` · 快速模式 开启`
           wasFastModeToggledOn = true
         }
       }
@@ -237,12 +237,12 @@ function SetModelAndClose({
           isOpus1mMergeEnabled(),
         )
       ) {
-        message += ` · Billed as extra usage`
+        message += ` · 按额外使用量计费`
       }
 
       if (wasFastModeToggledOn === false) {
-        // Fast mode was toggled off, show suffix after extra usage billing
-        message += ` · Fast mode OFF`
+        // 快速模式已关闭，在额外使用量计费后显示后缀
+        message += ` · 快速模式 关闭`
       }
 
       onDone(message)
@@ -272,8 +272,8 @@ function isOpus1mUnavailable(model: string): boolean {
 
 function isSonnet1mUnavailable(model: string): boolean {
   const m = model.toLowerCase()
-  // Warn about Sonnet and Sonnet 4.6, but not Sonnet 4.5 since that had
-  // a different access criteria.
+  // 警告 Sonnet 和 Sonnet 4.6，但不警告 Sonnet
+  // 4.5，因为它的访问标准不同。
   return (
     !checkSonnet1mAccess() &&
     (m.includes('sonnet[1m]') || m.includes('sonnet-4-6[1m]'))
@@ -290,14 +290,15 @@ function ShowModelAndClose({
   const effortValue = useAppState(s => s.effortValue)
   const displayModel = renderModelLabel(mainLoopModel)
   const effortInfo =
-    effortValue !== undefined ? ` (effort: ${effortValue})` : ''
+    effortValue !== undefined ? ` (强度: ${effortValue})` : ''
 
   if (mainLoopModelForSession) {
     onDone(
-      `Current model: ${chalk.bold(renderModelLabel(mainLoopModelForSession))} (session override from plan mode)\nBase model: ${displayModel}${effortInfo}`,
+      `当前模型：${chalk.bold(renderModelLabel(mainLoopModelForSession))} (会话覆盖自计划模式)
+基础模型：${displayModel}${effortInfo}`,
     )
   } else {
-    onDone(`Current model: ${displayModel}${effortInfo}`)
+    onDone(`当前模型：${displayModel}${effortInfo}`)
   }
 
   return null
@@ -313,7 +314,7 @@ export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
   }
   if (COMMON_HELP_ARGS.includes(args)) {
     onDone(
-      'Run /model to open the model selection menu, or /model [modelName] to set the model.',
+      '运行 /model 打开模型选择菜单，或运行 /model [模型名称] 来设置模型。',
       { display: 'system' },
     )
     return

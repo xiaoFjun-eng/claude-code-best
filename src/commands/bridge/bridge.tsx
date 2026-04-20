@@ -106,7 +106,7 @@ function BridgeToggle({ onDone, name }: Props): React.ReactNode {
           replBridgeInitialName: name,
         }
       })
-      onDone('Remote Control connecting\u2026', {
+      onDone('远程控制连接中…', {
         display: 'system',
       })
     })()
@@ -114,7 +114,7 @@ function BridgeToggle({ onDone, name }: Props): React.ReactNode {
     return () => {
       cancelled = true
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps -- run once on mount
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps -- 仅在挂载时运行一次
 
   if (showDisconnectDialog) {
     return <BridgeDisconnectDialog onDone={onDone} />
@@ -203,8 +203,7 @@ function BridgeDisconnectDialog({ onDone }: Props): React.ReactNode {
     <Dialog title="远程控制" onCancel={handleContinue} hideInputGuide>
       <Box flexDirection="column" gap={1}>
         <Text>
-          This session is available via Remote Control
-          {displayUrl ? ` 位于 ${displayUrl}` : ''}.
+          此会话可通过远程控制访问{displayUrl ? ` 位于 ${displayUrl}` : ''}.
         </Text>
         {showQR && qrLines.length > 0 && (
           <Box flexDirection="column">
@@ -215,7 +214,7 @@ function BridgeDisconnectDialog({ onDone }: Props): React.ReactNode {
         )}
         <Box flexDirection="column">
           <ListItem isFocused={focusIndex === 0}>
-            <Text>Disconnect this session</Text>
+            <Text>断开此会话</Text>
           </ListItem>
           <ListItem isFocused={focusIndex === 1}>
             <Text>{showQR ? '隐藏二维码' : '显示二维码'}</Text>
@@ -224,7 +223,7 @@ function BridgeDisconnectDialog({ onDone }: Props): React.ReactNode {
             <Text>Continue</Text>
           </ListItem>
         </Box>
-        <Text dimColor>Enter to select · Esc to continue</Text>
+        <Text dimColor>按 Enter 键选择 · 按 Esc 键继续</Text>
       </Box>
     </Dialog>
   )
@@ -270,7 +269,7 @@ async function checkBridgePrerequisites(): Promise<string | null> {
     return BRIDGE_LOGIN_INSTRUCTION
   }
 
-  logForDebugging('[bridge] Prerequisites passed, enabling bridge')
+  logForDebugging('[bridge] 前置条件检查通过，正在启用桥接')
   return null
 }
 

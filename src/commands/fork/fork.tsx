@@ -10,64 +10,64 @@ export async function call(
   context: LocalJSXCommandContext,
   args: string,
 ): Promise<React.ReactNode> {
-  // Check feature flag
+  // 检查功能开关
   if (!feature('FORK_SUBAGENT')) {
-    onDone('Fork subagent feature is not enabled. Set FEATURE_FORK_SUBAGENT=1 to enable.', { display: 'system' })
+    onDone('分叉子代理功能未启用。请设置 FEATURE_FORK_SUBAGENT=1 以启用。', { display: 'system' })
     return null
   }
 
-  // Recursive fork guard
+  // 递归分叉防护
   if (isInForkChild(context.messages)) {
-    onDone('Fork is not available inside a forked worker. Complete your task directly using your tools.', { display: 'system' })
+    onDone('在已分叉的工作线程内无法再次分叉。请直接使用你的工具完成任务。', { display: 'system' })
     return null
   }
 
   const directive = args.trim()
   if (!directive) {
-    onDone('Usage: /fork <directive>\nExample: /fork Fix the null check in validate.ts', { display: 'system' })
+    onDone('用法：/fork <指令>\n示例：/fork 修复 validate.ts 中的空值检查', { display: 'system' })
     return null
   }
 
-  // Find the last assistant message to fork from
+  // 查找最后一条助理消息作为分叉起点
   const lastAssistantMessage = [...context.messages].reverse().find(
     m => m.type === 'assistant'
-  ) as any // Type assertion to avoid complex type import
+  ) as any // 使用类型断言以避免复杂的类型导入
 
   if (!lastAssistantMessage) {
-    onDone('Cannot fork: no assistant response in conversation history.', { display: 'system' })
+    onDone('无法分叉：对话历史中没有助理响应。', { display: 'system' })
     return null
   }
 
   try {
-    // Reuse AgentTool logic for fork path.
-    // Omitting subagent_type triggers implicit fork.
+    // 复用 AgentTool 逻辑处理分叉路径
+    // 。省略 subagent_type 将触发隐式分叉。
     const input = {
       prompt: directive,
-      run_in_background: true, // fork always runs async
+      run_in_background: true, // fork 始终异步运行
       description: `Fork: ${directive.slice(0, 30)}${directive.length > 30 ? '...' : ''}`,
     }
 
-    // Call AgentTool with proper parameters:
-    // - input: the agent parameters (no subagent_type => fork path)
-    // - toolUseContext: the current context (ToolUseContext)
-    // - canUseTool: permission-check function from context
-    // - assistantMessage: the last assistant message to fork from
+    // 使用正确的参数调用 AgentTool：-
+    // input：代理参数（无 subagent_type => 分叉路径）-
+    // toolUseContext：当前上下文（ToolUseCon
+    // text）- canUseTool：来自上下文的权限检查函数
+    // - assistantMessage：作为分叉起点的最后一条助理消息
     AgentTool.call(
       input,
       context,
       context.canUseTool!,
       lastAssistantMessage
     ).catch(error => {
-      logForDebugging(`Fork subagent async error: ${error}`, { level: 'error' })
+      logForDebugging(`分叉子代理异步错误：${error}`, { level: 'error' })
     })
 
-    // Notify user that fork has been started
-    onDone(`Forked subagent started with directive: "${directive}"`, { display: 'system' })
+    // 通知用户分叉已启动
+    onDone(`分叉子代理已启动，指令为："${directive}"`, { display: 'system' })
     return null
   } catch (error) {
-    // Catches synchronous setup errors only
-    logForDebugging(`Fork command setup error: ${error}`, { level: 'error' })
-    onDone(`Fork failed: ${error instanceof Error ? error.message : String(error)}`, { display: 'system' })
+    // 仅捕获同步设置错误
+    logForDebugging(`Fork 命令设置错误：${error}`, { level: 'error' })
+    onDone(`分叉失败：${error instanceof Error ? error.message : String(error)}`, { display: 'system' })
     return null
   }
 }

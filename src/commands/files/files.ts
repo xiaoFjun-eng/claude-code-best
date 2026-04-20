@@ -11,9 +11,10 @@ export async function call(
   const files = context.readFileState ? cacheKeys(context.readFileState) : []
 
   if (files.length === 0) {
-    return { type: 'text' as const, value: 'No files in context' }
+    return { type: 'text' as const, value: '上下文中无文件' }
   }
 
   const fileList = files.map(file => relative(getCwd(), file)).join('\n')
-  return { type: 'text' as const, value: `Files in context:\n${fileList}` }
+  return { type: 'text' as const, value: `上下文中的文件：
+${fileList}` }
 }

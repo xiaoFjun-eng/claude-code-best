@@ -25,58 +25,58 @@ export async function call(
   const platform = getPlatform()
 
   if (!SandboxManager.isSupportedPlatform()) {
-    // WSL1 users will see this since isSupportedPlatform returns false for WSL1
+    // WSL1 用户会看到此信息，因为 isSupportedPlatform 对 WSL1 返回 false
     const errorMessage =
       platform === 'wsl'
-        ? 'Error: Sandboxing requires WSL2. WSL1 is not supported.'
-        : 'Error: Sandboxing is currently only supported on macOS, Linux, and WSL2.'
+        ? '错误：沙盒功能需要 WSL2。不支持 WSL1。'
+        : '错误：沙盒功能目前仅在 macOS、Linux 和 WSL2 上受支持。'
     const message = color('error', themeName)(errorMessage)
     onDone(message)
     return null
   }
 
-  // Check dependencies - get structured result with errors/warnings
+  // 检查依赖项 - 获取包含错误/警告的结构化结果
   const depCheck = SandboxManager.checkDependencies()
 
-  // Check if platform is in enabledPlatforms list (undocumented enterprise setting)
+  // 检查平台是否在 enabledPlatforms 列表中（未公开的企业设置）
   if (!SandboxManager.isPlatformInEnabledList()) {
     const message = color(
       'error',
       themeName,
     )(
-      `Error: Sandboxing is disabled for this platform (${platform}) via the enabledPlatforms setting.`,
+      `错误：通过 enabledPlatforms 设置，此平台 (${platform}) 的沙盒功能已被禁用。`,
     )
     onDone(message)
     return null
   }
 
-  // Check if sandbox settings are locked by higher-priority settings
+  // 检查沙盒设置是否被更高优先级的设置锁定
   if (SandboxManager.areSandboxSettingsLockedByPolicy()) {
     const message = color(
       'error',
       themeName,
     )(
-      'Error: Sandbox settings are overridden by a higher-priority configuration and cannot be changed locally.',
+      '错误：沙盒设置已被更高优先级的配置覆盖，无法在本地更改。',
     )
     onDone(message)
     return null
   }
 
-  // Parse the arguments
+  // 解析参数
   const trimmedArgs = args?.trim() || ''
 
-  // If no args, show the interactive menu
+  // 如果没有参数，则显示交互式菜单
   if (!trimmedArgs) {
     return <SandboxSettings onComplete={onDone} depCheck={depCheck} />
   }
 
-  // Handle subcommands
+  // 处理子命令
   if (trimmedArgs) {
     const parts = trimmedArgs.split(' ')
     const subcommand = parts[0]
 
     if (subcommand === 'exclude') {
-      // Handle exclude subcommand
+      // 处理 exclude 子命令
       const commandPattern = trimmedArgs.slice('exclude '.length).trim()
 
       if (!commandPattern) {
@@ -84,19 +84,19 @@ export async function call(
           'error',
           themeName,
         )(
-          'Error: Please provide a command pattern to exclude (e.g., /sandbox exclude "npm run test:*")',
+          '错误：请提供要排除的命令模式（例如：/sandbox exclude "npm run test:*"）',
         )
         onDone(message)
         return null
       }
 
-      // Remove quotes if present
+      // 如果存在引号则移除
       const cleanPattern = commandPattern.replace(/^["']|["']$/g, '')
 
-      // Add to excludedCommands
+      // 添加到 excludedCommands
       addToExcludedCommands(cleanPattern)
 
-      // Get the local settings path and make it relative to cwd
+      // 获取本地设置路径并使其相对于当前工作目录
       const localSettingsPath = getSettingsFilePathForSource('localSettings')
       const relativePath = localSettingsPath
         ? relative(getCwdState(), localSettingsPath)
@@ -105,23 +105,23 @@ export async function call(
       const message = color(
         'success',
         themeName,
-      )(`Added "${cleanPattern}" to excluded commands in ${relativePath}`)
+      )(`已将 "${cleanPattern}" 添加到 ${relativePath} 的排除命令中`)
 
       onDone(message)
       return null
     } else {
-      // Unknown subcommand
+      // 未知子命令
       const message = color(
         'error',
         themeName,
       )(
-        `Error: Unknown subcommand "${subcommand}". Available subcommand: exclude`,
+        `错误：未知子命令 "${subcommand}"。可用的子命令：exclude`,
       )
       onDone(message)
       return null
     }
   }
 
-  // Should never reach here since we handle all cases above
+  // 由于上述已处理所有情况，此处应永远不会执行到
   return null
 }

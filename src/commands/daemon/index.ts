@@ -4,7 +4,7 @@ import { feature } from 'bun:bundle'
 const daemon = {
   type: 'local-jsx',
   name: 'daemon',
-  description: 'Manage background sessions and daemon',
+  description: '管理后台会话与守护进程',
   argumentHint: '[status|start|stop|bg|attach|logs|kill]',
   isEnabled: () => {
     if (feature('DAEMON')) return true

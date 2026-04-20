@@ -13,14 +13,14 @@ export async function call(): Promise<{ type: 'text'; value: string }> {
     return {
       type: 'text',
       value:
-        'Keybinding customization is not enabled. This feature is currently in preview.',
+        '按键绑定自定义功能未启用。此功能目前处于预览阶段。',
     }
   }
 
   const keybindingsPath = getKeybindingsPath()
 
-  // Write template with 'wx' flag (exclusive create) — fails with EEXIST if
-  // the file already exists. Avoids a stat pre-check (TOCTOU race + extra syscall).
+  // 使用 'wx' 标志（独占创建）写入模板 — 如果文件已存在，则失败并返回
+  // EEXIST。避免 stat 预检查（TOCTOU 竞态条件 + 额外的系统调用）。
   let fileExists = false
   await mkdir(dirname(keybindingsPath), { recursive: true })
   try {
@@ -36,18 +36,18 @@ export async function call(): Promise<{ type: 'text'; value: string }> {
     }
   }
 
-  // Open in editor
+  // 在编辑器中打开
   const result = await editFileInEditor(keybindingsPath)
   if (result.error) {
     return {
       type: 'text',
-      value: `${fileExists ? 'Opened' : 'Created'} ${keybindingsPath}. Could not open in editor: ${result.error}`,
+      value: `${fileExists ? 'Opened' : 'Created'} ${keybindingsPath}。无法在编辑器中打开：${result.error}`,
     }
   }
   return {
     type: 'text',
     value: fileExists
-      ? `Opened ${keybindingsPath} in your editor.`
-      : `Created ${keybindingsPath} with template. Opened in your editor.`,
+      ? `已在您的编辑器中打开 ${keybindingsPath}。`
+      : `已使用模板创建 ${keybindingsPath}。已在您的编辑器中打开。`,
   }
 }

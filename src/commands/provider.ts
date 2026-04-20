@@ -18,11 +18,11 @@ function getEnvVarForProvider(provider: string): string {
     case 'grok':
       return 'CLAUDE_CODE_USE_GROK'
     default:
-      throw new Error(`Unknown provider: ${provider}`)
+      throw new Error(`未知的提供商：${provider}`)
   }
 }
 
-// Get merged env: process.env + settings.env (from userSettings)
+// 获取合并后的环境变量：process.env + settings.env（来自 userSettings）
 function getMergedEnv(): Record<string, string> {
   const settings = getSettings_DEPRECATED()
   const merged: Record<string, string> = Object.fromEntries(
@@ -37,16 +37,16 @@ function getMergedEnv(): Record<string, string> {
 const call: LocalCommandCall = async (args, context) => {
   const arg = args.trim().toLowerCase()
 
-  // No argument: show current provider
+  // 无参数：显示当前提供商
   if (!arg) {
     const current = getAPIProvider()
-    return { type: 'text', value: `Current API provider: ${current}` }
+    return { type: 'text', value: `当前 API 提供商：${current}` }
   }
 
-  // unset - clear settings, fallback to env vars
+  // unset - 清除设置，回退到环境变量
   if (arg === 'unset') {
     updateSettingsForSource('userSettings', { modelType: undefined })
-    // Also clear all provider-specific env vars to prevent conflicts
+    // 同时清除所有提供商特定的环境变量以防止冲突
     delete process.env.CLAUDE_CODE_USE_BEDROCK
     delete process.env.CLAUDE_CODE_USE_VERTEX
     delete process.env.CLAUDE_CODE_USE_FOUNDRY
@@ -55,11 +55,11 @@ const call: LocalCommandCall = async (args, context) => {
     delete process.env.CLAUDE_CODE_USE_GROK
     return {
       type: 'text',
-      value: 'API provider cleared (will use environment variables).',
+      value: 'API 提供商已清除（将使用环境变量）。',
     }
   }
 
-  // Validate provider
+  // 验证提供商
   const validProviders = [
     'anthropic',
     'openai',
@@ -72,11 +72,12 @@ const call: LocalCommandCall = async (args, context) => {
   if (!validProviders.includes(arg)) {
     return {
       type: 'text',
-      value: `Invalid provider: ${arg}\nValid: ${validProviders.join(', ')}`,
+      value: `无效的提供商：${arg}
+有效的：${validProviders.join(', ')}`,
     }
   }
 
-  // Check env vars when switching to openai (including settings.env)
+  // 切换到 openai 时检查环境变量（包括 settings.env）
   if (arg === 'openai') {
     const mergedEnv = getMergedEnv()
     const hasKey = !!mergedEnv.OPENAI_API_KEY
@@ -88,12 +89,14 @@ const call: LocalCommandCall = async (args, context) => {
       if (!hasUrl) missing.push('OPENAI_BASE_URL')
       return {
         type: 'text',
-        value: `Switched to OpenAI provider.\nWarning: Missing env vars: ${missing.join(', ')}\nConfigure them via /login or set manually.`,
+        value: `已切换到 OpenAI 提供商。
+警告：缺少环境变量：${missing.join(', ')}
+请通过 /login 配置或手动设置。`,
       }
     }
   }
 
-  // Check env vars when switching to grok (including settings.env)
+  // 切换到 grok 时检查环境变量（包括 settings.env）
   if (arg === 'grok') {
     const mergedEnv = getMergedEnv()
     const hasKey = !!(mergedEnv.GROK_API_KEY || mergedEnv.XAI_API_KEY)
@@ -101,54 +104,58 @@ const call: LocalCommandCall = async (args, context) => {
       updateSettingsForSource('userSettings', { modelType: 'grok' })
       return {
         type: 'text',
-        value: `Switched to Grok provider.\nWarning: Missing env var: GROK_API_KEY (or XAI_API_KEY)\nConfigure it via settings.json env or set manually.`,
+        value: `已切换到 Grok 提供商。
+警告：缺少环境变量：GROK_API_KEY（或 XAI_API_KEY）
+请通过 settings.json 中的 env 或手动设置来配置。`,
       }
     }
   }
 
-  // Check env vars when switching to gemini (including settings.env)
+  // 切换到 gemini 时检查环境变量（包括 settings.env）
   if (arg === 'gemini') {
     const mergedEnv = getMergedEnv()
     const hasKey = !!mergedEnv.GEMINI_API_KEY
-    // GEMINI_BASE_URL is optional (has default)
+    // GEMINI_BASE_URL 是可选的（有默认值）
     if (!hasKey) {
       updateSettingsForSource('userSettings', { modelType: 'gemini' })
       return {
         type: 'text',
-        value: `Switched to Gemini provider.\nWarning: Missing env var: GEMINI_API_KEY\nConfigure it via /login or set manually.`,
+        value: `已切换到 Gemini 提供商。
+警告：缺少环境变量：GEMINI_API_KEY
+请通过 /login 配置或手动设置。`,
       }
     }
   }
 
-  // Handle different provider types
-  // - 'anthropic', 'openai', 'gemini' are stored in settings.json (persistent)
-  // - 'bedrock', 'vertex', 'foundry' are env-only (do NOT touch settings.json)
+  // 处理不同的提供商类型 - 'anthropi
+  // c'、'openai'、'gemini' 存储在 settings.json 中（持久化） - 'bed
+  // rock'、'vertex'、'foundry' 仅通过环境变量（请勿修改 settings.json）
   if (arg === 'anthropic' || arg === 'openai' || arg === 'gemini' || arg === 'grok') {
-    // Clear any cloud provider env vars to avoid conflicts
+    // 清除所有云提供商环境变量以避免冲突
     delete process.env.CLAUDE_CODE_USE_BEDROCK
     delete process.env.CLAUDE_CODE_USE_VERTEX
     delete process.env.CLAUDE_CODE_USE_FOUNDRY
     delete process.env.CLAUDE_CODE_USE_OPENAI
     delete process.env.CLAUDE_CODE_USE_GEMINI
     delete process.env.CLAUDE_CODE_USE_GROK
-    // Update settings.json
+    // 更新 settings.json
     updateSettingsForSource('userSettings', { modelType: arg })
-    // Ensure settings.env gets applied to process.env
+    // 确保 settings.env 应用到 process.env
     applyConfigEnvironmentVariables()
-    return { type: 'text', value: `API provider set to ${arg}.` }
+    return { type: 'text', value: `API 提供商已设置为 ${arg}。` }
   } else {
-    // Cloud providers: set env vars only, do NOT touch settings.json
+    // 云提供商：仅设置环境变量，请勿修改 settings.json
     delete process.env.CLAUDE_CODE_USE_OPENAI
     delete process.env.OPENAI_API_KEY
     delete process.env.OPENAI_BASE_URL
     delete process.env.CLAUDE_CODE_USE_GEMINI
     delete process.env.CLAUDE_CODE_USE_GROK
     process.env[getEnvVarForProvider(arg)] = '1'
-    // Do not modify settings.json - cloud providers controlled solely by env vars
+    // 请勿修改 settings.json - 云提供商仅由环境变量控制
     applyConfigEnvironmentVariables()
     return {
       type: 'text',
-      value: `API provider set to ${arg} (via environment variable).`,
+      value: `API 提供商已设置为 ${arg}（通过环境变量）。`,
     }
   }
 }
@@ -157,7 +164,7 @@ const provider = {
   type: 'local',
   name: 'provider',
   description:
-    'Switch API provider (anthropic/openai/gemini/grok/bedrock/vertex/foundry)',
+    '切换 API 提供商（anthropic/openai/gemini/grok/bedrock/vertex/foundry）',
   aliases: ['api'],
   argumentHint: '[anthropic|openai|gemini|grok|bedrock|vertex|foundry|unset]',
   supportsNonInteractive: true,

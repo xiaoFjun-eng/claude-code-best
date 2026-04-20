@@ -9,38 +9,38 @@ export const call: LocalCommandCall = async (args, context) => {
   const currentState = context.getAppState()
 
   if (getPipeIpc(currentState).role === 'main') {
-    return { type: 'text', value: 'Not attached to any CLI.' }
+    return { type: 'text', value: '未连接到任何 CLI。' }
   }
 
   if (isPipeControlled(getPipeIpc(currentState))) {
     return {
       type: 'text',
       value:
-        'This sub session is controlled by a master. The master must detach.',
+        '此子会话由主会话控制。主会话必须执行分离操作。',
     }
   }
 
-  // Master mode
+  // 主模式
   const targetName = args.trim()
 
   if (targetName) {
-    // Detach from a specific slave
+    // 从特定从属会话分离
     const client = removeSlaveClient(targetName)
     if (!client) {
       return {
         type: 'text',
-        value: `Not attached to "${targetName}". Use /status to see connected sub sessions.`,
+        value: `未连接到 "${targetName}"。请使用 /status 查看已连接的子会话。`,
       }
     }
 
     try {
       client.send({ type: 'detach' })
     } catch {
-      // Socket may already be closed
+      // Socket 可能已关闭
     }
     client.disconnect()
 
-    // Remove slave from state
+    // 从状态中移除从属会话
     context.setAppState(prev => {
       const { [targetName]: _removed, ...remainingSlaves } =
         getPipeIpc(prev).slaves
@@ -58,11 +58,11 @@ export const call: LocalCommandCall = async (args, context) => {
 
     return {
       type: 'text',
-      value: `Detached from "${targetName}".`,
+      value: `已从 "${targetName}" 分离。`,
     }
   }
 
-  // No target specified — detach from ALL slaves
+  // 未指定目标 — 从所有从属会话分离
   const allClients = getAllSlaveClients()
   const slaveNames = Array.from(allClients.keys())
 
@@ -72,7 +72,7 @@ export const call: LocalCommandCall = async (args, context) => {
       try {
         client.send({ type: 'detach' })
       } catch {
-        // Ignore
+        // 忽略
       }
       client.disconnect()
     }
@@ -90,6 +90,6 @@ export const call: LocalCommandCall = async (args, context) => {
 
   return {
     type: 'text',
-    value: `Detached from ${slaveNames.length} sub session(s): ${slaveNames.join(', ')}. Back to main mode.`,
+    value: `已从 ${slaveNames.length} 个子会话分离：${slaveNames.join(', ')}。返回主模式。`,
   }
 }

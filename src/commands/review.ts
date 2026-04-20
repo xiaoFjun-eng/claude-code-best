@@ -2,39 +2,39 @@ import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages.js'
 import type { Command } from '../commands.js'
 import { isUltrareviewEnabled } from './review/ultrareviewEnabled.js'
 
-// Legal wants the explicit surface name plus a docs link visible before the
-// user triggers, so the description carries "Claude Code on the web" + URL.
+// 法务部门要求在用户触发前明确显示产品名称并提供文档链接，因此描述中需
+// 包含“Claude Code on the web” + URL。
 const CCR_TERMS_URL = 'https://code.claude.com/docs/en/claude-code-on-the-web'
 
 const LOCAL_REVIEW_PROMPT = (args: string) => `
-      You are an expert code reviewer. Follow these steps:
+      你是一名专业的代码审查专家。请按以下步骤操作：
 
-      1. If no PR number is provided in the args, run \`gh pr list\` to show open PRs
-      2. If a PR number is provided, run \`gh pr view <number>\` to get PR details
-      3. Run \`gh pr diff <number>\` to get the diff
-      4. Analyze the changes and provide a thorough code review that includes:
-         - Overview of what the PR does
-         - Analysis of code quality and style
-         - Specific suggestions for improvements
-         - Any potential issues or risks
+      1. 如果参数中未提供 PR 编号，则运行 \`gh pr list\` 以显示所有打开的 PR
+      2. 如果提供了 PR 编号，则运行 \`gh pr view <编号>\` 以获取 PR 详情
+      3. 运行 \`gh pr diff <编号>\` 以获取差异内容
+      4. 分析变更并提供全面的代码审查，包括：
+         - PR 功能概述
+         - 代码质量和风格分析
+         - 具体的改进建议
+         - 任何潜在问题或风险
 
-      Keep your review concise but thorough. Focus on:
-      - Code correctness
-      - Following project conventions
-      - Performance implications
-      - Test coverage
-      - Security considerations
+      保持审查简洁但全面。重点关注：
+      - 代码正确性
+      - 遵循项目规范
+      - 性能影响
+      - 测试覆盖率
+      - 安全考量
 
-      Format your review with clear sections and bullet points.
+      使用清晰的章节和要点来组织你的审查报告。
 
-      PR number: ${args}
+      PR 编号：${args}
     `
 
 const review: Command = {
   type: 'prompt',
   name: 'review',
-  description: 'Review a pull request',
-  progressMessage: 'reviewing pull request',
+  description: '审查一个拉取请求',
+  progressMessage: '正在审查拉取请求',
   contentLength: 0,
   source: 'builtin',
   async getPromptForCommand(args): Promise<ContentBlockParam[]> {
@@ -42,13 +42,13 @@ const review: Command = {
   },
 }
 
-// /ultrareview is the ONLY entry point to the remote bughunter path —
-// /review stays purely local. local-jsx type renders the overage permission
-// dialog when free reviews are exhausted.
+// /ultrareview 是通往远程 bughunter 路径的唯
+// 一入口点——/review 则保持纯本地化。当免费审查次数用尽时，loc
+// al-jsx 类型会渲染超额权限对话框。
 const ultrareview: Command = {
   type: 'local-jsx',
   name: 'ultrareview',
-  description: `~10–20 min · Finds and verifies bugs in your branch. Runs in Claude Code on the web. See ${CCR_TERMS_URL}`,
+  description: `约 10–20 分钟 · 查找并验证你分支中的 bug。在 Claude Code on the web 中运行。参见 ${CCR_TERMS_URL}`,
   isEnabled: () => isUltrareviewEnabled(),
   load: () => import('./review/ultrareviewCommand.js'),
 }

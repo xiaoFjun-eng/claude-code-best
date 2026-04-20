@@ -88,7 +88,7 @@ export function NewInstallWizard({ defaultDir, onInstalled, onCancel, onError }:
   if (starting) {
     return (
       <Dialog title="助手设置" onCancel={onCancel} hideInputGuide>
-        <Text>Starting daemon in {defaultDir}...</Text>
+        <Text>正在启动守护进程于{defaultDir}...</Text>
       </Dialog>
     );
   }
@@ -96,19 +96,18 @@ export function NewInstallWizard({ defaultDir, onInstalled, onCancel, onError }:
   return (
     <Dialog title="助手设置" onCancel={onCancel} hideInputGuide>
       <Box flexDirection="column" gap={1}>
-        <Text>No active assistant sessions found.</Text>
+        <Text>未找到活跃的助手会话。</Text>
         <Text>
-          Start a daemon in <Text bold>{defaultDir || '.'}</Text> to create a cloud session?
-        </Text>
+          是否在<Text bold>{defaultDir || '.'}</Text> 中启动守护进程以创建云端会话？</Text>
         <Box flexDirection="column">
           <ListItem isFocused={focusIndex === 0}>
-            <Text>Start assistant daemon</Text>
+            <Text>启动助手守护进程</Text>
           </ListItem>
           <ListItem isFocused={focusIndex === 1}>
             <Text>Cancel</Text>
           </ListItem>
         </Box>
-        <Text dimColor>Enter to select · Esc to cancel</Text>
+        <Text dimColor>回车键选择 · Esc 键取消</Text>
       </Box>
     </Dialog>
   );

@@ -31,7 +31,7 @@ function MobileQRCode({ onDone }: Props): React.ReactNode {
   const { url } = PLATFORMS[platform]
   const qrCode = qrCodes[platform]
 
-  // Generate both QR codes upfront to avoid flicker when switching
+  // 预先生成两个二维码，以避免切换时出现闪烁
   useEffect(() => {
     async function generateQRCodes(): Promise<void> {
       const [ios, android] = await Promise.all([
@@ -47,7 +47,7 @@ function MobileQRCode({ onDone }: Props): React.ReactNode {
       setQrCodes({ ios, android })
     }
     generateQRCodes().catch(() => {
-      // QR generation failed, leave empty
+      // 二维码生成失败，留空
     })
   }, [])
 
@@ -87,7 +87,7 @@ function MobileQRCode({ onDone }: Props): React.ReactNode {
         <Text> </Text>
         <Text> </Text>
 
-        {/* Controls */}
+        {/* 控件 */}
         <Box flexDirection="row" gap={2}>
           <Text>
             <Text bold={platform === 'ios'} underline={platform === 'ios'}>
@@ -101,7 +101,7 @@ function MobileQRCode({ onDone }: Props): React.ReactNode {
               Android
             </Text>
           </Text>
-          <Text dimColor>(tab to switch, esc to close)</Text>
+          <Text dimColor>(按 Tab 键切换，按 Esc 键关闭)</Text>
         </Box>
         <Text dimColor>{url}</Text>
       </Box>

@@ -7,7 +7,7 @@ import { Feedback } from '../../components/Feedback.js'
 import type { LocalJSXCommandOnDone } from '../../types/command.js'
 import type { Message } from '../../types/message.js'
 
-// Shared function to render the Feedback component
+// 用于渲染反馈组件的共享函数
 export function renderFeedbackComponent(
   onDone: (
     result?: string,

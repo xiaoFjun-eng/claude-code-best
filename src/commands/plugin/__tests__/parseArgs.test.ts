@@ -2,41 +2,41 @@ import { describe, expect, test } from "bun:test";
 import { parsePluginArgs } from "../parseArgs";
 
 describe("parsePluginArgs", () => {
-  // No args
-  test("returns { type: 'menu' } for undefined", () => {
+  // 无参数
+  test("对于 undefined 返回 { type: 'menu' }", () => {
     expect(parsePluginArgs(undefined)).toEqual({ type: "menu" });
   });
 
-  test("returns { type: 'menu' } for empty string", () => {
+  test("对于空字符串返回 { type: 'menu' }", () => {
     expect(parsePluginArgs("")).toEqual({ type: "menu" });
   });
 
-  test("returns { type: 'menu' } for whitespace only", () => {
+  test("对于仅包含空白字符的字符串返回 { type: 'menu' }", () => {
     expect(parsePluginArgs("   ")).toEqual({ type: "menu" });
   });
 
-  // Help
-  test("returns { type: 'help' } for 'help'", () => {
+  // 帮助
+  test("对于 'help' 返回 { type: 'help' }", () => {
     expect(parsePluginArgs("help")).toEqual({ type: "help" });
   });
 
-  test("returns { type: 'help' } for '--help'", () => {
+  test("对于 '--help' 返回 { type: 'help' }", () => {
     expect(parsePluginArgs("--help")).toEqual({ type: "help" });
   });
 
-  test("returns { type: 'help' } for '-h'", () => {
+  test("对于 '-h' 返回 { type: 'help' }", () => {
     expect(parsePluginArgs("-h")).toEqual({ type: "help" });
   });
 
-  // Install
-  test("parses 'install my-plugin' -> { type: 'install', plugin: 'my-plugin' }", () => {
+  // 安装
+  test("解析 'install my-plugin' -> { type: 'install', plugin: 'my-plugin' }", () => {
     expect(parsePluginArgs("install my-plugin")).toEqual({
       type: "install",
       plugin: "my-plugin",
     });
   });
 
-  test("parses 'install my-plugin@github' with marketplace", () => {
+  test("使用 marketplace 解析 'install my-plugin@github'", () => {
     expect(parsePluginArgs("install my-plugin@github")).toEqual({
       type: "install",
       plugin: "my-plugin",
@@ -44,62 +44,62 @@ describe("parsePluginArgs", () => {
     });
   });
 
-  test("parses 'install https://github.com/...' as URL marketplace", () => {
+  test("将 'install https://github.com/...' 解析为 URL marketplace", () => {
     expect(parsePluginArgs("install https://github.com/plugins/my-plugin")).toEqual({
       type: "install",
       marketplace: "https://github.com/plugins/my-plugin",
     });
   });
 
-  test("parses 'i plugin' as install shorthand", () => {
+  test("将 'i plugin' 解析为 install 的简写", () => {
     expect(parsePluginArgs("i plugin")).toEqual({
       type: "install",
       plugin: "plugin",
     });
   });
 
-  test("install without target returns type only", () => {
+  test("不带目标的 install 仅返回 type", () => {
     expect(parsePluginArgs("install")).toEqual({ type: "install" });
   });
 
-  // Uninstall
-  test("returns { type: 'uninstall', plugin: '...' }", () => {
+  // 卸载
+  test("返回 { type: 'uninstall', plugin: '...' }", () => {
     expect(parsePluginArgs("uninstall my-plugin")).toEqual({
       type: "uninstall",
       plugin: "my-plugin",
     });
   });
 
-  // Enable/disable
-  test("returns { type: 'enable', plugin: '...' }", () => {
+  // 启用/禁用
+  test("返回 { type: 'enable', plugin: '...' }", () => {
     expect(parsePluginArgs("enable my-plugin")).toEqual({
       type: "enable",
       plugin: "my-plugin",
     });
   });
 
-  test("returns { type: 'disable', plugin: '...' }", () => {
+  test("返回 { type: 'disable', plugin: '...' }", () => {
     expect(parsePluginArgs("disable my-plugin")).toEqual({
       type: "disable",
       plugin: "my-plugin",
     });
   });
 
-  // Validate
-  test("returns { type: 'validate', path: '...' }", () => {
+  // 验证
+  test("返回 { type: 'validate', path: '...' }", () => {
     expect(parsePluginArgs("validate /path/to/plugin")).toEqual({
       type: "validate",
       path: "/path/to/plugin",
     });
   });
 
-  // Manage
-  test("returns { type: 'manage' }", () => {
+  // 管理
+  test("返回 { type: 'manage' }", () => {
     expect(parsePluginArgs("manage")).toEqual({ type: "manage" });
   });
 
   // Marketplace
-  test("parses 'marketplace add ...'", () => {
+  test("解析 'marketplace add ...'", () => {
     expect(parsePluginArgs("marketplace add https://example.com")).toEqual({
       type: "marketplace",
       action: "add",
@@ -107,7 +107,7 @@ describe("parsePluginArgs", () => {
     });
   });
 
-  test("parses 'marketplace remove ...'", () => {
+  test("解析 'marketplace remove ...'", () => {
     expect(parsePluginArgs("marketplace remove my-source")).toEqual({
       type: "marketplace",
       action: "remove",
@@ -115,14 +115,14 @@ describe("parsePluginArgs", () => {
     });
   });
 
-  test("parses 'marketplace list'", () => {
+  test("解析 'marketplace list'", () => {
     expect(parsePluginArgs("marketplace list")).toEqual({
       type: "marketplace",
       action: "list",
     });
   });
 
-  test("parses 'market' as alias for 'marketplace'", () => {
+  test("将 'market' 解析为 'marketplace' 的别名", () => {
     expect(parsePluginArgs("market list")).toEqual({
       type: "marketplace",
       action: "list",
@@ -130,18 +130,18 @@ describe("parsePluginArgs", () => {
   });
 
   // Boundary
-  test("handles extra whitespace", () => {
+  test("处理多余的空格", () => {
     expect(parsePluginArgs("  install   my-plugin  ")).toEqual({
       type: "install",
       plugin: "my-plugin",
     });
   });
 
-  test("handles unknown subcommand gracefully", () => {
+  test("优雅地处理未知子命令", () => {
     expect(parsePluginArgs("foobar")).toEqual({ type: "menu" });
   });
 
-  test("marketplace without action returns type only", () => {
+  test("marketplace 不带操作时仅返回类型", () => {
     expect(parsePluginArgs("marketplace")).toEqual({ type: "marketplace" });
   });
 });

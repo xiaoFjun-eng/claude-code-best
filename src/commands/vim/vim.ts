@@ -9,7 +9,7 @@ export const call: LocalCommandCall = async () => {
   const config = getGlobalConfig()
   let currentMode = config.editorMode || 'normal'
 
-  // Handle backward compatibility - treat 'emacs' as 'normal'
+  // 处理向后兼容性 - 将 'emacs' 视为 'normal'
   if (currentMode === 'emacs') {
     currentMode = 'normal'
   }
@@ -29,10 +29,8 @@ export const call: LocalCommandCall = async () => {
 
   return {
     type: 'text',
-    value: `Editor mode set to ${newMode}. ${
-      newMode === 'vim'
+    value: `编辑器模式已设置为 ${newMode}。${newMode === 'vim'
         ? 'Use Escape key to toggle between INSERT and NORMAL modes.'
-        : 'Using standard (readline) keyboard bindings.'
-    }`,
+        : 'Using standard (readline) keyboard bindings.'}`,
   }
 }

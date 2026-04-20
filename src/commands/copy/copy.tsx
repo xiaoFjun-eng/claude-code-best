@@ -36,11 +36,7 @@ function extractCodeBlocks(markdown: string): CodeBlock[] {
   return blocks
 }
 
-/**
- * Walk messages newest-first, returning text from assistant messages that
- * actually said something (skips tool-use-only turns and API errors).
- * Index 0 = latest, 1 = second-to-latest, etc. Caps at MAX_LOOKBACK.
- */
+/** 按从新到旧顺序遍历消息，返回助理消息中实际有内容的文本（跳过仅使用工具的消息轮次和 API 错误）。索引 0 = 最新，1 = 次新，依此类推。上限为 MAX_LOOKBACK。 */
 export function collectRecentAssistantTexts(messages: Message[]): string[] {
   const texts: string[] = []
   for (
@@ -60,8 +56,8 @@ export function collectRecentAssistantTexts(messages: Message[]): string[] {
 
 export function fileExtension(lang: string | undefined): string {
   if (lang) {
-    // Sanitize to prevent path traversal (e.g. ```../../etc/passwd)
-    // Language identifiers are alphanumeric: python, tsx, jsonc, etc.
+    // 进行清理以防止路径遍历（例如 ```../../etc/pass
+    // wd）。语言标识符为字母数字：python、tsx、jsonc 等。
     const sanitized = lang.replace(/[^a-zA-Z0-9]/g, '')
     if (sanitized && sanitized !== 'plaintext') {
       return `.${sanitized}`
@@ -85,13 +81,14 @@ async function copyOrWriteToFile(
   if (raw) process.stdout.write(raw)
   const lineCount = countCharInString(text, '\n') + 1
   const charCount = text.length
-  // Also write to a temp file — clipboard paths are best-effort (OSC 52 needs
-  // terminal support), so the file provides a reliable fallback.
+  // 同时写入临时文件 —— 剪贴板路径是尽力而为的（OSC 52
+  // 需要终端支持），因此文件提供了可靠的备用方案。
   try {
     const filePath = await writeToFile(text, filename)
-    return `Copied to clipboard (${charCount} characters, ${lineCount} lines)\nAlso written to ${filePath}`
+    return `已复制到剪贴板（${charCount} 个字符，${lineCount} 行）
+同时写入 ${filePath}`
   } catch {
-    return `Copied to clipboard (${charCount} characters, ${lineCount} lines)`
+    return `已复制到剪贴板（${charCount} 个字符，${lineCount} 行）`
   }
 }
 
@@ -134,9 +131,9 @@ function CopyPicker({
 
   const options: OptionWithDescription<PickerSelection>[] = [
     {
-      label: 'Full response',
+      label: '完整响应',
       value: 'full' as const,
-      description: `${fullText.length} chars, ${countCharInString(fullText, '\n') + 1} lines`,
+      description: `${fullText.length} 个字符，${countCharInString(fullText, '\n') + 1} 行`,
     },
     ...codeBlocks.map((block, index) => {
       const blockLines = countCharInString(block.code, '\n') + 1
@@ -150,9 +147,9 @@ function CopyPicker({
       }
     }),
     {
-      label: 'Always copy full response',
+      label: '始终复制完整响应',
       value: 'always' as const,
-      description: 'Skip this picker in the future (revert via /config)',
+      description: '以后跳过此选择器（可通过 /config 恢复）',
     },
   ]
 
@@ -185,7 +182,8 @@ function CopyPicker({
       })
       const result = await copyOrWriteToFile(content.text, content.filename)
       onDone(
-        `${result}\nPreference saved. Use /config to change copyFullResponse`,
+        `${result}
+偏好已保存。使用 /config 更改 copyFullResponse`,
       )
       return
     }
@@ -208,9 +206,9 @@ function CopyPicker({
     })
     try {
       const filePath = await writeToFile(content.text, content.filename)
-      onDone(`Written to ${filePath}`)
+      onDone(`已写入 ${filePath}`)
     } catch (e) {
-      onDone(`Failed to write file: ${e instanceof Error ? e.message : e}`)
+      onDone(`写入文件失败：${e instanceof Error ? e.message : e}`)
     }
   }
 
@@ -230,7 +228,7 @@ function CopyPicker({
         autoFocus
         onKeyDown={handleKeyDown}
       >
-        <Text dimColor>Select content to copy:</Text>
+        <Text dimColor>选择要复制的内容：</Text>
         <Select<PickerSelection>
           options={options}
           hideIndexes={false}
@@ -241,13 +239,13 @@ function CopyPicker({
             void handleSelect(selected)
           }}
           onCancel={() => {
-            onDone('Copy cancelled', { display: 'system' })
+            onDone('复制已取消', { display: 'system' })
           }}
         />
         <Text dimColor>
           <Byline>
             <KeyboardShortcutHint shortcut="enter" action="copy" />
-            <KeyboardShortcutHint shortcut="w" action="write to file" />
+            <KeyboardShortcutHint shortcut="w" action="写入文件" />
             <KeyboardShortcutHint shortcut="esc" action="cancel" />
           </Byline>
         </Text>
@@ -260,22 +258,22 @@ export const call: LocalJSXCommandCall = async (onDone, context, args) => {
   const texts = collectRecentAssistantTexts(context.messages)
 
   if (texts.length === 0) {
-    onDone('No assistant message to copy')
+    onDone('没有可复制的助理消息')
     return null
   }
 
-  // /copy N reaches back N-1 messages (1 = latest, 2 = second-to-latest, ...)
+  // /copy N 回溯 N-1 条消息（1 = 最新，2 = 次新，...）
   let age = 0
   const arg = args?.trim()
   if (arg) {
     const n = Number(arg)
     if (!Number.isInteger(n) || n < 1) {
-      onDone(`Usage: /copy [N] where N is 1 (latest), 2, 3, \u2026 Got: ${arg}`)
+      onDone(`用法：/copy [N]，其中 N 为 1（最新）、2、3、… 输入：${arg}`)
       return null
     }
     if (n > texts.length) {
       onDone(
-        `Only ${texts.length} assistant ${texts.length === 1 ? 'message' : 'messages'} available to copy`,
+        `只有 ${texts.length} 条助理 ${texts.length === 1 ? 'message' : 'messages'} 可供复制`,
       )
       return null
     }

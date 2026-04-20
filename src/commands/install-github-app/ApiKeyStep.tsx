@@ -36,10 +36,10 @@ export function ApiKeyStep({
 
   const handlePrevious = useCallback(() => {
     if (selectedOption === 'new' && onCreateOAuthToken) {
-      // From 'new' go up to 'oauth'
+      // 从 'new' 向上移动到 'oauth'
       onSelectOption?.('oauth')
     } else if (selectedOption === 'oauth' && existingApiKey) {
-      // From 'oauth' go up to 'existing' (only if it exists)
+      // 从 'oauth' 向上移动到 'existing'（仅当它存在时）
       onSelectOption?.('existing')
       onToggleUseExistingKey(true)
     }
@@ -53,11 +53,11 @@ export function ApiKeyStep({
 
   const handleNext = useCallback(() => {
     if (selectedOption === 'existing') {
-      // From 'existing' go down to 'oauth' (if available) or 'new'
+      // 从 'existing' 向下移动到 'oauth'（如果可用）或 'new'
       onSelectOption?.(onCreateOAuthToken ? 'oauth' : 'new')
       onToggleUseExistingKey(false)
     } else if (selectedOption === 'oauth') {
-      // From 'oauth' go down to 'new'
+      // 从 'oauth' 向下移动到 'new'
       onSelectOption?.('new')
     }
   }, [
@@ -75,9 +75,9 @@ export function ApiKeyStep({
     }
   }, [selectedOption, onCreateOAuthToken, onSubmit])
 
-  // When the text input is visible, omit confirm:yes so bare 'y' passes
-  // through to the input instead of submitting. TextInput's onSubmit handles
-  // Enter. Keep the Confirmation context (not Settings) to avoid j/k bindings.
+  // 当文本输入框可见时，省略 confirm:yes，这样单独的 'y' 会传递给输
+  // 入框而不是提交。TextInput 的 onSubmit 处理 Enter 键。保持
+  // Confirmation 上下文（而非 Settings）以避免 j/k 键绑定冲突。
   const isTextInputVisible = selectedOption === 'new'
   useKeybindings(
     {
@@ -99,8 +99,8 @@ export function ApiKeyStep({
     <>
       <Box flexDirection="column" borderStyle="round" paddingX={1}>
         <Box flexDirection="column" marginBottom={1}>
-          <Text bold>Install GitHub App</Text>
-          <Text dimColor>Choose API key</Text>
+          <Text bold>安装 GitHub App</Text>
+          <Text dimColor>选择 API 密钥</Text>
         </Box>
         {existingApiKey && (
           <Box marginBottom={1}>
@@ -108,8 +108,7 @@ export function ApiKeyStep({
               {selectedOption === 'existing'
                 ? color('success', theme)('> ')
                 : '  '}
-              Use your existing Claude Code API key
-            </Text>
+              使用您现有的 Claude Code API 密钥</Text>
           </Box>
         )}
         {onCreateOAuthToken && (
@@ -118,15 +117,13 @@ export function ApiKeyStep({
               {selectedOption === 'oauth'
                 ? color('success', theme)('> ')
                 : '  '}
-              Create a long-lived token with your Claude subscription
-            </Text>
+              使用您的 Claude 订阅创建一个长期有效的令牌</Text>
           </Box>
         )}
         <Box marginBottom={1}>
           <Text>
             {selectedOption === 'new' ? color('success', theme)('> ') : '  '}
-            Enter a new API key
-          </Text>
+            输入一个新的 API 密钥</Text>
         </Box>
         {selectedOption === 'new' && (
           <TextInput
@@ -135,7 +132,7 @@ export function ApiKeyStep({
             onSubmit={onSubmit}
             onPaste={onApiKeyChange}
             focus={true}
-            placeholder="sk-ant… (Create a new key at https://platform.claude.com/settings/keys)"
+            placeholder="sk-ant…（在 https://platform.claude.com/settings/keys 创建新密钥）"
             mask="*"
             columns={terminalSize.columns}
             cursorOffset={cursorOffset}
@@ -145,7 +142,7 @@ export function ApiKeyStep({
         )}
       </Box>
       <Box marginLeft={3}>
-        <Text dimColor>↑/↓ to select · Enter to continue</Text>
+        <Text dimColor>↑/↓ 选择 · Enter 继续</Text>
       </Box>
     </>
   )

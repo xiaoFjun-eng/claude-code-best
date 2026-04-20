@@ -21,18 +21,13 @@ type Props = {
   onDone: LocalJSXCommandOnDone;
 };
 
-/**
- * /remote-control-server command — manages the daemon-backed persistent bridge server.
- *
- * When invoked, it starts the daemon supervisor as a child process, which in
- * turn spawns remoteControl workers that run headless bridge loops. The server
- * accepts multiple concurrent remote sessions.
- *
- * If the server is already running, shows a management dialog with status
- * and options to stop or continue.
- */
+/** /remote-control-server 命令 — 管理由守护进程支持的持久化桥接服务器。
 
-// Module-level state to track the daemon process across invocations
+调用时，它会启动守护进程监管器作为子进程，该监管器进而生成运行无头桥接循环的 remoteControl 工作进程。服务器接受多个并发远程会话。
+
+如果服务器已在运行，则显示一个管理对话框，其中包含状态信息以及停止或继续的选项。 */
+
+// 模块级状态，用于在多次调用间跟踪守护进程
 let daemonProcess: ChildProcess | null = null;
 let daemonStatus: ServerStatus = 'stopped';
 let daemonLogs: string[] = [];
@@ -43,7 +38,7 @@ function RemoteControlServer({ onDone }: Props): React.ReactNode {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // If already running, show management dialog
+    // 如果已在运行，则显示管理对话框
     if (daemonProcess && !daemonProcess.killed) {
       setStatus('running');
       return;
@@ -51,7 +46,7 @@ function RemoteControlServer({ onDone }: Props): React.ReactNode {
 
     let cancelled = false;
     void (async () => {
-      // Pre-flight checks
+      // 启动前检查
       const checkError = await checkPrerequisites();
       if (cancelled) return;
       if (checkError) {
@@ -59,14 +54,14 @@ function RemoteControlServer({ onDone }: Props): React.ReactNode {
         return;
       }
 
-      // Start the daemon
+      // 启动守护进程
       setStatus('starting');
       try {
         startDaemon();
         if (!cancelled) {
           setStatus('running');
           daemonStatus = 'running';
-          onDone('Remote Control Server started. Use /remote-control-server to manage.', { display: 'system' });
+          onDone('远程控制服务器已启动。使用 /remote-control-server 进行管理。', { display: 'system' });
         }
       } catch (err) {
         if (!cancelled) {
@@ -74,7 +69,7 @@ function RemoteControlServer({ onDone }: Props): React.ReactNode {
           setStatus('error');
           setError(msg);
           daemonStatus = 'error';
-          onDone(`Remote Control Server failed to start: ${msg}`, {
+          onDone(`远程控制服务器启动失败: ${msg}`, {
             display: 'system',
           });
         }
@@ -97,9 +92,7 @@ function RemoteControlServer({ onDone }: Props): React.ReactNode {
   return null;
 }
 
-/**
- * Dialog shown when /remote-control-server is used while the daemon is running.
- */
+/** 当守护进程运行时使用 /remote-control-server 命令时显示的对话框。 */
 function ServerManagementDialog({ onDone }: Props): React.ReactNode {
   useRegisterOverlay('remote-control-server-dialog');
   const [focusIndex, setFocusIndex] = useState(2);
@@ -108,16 +101,16 @@ function ServerManagementDialog({ onDone }: Props): React.ReactNode {
 
   function handleStop(): void {
     stopDaemon();
-    onDone('Remote Control Server stopped.', { display: 'system' });
+    onDone('远程控制服务器已停止。', { display: 'system' });
   }
 
   function handleRestart(): void {
     stopDaemon();
     try {
       startDaemon();
-      onDone('Remote Control Server restarted.', { display: 'system' });
+      onDone('远程控制服务器已重启。', { display: 'system' });
     } catch (err) {
-      onDone(`Failed to restart: ${errorMessage(err)}`, { display: 'system' });
+      onDone(`重启失败: ${errorMessage(err)}`, { display: 'system' });
     }
   }
 
@@ -145,10 +138,10 @@ function ServerManagementDialog({ onDone }: Props): React.ReactNode {
   );
 
   return (
-    <Dialog title="Remote Control Server" onCancel={handleContinue} hideInputGuide>
+    <Dialog title="远程控制服务器" onCancel={handleContinue} hideInputGuide>
       <Box flexDirection="column" gap={1}>
         <Text>
-          Remote Control Server is{' '}
+          远程控制服务器{' '}
           <Text bold color="success">
             running
           </Text>
@@ -156,7 +149,7 @@ function ServerManagementDialog({ onDone }: Props): React.ReactNode {
         </Text>
         {logPreview.length > 0 && (
           <Box flexDirection="column">
-            <Text dimColor>Recent logs:</Text>
+            <Text dimColor>最近日志:</Text>
             {logPreview.map((line, i) => (
               <Text key={i} dimColor>
                 {line}
@@ -166,24 +159,22 @@ function ServerManagementDialog({ onDone }: Props): React.ReactNode {
         )}
         <Box flexDirection="column">
           <ListItem isFocused={focusIndex === 0}>
-            <Text>Stop server</Text>
+            <Text>停止服务器</Text>
           </ListItem>
           <ListItem isFocused={focusIndex === 1}>
-            <Text>Restart server</Text>
+            <Text>重启服务器</Text>
           </ListItem>
           <ListItem isFocused={focusIndex === 2}>
             <Text>Continue</Text>
           </ListItem>
         </Box>
-        <Text dimColor>Enter to select · Esc to continue</Text>
+        <Text dimColor>按 Enter 键选择 · 按 Esc 键继续</Text>
       </Box>
     </Dialog>
   );
 }
 
-/**
- * Check prerequisites for starting the Remote Control Server.
- */
+/** 检查启动远程控制服务器的先决条件。 */
 async function checkPrerequisites(): Promise<string | null> {
   const disabledReason = await getBridgeDisabledReason();
   if (disabledReason) {
@@ -197,9 +188,7 @@ async function checkPrerequisites(): Promise<string | null> {
   return null;
 }
 
-/**
- * Start the daemon supervisor as a child process.
- */
+/** 将守护进程监管器作为子进程启动。 */
 function startDaemon(): void {
   const dir = resolve('.');
 
@@ -237,32 +226,30 @@ function startDaemon(): void {
   child.on('exit', (code: number | null, signal: NodeJS.Signals | null) => {
     daemonProcess = null;
     daemonStatus = 'stopped';
-    daemonLogs.push(`[daemon] exited (code=${code ?? 'unknown'}, signal=${signal})`);
+    daemonLogs.push(`[daemon] 已退出 (code=${code ?? 'unknown'}, signal=${signal})`);
   });
 
   child.on('error', (err: Error) => {
     daemonProcess = null;
     daemonStatus = 'error';
-    daemonLogs.push(`[daemon] error: ${err.message}`);
+    daemonLogs.push(`[daemon] 错误: ${err.message}`);
   });
 }
 
-/**
- * Stop the daemon supervisor.
- */
+/** 停止守护进程监管器。 */
 function stopDaemon(): void {
   if (daemonProcess && !daemonProcess.killed) {
     daemonProcess.kill('SIGTERM');
-    // Force kill after 10s grace
+    // 10秒宽限期后强制终止
     const pid = daemonProcess.pid;
     setTimeout(() => {
       try {
-        if (pid) process.kill(pid, 0); // Check if still alive
+        if (pid) process.kill(pid, 0); // 检查是否仍在运行
         if (daemonProcess && !daemonProcess.killed) {
           daemonProcess.kill('SIGKILL');
         }
       } catch {
-        // Process already gone
+        // 进程已终止
       }
     }, 10_000);
   }

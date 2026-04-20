@@ -53,19 +53,19 @@ export function AddMarketplace({
   const handleAdd = async () => {
     const input = inputValue.trim()
     if (!input) {
-      setError('Please enter a marketplace source')
+      setError('请输入市场源')
       return
     }
 
     const parsed = await parseMarketplaceInput(input)
     if (!parsed) {
       setError(
-        'Invalid marketplace source format. Try: owner/repo, https://..., or ./path',
+        '市场源格式无效。请尝试：owner/repo、https://... 或 ./path',
       )
       return
     }
 
-    // Check if parseMarketplaceInput returned an error
+    // 检查 parseMarketplaceInput 是否返回了错误
     if ('error' in parsed) {
       setError(parsed.error)
       return
@@ -104,10 +104,10 @@ export function AddMarketplace({
       setLoading(false)
 
       if (cliMode) {
-        // In CLI mode, set result to trigger completion
-        setResult(`Successfully added marketplace: ${name}`)
+        // 在 CLI 模式下，设置结果以触发完成
+        setResult(`成功添加市场：${name}`)
       } else {
-        // In interactive mode, switch to browse view
+        // 在交互模式下，切换到浏览视图
         setViewState({ type: 'browse-marketplace', targetMarketplace: name })
       }
     } catch (err) {
@@ -118,7 +118,7 @@ export function AddMarketplace({
       setLoading(false)
 
       if (cliMode) {
-        // In CLI mode, set result with error to trigger completion
+        // 在 CLI 模式下，设置包含错误的结果以触发完成
         setResult(`Error: ${error.message}`)
       } else {
         setResult(null)
@@ -126,24 +126,24 @@ export function AddMarketplace({
     }
   }
 
-  // Auto-add if inputValue is provided
+  // 如果提供了 inputValue，则自动添加
   useEffect(() => {
     if (inputValue && !hasAttemptedAutoAdd.current && !error && !result) {
       hasAttemptedAutoAdd.current = true
       void handleAdd()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    // biome-ignore lint/correctness/useExhaustiveDependencies: intentional
-  }, []) // Only run once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-d
+    // eps biome-ignore lint/correctness/useExhaustiveDependencies: 有意为之
+  }, []) // 仅在挂载时运行一次
 
   return (
     <Box flexDirection="column">
       <Box flexDirection="column" paddingX={1} borderStyle="round">
         <Box marginBottom={1}>
-          <Text bold>Add Marketplace</Text>
+          <Text bold>添加市场</Text>
         </Box>
         <Box flexDirection="column">
-          <Text>Enter marketplace source:</Text>
+          <Text>输入市场源：</Text>
           <Text dimColor>Examples:</Text>
           <Text dimColor> · owner/repo (GitHub)</Text>
           <Text dimColor> · git@github.com:owner/repo.git (SSH)</Text>
@@ -166,7 +166,7 @@ export function AddMarketplace({
           <Box marginTop={1}>
             <Spinner />
             <Text>
-              {progressMessage || 'Adding marketplace to configuration…'}
+              {progressMessage || '正在将市场添加到配置中…'}
             </Text>
           </Box>
         )}

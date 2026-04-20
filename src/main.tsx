@@ -3285,9 +3285,7 @@ ${formattedErrors}
 					}
 
 					if (customPrompt) {
-						const customInstructions = `
-# 自定义代理指令
-${customPrompt}`;
+						const customInstructions = `\n# 自定义代理指令\n${customPrompt}`;
 						appendSystemPrompt = appendSystemPrompt
 							? `${appendSystemPrompt}\n\n${customInstructions}`
 							: customInstructions;
@@ -3342,14 +3340,7 @@ ${customPrompt}`;
 							: "用户将看到你输出的任何文本。"
 						: "用户将看到你输出的任何文本。";
 				/* eslint-enable @typescript-eslint/no-require-imports */
-				const proactivePrompt = `
-# 主动模式
-
-你正处于主动模式。请主动采取行动——探索、执行并取得进展，无需等待指令。
-
-首先简要问候用户。
-
-你将定期收到 <tick> 提示。这些是进度检查点。执行你认为最有用的操作，如果无事可做，则调用 Sleep。${briefVisibility}`;
+				const proactivePrompt = `\n# 主动模式\n\n你正处于主动模式。请主动采取行动——探索、执行并取得进展，无需等待指令。\n\n首先简要问候用户。\n\n你将定期收到 <tick> 提示。这些是进度检查点。执行你认为最有用的操作，如果无事可做，则调用 Sleep。${briefVisibility}`;
 				appendSystemPrompt = appendSystemPrompt
 					? `${appendSystemPrompt}\n\n${proactivePrompt}`
 					: proactivePrompt;
@@ -3418,9 +3409,7 @@ ${customPrompt}`;
 					if (disabledReason) {
 						process.stderr.write(
 							chalk.yellow(
-								`${disabledReason}
---rc 标志被忽略。
-`,
+								`${disabledReason}\n--rc 标志被忽略。\n`,
 							),
 						);
 					}
@@ -4598,8 +4587,7 @@ ${customPrompt}`;
 				}
 
 				const connectInfoMessage = createSystemMessage(
-					`已连接到服务器 ${_pendingConnect.url}
-会话：${directConnectConfig.sessionId}`,
+					`已连接到服务器 ${_pendingConnect.url}\n会话：${directConnectConfig.sessionId}`,
 					"info",
 				);
 

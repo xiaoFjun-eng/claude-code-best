@@ -32,28 +32,28 @@ export async function call(
     <Login
       onDone={async success => {
         context.onChangeAPIKey()
-        // Signature-bearing blocks (thinking, connector_text) are bound to the API key —
-        // strip them so the new key doesn't reject stale signatures.
+        // 带有签名的区块（thinking、connector_text）与 AP
+        // I 密钥绑定——移除它们，以免新密钥拒绝过期的签名。
         context.setMessages(stripSignatureBlocks)
         if (success) {
-          // Post-login refresh logic. Keep in sync with onboarding in src/interactiveHelpers.tsx
-          // Reset cost state when switching accounts
+          // 登录后的刷新逻辑。与 src/interactiveHelpers.tsx 中的新用户
+          // 引导流程保持同步。切换账户时重置成本状态
           resetCostState()
-          // Refresh remotely managed settings after login (non-blocking)
+          // 登录后刷新远程管理的设置（非阻塞）
           void refreshRemoteManagedSettings()
-          // Refresh policy limits after login (non-blocking)
+          // 登录后刷新策略限制（非阻塞）
           void refreshPolicyLimits()
-          // Clear user data cache BEFORE GrowthBook refresh so it picks up fresh credentials
+          // 在刷新 GrowthBook 之前清除用户数据缓存，以便它获取最新的凭据
           resetUserCache()
-          // Refresh GrowthBook after login to get updated feature flags (e.g., for claude.ai MCPs)
+          // 登录后刷新 GrowthBook 以获取更新的功能标志（例如，用于 claude.ai MCPs）
           refreshGrowthBookAfterAuthChange()
-          // Clear any stale trusted device token from a previous account before
-          // re-enrolling — prevents sending the old token on bridge calls while
-          // the async enrollTrustedDevice() is in-flight.
+          // 在重新注册之前，清除先前账户中任何过期的受信任设备令牌—
+          // —防止在异步 enrollTrustedDevice()
+          // 进行期间，在桥接调用中发送旧令牌。
           clearTrustedDeviceToken()
-          // Enroll as a trusted device for Remote Control (10-min fresh-session window)
+          // 注册为远程控制的受信任设备（10分钟新会话窗口）
           void enrollTrustedDevice()
-          // Reset killswitch gate checks and re-run with new org
+          // 重置 killswitch 门检查，并使用新组织重新运行
           resetBypassPermissionsCheck()
           const appState = context.getAppState()
           void checkAndDisableBypassPermissionsIfNeeded(
@@ -68,13 +68,13 @@ export async function call(
               appState.fastMode,
             )
           }
-          // Increment authVersion to trigger re-fetching of auth-dependent data in hooks (e.g., MCP servers)
+          // 递增 authVersion 以触发钩子中重新获取依赖认证的数据（例如，MCP 服务器）
           context.setAppState(prev => ({
             ...prev,
             authVersion: prev.authVersion + 1,
           }))
         }
-        onDone(success ? 'Login successful' : 'Login interrupted')
+        onDone(success ? '登录成功' : '登录中断')
       }}
     />
   )
@@ -93,7 +93,7 @@ export function Login(props: {
       color="permission"
       inputGuide={exitState =>
         exitState.pending ? (
-          <Text>Press {exitState.keyName} again to exit</Text>
+          <Text>Press {exitState.keyName} 再次输入以退出</Text>
         ) : (
           <ConfigurableShortcutHint
             action="confirm:no"

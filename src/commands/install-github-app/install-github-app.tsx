@@ -32,7 +32,7 @@ const INITIAL_STATE: State = {
   step: 'check-gh',
   selectedRepoName: '',
   currentRepo: '',
-  useCurrentRepo: false, // Default to false, will be set to true if repo detected
+  useCurrentRepo: false, // 默认为 false，如果检测到仓库则设为 true
   apiKeyOrOAuthToken: '',
   useExistingKey: true,
   currentWorkflowInstallStep: 0,
@@ -68,42 +68,42 @@ function InstallGitHubApp(props: {
   const checkGitHubCLI = useCallback(async () => {
     const warnings: Warning[] = []
 
-    // Check if gh is installed
+    // 检查是否安装了 gh
     const ghVersionResult = await execa('gh --version', {
       shell: true,
       reject: false,
     })
     if (ghVersionResult.exitCode !== 0) {
       warnings.push({
-        title: 'GitHub CLI not found',
+        title: '未找到 GitHub CLI',
         message:
-          'GitHub CLI (gh) does not appear to be installed or accessible.',
+          'GitHub CLI (gh) 似乎未安装或无法访问。',
         instructions: [
-          'Install GitHub CLI from https://cli.github.com/',
+          '从 https://cli.github.com/ 安装 GitHub CLI',
           'macOS: brew install gh',
           'Windows: winget install --id GitHub.cli',
-          'Linux: See installation instructions at https://github.com/cli/cli#installation',
+          'Linux: 查看安装说明 https://github.com/cli/cli#installation',
         ],
       })
     }
 
-    // Check auth status
+    // 检查认证状态
     const authResult = await execa('gh auth status -a', {
       shell: true,
       reject: false,
     })
     if (authResult.exitCode !== 0) {
       warnings.push({
-        title: 'GitHub CLI not authenticated',
-        message: 'GitHub CLI does not appear to be authenticated.',
+        title: 'GitHub CLI 未认证',
+        message: 'GitHub CLI 似乎未通过认证。',
         instructions: [
-          'Run: gh auth login',
-          'Follow the prompts to authenticate with GitHub',
-          'Or set up authentication using environment variables or other methods',
+          '运行: gh auth login',
+          '按照提示使用 GitHub 进行认证',
+          '或使用环境变量或其他方法设置认证',
         ],
       })
     } else {
-      // Check if required scopes are present in the Token scopes line
+      // 检查 Token scopes 行中是否包含所需权限范围
       const tokenScopesMatch = authResult.stdout.match(/Token scopes:.*$/m)
       if (tokenScopesMatch) {
         const scopes = tokenScopesMatch[0]
@@ -117,19 +117,19 @@ function InstallGitHubApp(props: {
         }
 
         if (missingScopes.length > 0) {
-          // Missing required scopes - exit immediately
+          // 缺少所需权限范围 - 立即退出
           setState(prev => ({
             ...prev,
             step: 'error',
-            error: `GitHub CLI is missing required permissions: ${missingScopes.join(', ')}.`,
-            errorReason: 'Missing required scopes',
+            error: `GitHub CLI 缺少所需权限: ${missingScopes.join(', ')}。`,
+            errorReason: '缺少所需权限范围',
             errorInstructions: [
-              `Your GitHub CLI authentication is missing the "${missingScopes.join('" and "')}" ${plural(missingScopes.length, 'scope')} needed to manage GitHub Actions and secrets.`,
+              `您的 GitHub CLI 认证缺少管理 GitHub Actions 和密钥所需的 "${missingScopes.join('" and "')}" ${plural(missingScopes.length, 'scope')}。`,
               '',
-              'To fix this, run:',
+              '要修复此问题，请运行:',
               '  gh auth refresh -h github.com -s repo,workflow',
               '',
-              'This will add the necessary permissions to manage workflows and secrets.',
+              '这将添加管理工作流和密钥所需的必要权限。',
             ],
           }))
           return
@@ -137,7 +137,7 @@ function InstallGitHubApp(props: {
       }
     }
 
-    // Check if in a git repo and get remote URL
+    // 检查是否在 git 仓库中并获取远程 URL
     const currentRepo = (await getGithubRepo()) ?? ''
 
     logEvent('tengu_install_github_app_step_completed', {
@@ -149,7 +149,7 @@ function InstallGitHubApp(props: {
       warnings,
       currentRepo,
       selectedRepoName: currentRepo,
-      useCurrentRepo: !!currentRepo, // Set to false if no repo detected
+      useCurrentRepo: !!currentRepo, // 如果未检测到仓库则设为 false
       step: warnings.length > 0 ? 'warnings' : 'choose-repo',
     }))
   }, [])
@@ -196,9 +196,9 @@ function InstallGitHubApp(props: {
         const errorMessage =
           error instanceof Error
             ? error.message
-            : 'Failed to set up GitHub Actions'
+            : '设置 GitHub Actions 失败'
 
-        if (errorMessage.includes('workflow file already exists')) {
+        if (errorMessage.includes('工作流文件已存在')) {
           logEvent('tengu_install_github_app_error', {
             reason:
               'workflow_file_exists' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
@@ -206,13 +206,13 @@ function InstallGitHubApp(props: {
           setState(prev => ({
             ...prev,
             step: 'error',
-            error: 'A Claude workflow file already exists in this repository.',
-            errorReason: 'Workflow file conflict',
+            error: '此仓库中已存在 Claude 工作流文件。',
+            errorReason: '工作流文件冲突',
             errorInstructions: [
-              'The file .github/workflows/claude.yml already exists',
-              'You can either:',
-              '  1. Delete the existing file and run this command again',
-              '  2. Update the existing file manually using the template from:',
+              '文件 .github/workflows/claude.yml 已存在',
+              '你可以选择：',
+              '  1. 删除现有文件并重新运行此命令',
+              '  2. 使用以下模板手动更新现有文件：',
               `     ${GITHUB_ACTION_SETUP_DOCS_URL}`,
             ],
           }))
@@ -226,7 +226,7 @@ function InstallGitHubApp(props: {
             ...prev,
             step: 'error',
             error: errorMessage,
-            errorReason: 'GitHub Actions setup failed',
+            errorReason: 'GitHub Actions 设置失败',
             errorInstructions: [],
           }))
         }
@@ -266,7 +266,7 @@ function InstallGitHubApp(props: {
 
       if (
         result.stderr.includes('404') ||
-        result.stderr.includes('Not Found')
+        result.stderr.includes('未找到')
       ) {
         return {
           hasAccess: false,
@@ -314,9 +314,9 @@ function InstallGitHubApp(props: {
           step: 'check-existing-secret',
         }))
       } else {
-        // No existing secret found
+        // 未找到现有密钥
         if (existingApiKey) {
-          // User has local key, skip to creating with it
+          // 用户拥有本地密钥，跳过并使用它创建
           setState(prev => ({
             ...prev,
             apiKeyOrOAuthToken: existingApiKey,
@@ -324,14 +324,14 @@ function InstallGitHubApp(props: {
           }))
           await runSetupGitHubActions(existingApiKey, state.secretName)
         } else {
-          // No local key, go to API key step
+          // 无本地密钥，进入 API 密钥步骤
           setState(prev => ({ ...prev, step: 'api-key' }))
         }
       }
     } else {
-      // Error checking secrets
+      // 检查密钥时出错
       if (existingApiKey) {
-        // User has local key, skip to creating with it
+        // 用户拥有本地密钥，跳过并使用它创建
         setState(prev => ({
           ...prev,
           apiKeyOrOAuthToken: existingApiKey,
@@ -339,7 +339,7 @@ function InstallGitHubApp(props: {
         }))
         await runSetupGitHubActions(existingApiKey, state.secretName)
       } else {
-        // No local key, go to API key step
+        // 无本地密钥，进入 API 密钥步骤
         setState(prev => ({ ...prev, step: 'api-key' }))
       }
     }
@@ -367,11 +367,11 @@ function InstallGitHubApp(props: {
         const match = repoName.match(/github\.com[:/]([^/]+\/[^/]+)(\.git)?$/)
         if (!match) {
           repoWarnings.push({
-            title: 'Invalid GitHub URL format',
-            message: 'The repository URL format appears to be invalid.',
+            title: 'GitHub URL 格式无效',
+            message: '仓库 URL 格式似乎无效。',
             instructions: [
-              'Use format: owner/repo or https://github.com/owner/repo',
-              'Example: anthropics/claude-cli',
+              '使用格式：owner/repo 或 https://github.com/owner/repo',
+              '示例：anthropics/claude-cli',
             ],
           })
         } else {
@@ -381,11 +381,11 @@ function InstallGitHubApp(props: {
 
       if (!repoName.includes('/')) {
         repoWarnings.push({
-          title: 'Repository format warning',
-          message: 'Repository should be in format "owner/repo"',
+          title: '仓库格式警告',
+          message: '仓库应采用 "owner/repo" 格式',
           instructions: [
-            'Use format: owner/repo',
-            'Example: anthropics/claude-cli',
+            '使用格式：owner/repo',
+            '示例：anthropics/claude-cli',
           ],
         })
       }
@@ -394,23 +394,23 @@ function InstallGitHubApp(props: {
 
       if (permissionCheck.error === 'repository_not_found') {
         repoWarnings.push({
-          title: 'Repository not found',
-          message: `Repository ${repoName} was not found or you don't have access.`,
+          title: '仓库未找到',
+          message: `未找到仓库 ${repoName} 或您没有访问权限。`,
           instructions: [
-            `Check that the repository name is correct: ${repoName}`,
-            'Ensure you have access to this repository',
-            'For private repositories, make sure your GitHub token has the "repo" scope',
-            'You can add the repo scope with: gh auth refresh -h github.com -s repo,workflow',
+            `请检查仓库名称是否正确：${repoName}`,
+            '确保您有权访问此仓库',
+            '对于私有仓库，请确保您的 GitHub token 具有 "repo" 作用域',
+            '您可以通过以下命令添加 repo 作用域：gh auth refresh -h github.com -s repo,workflow',
           ],
         })
       } else if (!permissionCheck.hasAccess) {
         repoWarnings.push({
-          title: 'Admin permissions required',
-          message: `You might need admin permissions on ${repoName} to set up GitHub Actions.`,
+          title: '需要管理员权限',
+          message: `您可能需要对 ${repoName} 拥有管理员权限才能设置 GitHub Actions。`,
           instructions: [
-            'Repository admins can install GitHub Apps and set secrets',
-            'Ask a repository admin to run this command if setup fails',
-            'Alternatively, you can use the manual setup instructions',
+            '仓库管理员可以安装 GitHub 应用并设置密钥',
+            '如果设置失败，请让仓库管理员运行此命令',
+            '或者，您也可以使用手动设置说明',
           ],
         })
       }
@@ -450,7 +450,7 @@ function InstallGitHubApp(props: {
     } else if (state.step === 'check-existing-workflow') {
       return
     } else if (state.step === 'select-workflows') {
-      // Handled by the WorkflowMultiselectDialog component
+      // 由 WorkflowMultiselectDialog 组件处理
       return
     } else if (state.step === 'check-existing-secret') {
       logEvent('tengu_install_github_app_step_completed', {
@@ -459,18 +459,18 @@ function InstallGitHubApp(props: {
       if (state.useExistingSecret) {
         await runSetupGitHubActions(null, state.secretName)
       } else {
-        // User wants to use a new secret name with their API key
+        // 用户希望使用新的密钥名称来存储其 API 密钥
         await runSetupGitHubActions(state.apiKeyOrOAuthToken, state.secretName)
       }
     } else if (state.step === 'api-key') {
-      // In the new flow, api-key step only appears when user has no existing key
-      // They either entered a new key or will create OAuth token
+      // 在新流程中，api-key 步骤仅在用户没有现有密钥时出现。
+      // 他们要么输入新密钥，要么将创建 OAuth 令牌
       if (state.selectedApiKeyOption === 'oauth') {
-        // OAuth flow already handled by handleCreateOAuthToken
+        // OAuth 流程已由 handleCreateOAuthToken 处理
         return
       }
 
-      // If user selected 'existing' option, use the existing API key
+      // 如果用户选择了‘existing’选项，则使用现有的 API 密钥
       const apiKeyToUse =
         state.selectedApiKeyOption === 'existing'
           ? existingApiKey
@@ -484,19 +484,19 @@ function InstallGitHubApp(props: {
         setState(prev => ({
           ...prev,
           step: 'error',
-          error: 'API key is required',
+          error: 'API 密钥是必需的',
         }))
         return
       }
 
-      // Store the API key being used (either existing or newly entered)
+      // 存储正在使用的 API 密钥（无论是现有的还是新输入的）
       setState(prev => ({
         ...prev,
         apiKeyOrOAuthToken: apiKeyToUse,
         useExistingKey: state.selectedApiKeyOption === 'existing',
       }))
 
-      // Check if ANTHROPIC_API_KEY secret already exists
+      // 检查 ANTHROPIC_API_KEY 密钥是否已存在
       const checkSecretsResult = await execFileNoThrow('gh', [
         'secret',
         'list',
@@ -525,14 +525,14 @@ function InstallGitHubApp(props: {
           logEvent('tengu_install_github_app_step_completed', {
             step: 'api-key' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
           })
-          // No existing secret, proceed to creating
+          // 没有现有密钥，继续创建
           await runSetupGitHubActions(apiKeyToUse, state.secretName)
         }
       } else {
         logEvent('tengu_install_github_app_step_completed', {
           step: 'api-key' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
         })
-        // Error checking secrets, proceed anyway
+        // 检查密钥时出错，但仍继续
         await runSetupGitHubActions(apiKeyToUse, state.secretName)
       }
     }
@@ -605,7 +605,7 @@ function InstallGitHubApp(props: {
 
   const handleWorkflowAction = async (action: 'update' | 'skip' | 'exit') => {
     if (action === 'exit') {
-      props.onDone('Installation cancelled by user')
+      props.onDone('安装已被用户取消')
       return
     }
 
@@ -616,11 +616,11 @@ function InstallGitHubApp(props: {
     setState(prev => ({ ...prev, workflowAction: action }))
 
     if (action === 'skip' || action === 'update') {
-      // Check if user has existing local API key
+      // 检查用户是否有现有的本地 API 密钥
       if (existingApiKey) {
         await checkExistingSecret()
       } else {
-        // No local key, go straight to API key step
+        // 没有本地密钥，直接进入 API 密钥步骤
         setState(prev => ({ ...prev, step: 'api-key' }))
       }
     }
@@ -633,10 +633,12 @@ function InstallGitHubApp(props: {
     }
     props.onDone(
       state.step === 'success'
-        ? 'GitHub Actions setup complete!'
+        ? 'GitHub Actions 设置完成！'
         : state.error
-          ? `Couldn't install GitHub App: ${state.error}\nFor manual setup instructions, see: ${GITHUB_ACTION_SETUP_DOCS_URL}`
-          : `GitHub App installation failed\nFor manual setup instructions, see: ${GITHUB_ACTION_SETUP_DOCS_URL}`,
+          ? `无法安装 GitHub 应用：${state.error}
+手动设置说明请参阅：${GITHUB_ACTION_SETUP_DOCS_URL}`
+          : `GitHub 应用安装失败
+手动设置说明请参阅：${GITHUB_ACTION_SETUP_DOCS_URL}`,
     )
   }
 
@@ -742,11 +744,11 @@ function InstallGitHubApp(props: {
               ...prev,
               selectedWorkflows,
             }))
-            // Check if user has existing local API key
+            // 检查用户是否有现有的本地 API 密钥
             if (existingApiKey) {
               void checkExistingSecret()
             } else {
-              // No local key, go straight to API key step
+              // 没有本地密钥，直接进入 API 密钥步骤
               setState(prev => ({ ...prev, step: 'api-key' }))
             }
           }}

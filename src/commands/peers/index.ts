@@ -4,7 +4,7 @@ const peers = {
   type: 'local',
   name: 'peers',
   aliases: ['who'],
-  description: 'List connected Claude Code peers',
+  description: '列出已连接的 Claude Code 对等节点',
   supportsNonInteractive: true,
   load: () => import('./peers.js'),
 } satisfies Command

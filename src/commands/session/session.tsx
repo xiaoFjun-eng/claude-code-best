@@ -15,7 +15,7 @@ function SessionInfo({ onDone }: Props): React.ReactNode {
   const remoteSessionUrl = useAppState(s => s.remoteSessionUrl)
   const [qrCode, setQrCode] = useState<string>('')
 
-  // Generate QR code when URL is available
+  // 当 URL 可用时生成二维码
   useEffect(() => {
     if (!remoteSessionUrl) return
 
@@ -27,23 +27,22 @@ function SessionInfo({ onDone }: Props): React.ReactNode {
       })
       setQrCode(qr)
     }
-    // Intentionally silent fail - URL is still shown so QR is non-critical
+    // 故意静默失败 - URL 仍会显示，因此二维码并非关键
     generateQRCode().catch(e => {
-      logForDebugging('QR code generation failed', e)
+      logForDebugging('二维码生成失败', e)
     })
   }, [remoteSessionUrl])
 
-  // Handle ESC to dismiss
+  // 处理 ESC 键以关闭
   useKeybinding('confirm:no', onDone, { context: 'Confirmation' })
 
-  // Not in remote mode
+  // 未处于远程模式
   if (!remoteSessionUrl) {
     return (
       <Pane>
         <Text color="warning">
-          Not in remote mode. Start with `claude --remote` to use this command.
-        </Text>
-        <Text dimColor>(press esc to close)</Text>
+          未处于远程模式。请使用 `claude --remote` 启动以使用此命令。</Text>
+        <Text dimColor>(按 esc 键关闭)</Text>
       </Pane>
     )
   }
@@ -54,24 +53,24 @@ function SessionInfo({ onDone }: Props): React.ReactNode {
   return (
     <Pane>
       <Box marginBottom={1}>
-        <Text bold>Remote session</Text>
+        <Text bold>远程会话</Text>
       </Box>
 
-      {/* QR Code - silently fails if generation errors, URL is still shown */}
+      {/* 二维码 - 如果生成出错则静默失败，URL 仍会显示 */}
       {isLoading ? (
-        <Text dimColor>Generating QR code…</Text>
+        <Text dimColor>正在生成二维码…</Text>
       ) : (
         lines.map((line, i) => <Text key={i}>{line}</Text>)
       )}
 
       {/* URL */}
       <Box marginTop={1}>
-        <Text dimColor>Open in browser: </Text>
+        <Text dimColor>在浏览器中打开：</Text>
         <Text color="ide">{remoteSessionUrl}</Text>
       </Box>
 
       <Box marginTop={1}>
-        <Text dimColor>(press esc to close)</Text>
+        <Text dimColor>(按 esc 键关闭)</Text>
       </Box>
     </Pane>
   )

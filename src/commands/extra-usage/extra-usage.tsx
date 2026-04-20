@@ -18,11 +18,11 @@ export async function call(
   return (
     <Login
       startingMessage={
-        'Starting new login following /extra-usage. Exit with Ctrl-C to use existing account.'
+        '根据 /extra-usage 开始新的登录。按 Ctrl-C 退出以使用现有账户。'
       }
       onDone={success => {
         context.onChangeAPIKey()
-        onDone(success ? 'Login successful' : 'Login interrupted')
+        onDone(success ? '登录成功' : '登录中断')
       }}
     />
   )

@@ -8,14 +8,14 @@ export const call: LocalCommandCall = async (_args, _context) => {
 
   const lines: string[] = []
 
-  // Show own socket
-  lines.push(`Your socket: ${mySocket ?? '(not started)'}`)
+  // 显示自己的套接字
+  lines.push(`你的套接字: ${mySocket ?? '(not started)'}`)
   lines.push('')
 
   if (peers.length === 0) {
-    lines.push('No other Claude Code peers found.')
+    lines.push('未找到其他 Claude Code 对等节点。')
   } else {
-    lines.push(`Peers (${peers.length}):`)
+    lines.push(`对等节点 (${peers.length}):`)
     lines.push('')
 
     for (const peer of peers) {
@@ -43,7 +43,7 @@ export const call: LocalCommandCall = async (_args, _context) => {
 
   lines.push('')
   lines.push(
-    'To message a peer: use SendMessage with to="uds:<socket-path>"',
+    '要向对等节点发送消息：使用 SendMessage 并设置 to="uds:<socket-path>"',
   )
 
   return { type: 'text', value: lines.join('\n') }
@@ -52,10 +52,10 @@ export const call: LocalCommandCall = async (_args, _context) => {
 function formatAge(startedAt: number): string {
   const elapsed = Date.now() - startedAt
   const seconds = Math.floor(elapsed / 1000)
-  if (seconds < 60) return `${seconds}s ago`
+  if (seconds < 60) return `${seconds}秒前`
   const minutes = Math.floor(seconds / 60)
-  if (minutes < 60) return `${minutes}m ago`
+  if (minutes < 60) return `${minutes}分钟前`
   const hours = Math.floor(minutes / 60)
   const remainingMinutes = minutes % 60
-  return `${hours}h ${remainingMinutes}m ago`
+  return `${hours}小时 ${remainingMinutes}分钟前`
 }

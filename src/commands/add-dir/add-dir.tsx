@@ -98,11 +98,11 @@ export async function call(
         persistPermissionUpdate(permissionUpdate)
         message = `已将 ${chalk.bold(path)} 添加为工作目录并保存到本地设置`
       } catch (error) {
-        message = `已将 ${chalk.bold(path)} 添加为工作目录。保存到本地设置失败：${error instanceof Error ? error.message : 'Unknown error'}`    } else {
+        message = `已将 ${chalk.bold(path)} 添加为工作目录。保存到本地设置失败：${error instanceof Error ? error.message : '未知错误'}`    } else {
       message = `已将 ${chalk.bold(path)} 添加为本次会话的工作目录`
     }
 
-    const messageWithHint = `${message} ${chalk.dim('· /permissions to manage')}`
+    const messageWithHint = `${message} ${chalk.dim('· 使用 /permissions 进行管理')}`
     onDone(messageWithHint)
   }
 

@@ -6,8 +6,8 @@ import { useAppState } from '../../state/AppState.js'
 import type { LocalJSXCommandOnDone } from '../../types/command.js'
 import { PluginSettings } from '../plugin/PluginSettings.js'
 
-// TODO: This is a hack to get the context value from toggleMcpServer (useContext only works in a component)
-// Ideally, all MCP state and functions would be in global state.
+// TODO：这是一个从 toggleMcpServer 获取上下文值的变通方案（useContext 仅在组件中
+// 有效）。理想情况下，所有 MCP 状态和函数都应位于全局状态中。
 function MCPToggle({
   action,
   target,
@@ -37,8 +37,8 @@ function MCPToggle({
     if (toToggle.length === 0) {
       onComplete(
         target === 'all'
-          ? `All MCP servers are already ${isEnabling ? 'enabled' : 'disabled'}`
-          : `MCP server "${target}" not found`,
+          ? `所有 MCP 服务器均已 ${isEnabling ? 'enabled' : 'disabled'}`
+          : `未找到 MCP 服务器 "${target}"`,
       )
       return
     }
@@ -49,8 +49,8 @@ function MCPToggle({
 
     onComplete(
       target === 'all'
-        ? `${isEnabling ? 'Enabled' : 'Disabled'} ${toToggle.length} MCP server(s)`
-        : `MCP server "${target}" ${isEnabling ? 'enabled' : 'disabled'}`,
+        ? `${isEnabling ? 'Enabled' : 'Disabled'} ${toToggle.length} 个 MCP 服务器`
+        : `MCP 服务器 "${target}" ${isEnabling ? 'enabled' : 'disabled'}`,
     )
   }, [action, target, mcpClients, toggleMcpServer, onComplete])
 
@@ -65,7 +65,7 @@ export async function call(
   if (args) {
     const parts = args.trim().split(/\s+/)
 
-    // Allow /mcp no-redirect to bypass the redirect for testing
+    // 允许使用 /mcp no-redirect 绕过重定向以进行测试
     if (parts[0] === 'no-redirect') {
       return <MCPSettings onComplete={onDone} />
     }
@@ -90,7 +90,7 @@ export async function call(
     }
   }
 
-  // Redirect base /mcp command to /plugins installed tab for ant users
+  // 将基础 /mcp 命令重定向到 /plugins 已安装标签页，供 ant 用户使用
   if (process.env.USER_TYPE === 'ant') {
     return (
       <PluginSettings

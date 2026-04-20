@@ -10,7 +10,7 @@ const clear = {
   name: 'clear',
   description: '清除对话历史并释放上下文',
   aliases: ['reset', 'new'],
-  supportsNonInteractive: false, // Should just create a new session
+  supportsNonInteractive: false, // 应该直接创建一个新会话
   load: () => import('./clear.js'),
 } satisfies Command
 

@@ -188,7 +188,7 @@ async function getUniqueForkName(baseName: string): Promise<string> {
   const existingForks = await searchSessionsByCustomTitle(`${baseName} (分支`)
 
   // 提取现有分支编号以查找下一个可用的编号
-  const usedNumbers = new Set<number>([1]) // Consider " (Branch)" as number 1
+  const usedNumbers = new Set<number>([1]) // 将 " (Branch)" 视为数字 1
   const forkNumberPattern = new RegExp(
     `^${escapeRegExp(baseName)} \\(分支(?: (\\d+))?\\)$`,
   )
@@ -199,7 +199,7 @@ async function getUniqueForkName(baseName: string): Promise<string> {
       if (match[1]) {
         usedNumbers.add(parseInt(match[1], 10))
       } else {
-        usedNumbers.add(1) // " (Branch)" without number is treated as 1
+        usedNumbers.add(1) // 未带数字的 " (Branch)" 被视为 1
       }
     }
   }

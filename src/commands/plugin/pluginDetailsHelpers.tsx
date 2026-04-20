@@ -1,17 +1,13 @@
-/**
- * Shared helper functions and types for plugin details views
- *
- * Used by both DiscoverPlugins and BrowseMarketplace components.
- */
+/** 插件详情视图的共享辅助函数和类型
+
+由 DiscoverPlugins 和 BrowseMarketplace 组件共同使用。 */
 
 import * as React from 'react'
 import { ConfigurableShortcutHint } from '../../components/ConfigurableShortcutHint.js'
 import { Box, Byline, Text } from '@anthropic/ink'
 import type { PluginMarketplaceEntry } from '../../utils/plugins/schemas.js'
 
-/**
- * Represents a plugin available for installation from a marketplace
- */
+/** 表示可从市场安装的插件 */
 export type InstallablePlugin = {
   entry: PluginMarketplaceEntry
   marketplaceName: string
@@ -19,17 +15,13 @@ export type InstallablePlugin = {
   isInstalled: boolean
 }
 
-/**
- * Menu option for plugin details view
- */
+/** 插件详情视图的菜单选项 */
 export type PluginDetailsMenuOption = {
   label: string
   action: string
 }
 
-/**
- * Extract GitHub repo info from a plugin's source
- */
+/** 从插件源码中提取 GitHub 仓库信息 */
 export function extractGitHubRepo(plugin: InstallablePlugin): string | null {
   const isGitHub =
     plugin.entry.source &&
@@ -48,37 +40,33 @@ export function extractGitHubRepo(plugin: InstallablePlugin): string | null {
   return null
 }
 
-/**
- * Build menu options for plugin details view with scoped installation options
- */
+/** 为插件详情视图构建菜单选项，包含限定范围的安装选项 */
 export function buildPluginDetailsMenuOptions(
   hasHomepage: string | undefined,
   githubRepo: string | null,
 ): PluginDetailsMenuOption[] {
   const options: PluginDetailsMenuOption[] = [
-    { label: 'Install for you (user scope)', action: 'install-user' },
+    { label: '为您安装（用户范围）', action: 'install-user' },
     {
-      label: 'Install for all collaborators on this repository (project scope)',
+      label: '为此仓库的所有协作者安装（项目范围）',
       action: 'install-project',
     },
     {
-      label: 'Install for you, in this repo only (local scope)',
+      label: '仅在此仓库中为您安装（本地范围）',
       action: 'install-local',
     },
   ]
   if (hasHomepage) {
-    options.push({ label: 'Open homepage', action: 'homepage' })
+    options.push({ label: '打开主页', action: 'homepage' })
   }
   if (githubRepo) {
-    options.push({ label: 'View on GitHub', action: 'github' })
+    options.push({ label: '在 GitHub 上查看', action: 'github' })
   }
-  options.push({ label: 'Back to plugin list', action: 'back' })
+  options.push({ label: '返回插件列表', action: 'back' })
   return options
 }
 
-/**
- * Key hint component for plugin selection screens
- */
+/** 用于插件选择界面的按键提示组件 */
 export function PluginSelectionKeyHint({
   hasSelection,
 }: {

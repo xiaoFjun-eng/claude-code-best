@@ -1,14 +1,12 @@
-/**
- * Copy command - minimal metadata only.
- * Implementation is lazy-loaded from copy.tsx to reduce startup time.
- */
+/** 复制命令 - 仅包含最小元数据。
+实现从 copy.tsx 延迟加载，以减少启动时间。 */
 import type { Command } from '../../commands.js'
 
 const copy = {
   type: 'local-jsx',
   name: 'copy',
   description:
-    "Copy Claude's last response to clipboard (or /copy N for the Nth-latest)",
+    "将 Claude 的最后一条回复复制到剪贴板（或使用 /copy N 复制第 N 条最新回复）",
   load: () => import('./copy.js'),
 } satisfies Command
 

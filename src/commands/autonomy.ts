@@ -53,13 +53,13 @@ const call: LocalCommandCall = async (args: string) => {
       if (!cancelled) {
         return {
           type: 'text',
-          value: 'Autonomy flow not found.',
+          value: '未找到自主流程。',
         }
       }
       if (!cancelled.accepted) {
         return {
           type: 'text',
-          value: `Autonomy flow ${flowId} is already terminal (${cancelled.flow.status}).`,
+          value: `自主流程 ${flowId} 已处于终止状态 (${cancelled.flow.status})。`,
         }
       }
       const removed = removeByFilter(cmd => cmd.autonomy?.flowId === flowId)
@@ -72,8 +72,8 @@ const call: LocalCommandCall = async (args: string) => {
         type: 'text',
         value:
           cancelled.flow.status === 'running'
-            ? `Cancellation requested for flow ${flowId}. The current step is still running, and no new steps will be started.`
-            : `Cancelled flow ${flowId}. Removed ${removed.length} queued step(s).`,
+            ? `已请求取消流程 ${flowId}。当前步骤仍在运行，且不会启动新步骤。`
+            : `已取消流程 ${flowId}。移除了 ${removed.length} 个已排队的步骤。`,
       }
     }
 
@@ -83,13 +83,13 @@ const call: LocalCommandCall = async (args: string) => {
       if (!command) {
         return {
           type: 'text',
-          value: 'Autonomy flow is not waiting or was not found.',
+          value: '自主流程未处于等待状态或未找到。',
         }
       }
       enqueuePendingNotification(command)
       return {
         type: 'text',
-        value: `Queued the next managed step for flow ${flowId}.`,
+        value: `已为流程 ${flowId} 排队下一个托管步骤。`,
       }
     }
 
@@ -103,7 +103,7 @@ const call: LocalCommandCall = async (args: string) => {
     return {
       type: 'text',
       value:
-        'Usage: /autonomy [status|runs [limit]|flows [limit]|flow <id>|flow cancel <id>|flow resume <id>]',
+        '用法: /autonomy [status|runs [limit]|flows [limit]|flow <id>|flow cancel <id>|flow resume <id>]',
     }
   }
 
@@ -117,7 +117,7 @@ const autonomy = {
   type: 'local',
   name: 'autonomy',
   description:
-    'Inspect automatic autonomy runs recorded for proactive ticks and scheduled tasks',
+    '检查为主动触发和计划任务记录的自动自主运行',
   supportsNonInteractive: true,
   load: () => Promise.resolve({ call }),
 } satisfies Command

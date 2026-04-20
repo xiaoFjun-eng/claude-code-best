@@ -1,11 +1,6 @@
-/**
- * Post-install/post-enable config prompt.
- *
- * Given a LoadedPlugin, checks both the top-level manifest.userConfig and the
- * channel-specific userConfig. Walks PluginOptionsDialog through each
- * unconfigured item, saving via the appropriate storage function. Calls
- * onDone('skipped') immediately if nothing needs filling.
- */
+/** 安装后/启用后配置提示。
+
+给定一个 LoadedPlugin，检查顶层清单的 userConfig 和特定频道的 userConfig。引导 PluginOptionsDialog 遍历每个未配置项，通过相应的存储函数保存。如果无需填写任何内容，则立即调用 onDone('skipped')。 */
 
 import * as React from 'react'
 import type { LoadedPlugin } from '../../types/plugin.js'
@@ -28,14 +23,9 @@ import {
 } from '../../utils/plugins/pluginOptionsStorage.js'
 import { PluginOptionsDialog } from './PluginOptionsDialog.js'
 
-/**
- * Post-install lookup: return the LoadedPlugin for the just-installed
- * pluginId so the caller can divert to PluginOptionsFlow. Returns undefined
- * if the plugin somehow didn't make it into the fresh load — callers treat
- * undefined as "carry on closing."
- *
- * Install should have cleared caches already; loadAllPlugins reads fresh.
- */
+/** 安装后查找：返回刚安装的 pluginId 对应的 LoadedPlugin，以便调用方可以跳转到 PluginOptionsFlow。如果插件因故未成功加载到新实例中，则返回 undefined —— 调用方将 undefined 视为“继续关闭”。
+
+安装过程应已清除缓存；loadAllPlugins 会读取最新数据。 */
 export async function findPluginOptionsTarget(
   pluginId: string,
 ): Promise<LoadedPlugin | undefined> {
@@ -45,29 +35,22 @@ export async function findPluginOptionsTarget(
   )
 }
 
-/**
- * A single dialog step in the walk. Top-level options and channels both
- * collapse to this shape — the only difference is which save function runs.
- */
+/** 遍历过程中的单个对话框步骤。顶层选项和频道配置都归结为此结构 —— 唯一的区别在于运行哪个保存函数。 */
 type ConfigStep = {
   key: string
   title: string
   subtitle: string
   schema: PluginOptionSchema
-  /** Returns any already-saved values so PluginOptionsDialog can pre-fill and
-   *  skip unchanged sensitive fields on reconfigure. */
+  /** 返回任何已保存的值，以便 PluginOptionsDialog 可以预填充并在重新配置时跳过未更改的敏感字段。 */
   load: () => PluginOptionValues | undefined
   save: (values: PluginOptionValues) => void
 }
 
 type Props = {
   plugin: LoadedPlugin
-  /** `name@marketplace` — the savePluginOptions / saveMcpServerUserConfig key. */
+  /** `name@marketplace` —— savePluginOptions / saveMcpServerUserConfig 的键。 */
   pluginId: string
-  /**
-   * `configured` = user filled all fields. `skipped` = nothing needed
-   * configuring, or user hit cancel. `error` = save threw.
-   */
+  /** `configured` = 用户填写了所有字段。`skipped` = 无需配置任何内容，或用户点击了取消。`error` = 保存时抛出异常。 */
   onDone: (outcome: 'configured' | 'skipped' | 'error', detail?: string) => void
 }
 
@@ -76,18 +59,18 @@ export function PluginOptionsFlow({
   pluginId,
   onDone,
 }: Props): React.ReactNode {
-  // Build the step list once at mount. Re-calling after a save would drop the
-  // item we just configured.
+  // 在挂载时一次性构建步骤列表。保存后重新调用会丢弃我
+  // 们刚刚配置的项。
   const [steps] = React.useState<ConfigStep[]>(() => {
     const result: ConfigStep[] = []
 
-    // Top-level manifest.userConfig
+    // 顶层清单的 userConfig
     const unconfigured = getUnconfiguredOptions(plugin)
     if (Object.keys(unconfigured).length > 0) {
       result.push({
         key: 'top-level',
         title: `Configure ${plugin.name}`,
-        subtitle: 'Plugin options',
+        subtitle: '插件选项',
         schema: unconfigured,
         load: () => loadPluginOptions(pluginId),
         save: values =>
@@ -95,7 +78,7 @@ export function PluginOptionsFlow({
       })
     }
 
-    // Per-channel userConfig (assistant-mode channels)
+    // 按频道的 userConfig（助手模式频道）
     const channels: UnconfiguredChannel[] = getUnconfiguredChannels(plugin)
     for (const channel of channels) {
       result.push({
@@ -120,14 +103,14 @@ export function PluginOptionsFlow({
 
   const [index, setIndex] = React.useState(0)
 
-  // Latest-ref: lets the effect close over the current onDone without
-  // re-running when the parent re-renders.
+  // 最新引用：允许 effect 闭包捕获当前的 onDon
+  // e，避免父组件重新渲染时重新运行。
   const onDoneRef = React.useRef(onDone)
   onDoneRef.current = onDone
 
-  // Nothing to configure → tell the caller and render nothing. Effect,
-  // not inline call: calling setState in the parent during our render
-  // is a React rules-of-hooks violation.
+  // 无需配置 → 通知调用方且不渲染任何内容。使用 effect 而
+  // 非内联调用：在渲染期间调用父组件的 setState 违反了
+  // React 的 Hooks 规则。
   React.useEffect(() => {
     if (steps.length === 0) {
       onDoneRef.current('skipped')
@@ -155,9 +138,9 @@ export function PluginOptionsFlow({
     }
   }
 
-  // key forces a remount when advancing to the next step — React would
-  // otherwise reuse the instance and carry PluginOptionsDialog's
-  // internal useState (field index, typed values) over.
+  // key 在前进到下一步时强制重新挂载 —— 否则 React
+  // 会复用实例并保留 PluginOptionsDialog
+  // 内部的 useState（字段索引、输入值）。
   return (
     <PluginOptionsDialog
       key={current.key}

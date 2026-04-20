@@ -207,7 +207,7 @@ export type AppState = DeepImmutable<{
     needsRefresh: boolean
   }
   agentDefinitions: AgentDefinitionsResult
-  fileHistory: FileHistoryState
+  fileHistory: FileHistoryState //文件编辑检查点 / 快照
   attribution: AttributionState
   todos: { [agentId: string]: TodoList }
   remoteAgentTaskSuggestions: { summary: string; task: string }[]

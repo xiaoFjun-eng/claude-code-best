@@ -16,7 +16,7 @@ function getPluginId(): string {
 }
 
 export async function call(): Promise<LocalCommandResult> {
-  // Get skill directory from installed plugins config
+  // 从已安装插件配置中获取技能目录
   const v2Data = loadInstalledPluginsV2()
   const pluginId = getPluginId()
   const installations = v2Data.plugins[pluginId]
@@ -25,7 +25,7 @@ export async function call(): Promise<LocalCommandResult> {
     return {
       type: 'text' as const,
       value:
-        'Thinkback plugin not installed. Run /think-back first to install it.',
+        'Thinkback 插件未安装。请先运行 /think-back 命令来安装它。',
     }
   }
 
@@ -33,7 +33,7 @@ export async function call(): Promise<LocalCommandResult> {
   if (!firstInstall?.installPath) {
     return {
       type: 'text' as const,
-      value: 'Thinkback plugin installation path not found.',
+      value: '未找到 Thinkback 插件的安装路径。',
     }
   }
 

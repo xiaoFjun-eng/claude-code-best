@@ -16,15 +16,15 @@ export function UnifiedInstalledCell({
   const [theme] = useTheme()
 
   if (item.type === 'plugin') {
-    // Status icon and text
+    // 状态图标和文本
     let statusIcon: string
     let statusText: string
 
-    // Show pending toggle status if set, otherwise show current status
+    // 如果设置了待定切换状态，则显示该状态，否则显示当前状态
     if (item.pendingToggle) {
       statusIcon = color('suggestion', theme)(figures.arrowRight)
       statusText =
-        item.pendingToggle === 'will-enable' ? 'will enable' : 'will disable'
+        item.pendingToggle === 'will-enable' ? '将启用' : '将禁用'
     } else if (item.errorCount > 0) {
       statusIcon = color('error', theme)(figures.cross)
       statusText = `${item.errorCount} ${plural(item.errorCount, 'error')}`
@@ -75,7 +75,7 @@ export function UnifiedInstalledCell({
 
   if (item.type === 'failed-plugin') {
     const statusIcon = color('error', theme)(figures.cross)
-    const statusText = `failed to load · ${item.errorCount} ${plural(item.errorCount, 'error')}`
+    const statusText = `加载失败 · ${item.errorCount} ${plural(item.errorCount, 'error')}`
 
     return (
       <Box>
@@ -94,7 +94,7 @@ export function UnifiedInstalledCell({
     )
   }
 
-  // MCP server
+  // MCP 服务器
   let statusIcon: string
   let statusText: string
 
@@ -109,13 +109,13 @@ export function UnifiedInstalledCell({
     statusText = 'connecting…'
   } else if (item.status === 'needs-auth') {
     statusIcon = color('warning', theme)(figures.triangleUpOutline)
-    statusText = 'Enter to auth'
+    statusText = '按 Enter 键进行身份验证'
   } else {
     statusIcon = color('error', theme)(figures.cross)
     statusText = 'failed'
   }
 
-  // Indented MCPs (child of a plugin)
+  // 缩进的 MCP（插件的子项）
   if (item.indented) {
     return (
       <Box>

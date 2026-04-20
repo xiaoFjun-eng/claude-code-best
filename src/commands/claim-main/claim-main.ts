@@ -70,7 +70,7 @@ export const call: LocalCommandCall = async (_args, context) => {
   }
   lines.push('')
   lines.push('所有现有子节点现已绑定到此实例。')
-  lines.push('Use /pipes to verify.')
+  lines.push('使用 /pipes 进行验证。')
 
   return { type: 'text', value: lines.join('\n') }
 }

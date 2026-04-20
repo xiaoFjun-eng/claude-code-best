@@ -23,9 +23,9 @@ export function CheckExistingSecretStep({
   const terminalSize = useTerminalSize()
   const [theme] = useTheme()
 
-  // When the text input is visible, omit confirm:yes so bare 'y' passes
-  // through to the input instead of submitting. TextInput's onSubmit handles
-  // Enter. Keep the Confirmation context (not Settings) to avoid j/k bindings.
+  // 当文本输入框可见时，省略 confirm:yes，这样裸的 'y'
+  // 会传递给输入框而非提交。TextInput 的 onSubmit 会处理
+  // Enter 键。保持确认上下文（而非设置），以避免 j/k 键绑定冲突。
   const handlePrevious = useCallback(
     () => onToggleUseExistingSecret(true),
     [onToggleUseExistingSecret],
@@ -54,42 +54,38 @@ export function CheckExistingSecretStep({
     <>
       <Box flexDirection="column" borderStyle="round" paddingX={1}>
         <Box flexDirection="column" marginBottom={1}>
-          <Text bold>Install GitHub App</Text>
-          <Text dimColor>Setup API key secret</Text>
+          <Text bold>安装 GitHub App</Text>
+          <Text dimColor>设置 API key secret</Text>
         </Box>
         <Box marginBottom={1}>
           <Text color="warning">
-            ANTHROPIC_API_KEY already exists in repository secrets!
-          </Text>
+            ANTHROPIC_API_KEY 已存在于仓库 secrets 中！</Text>
         </Box>
         <Box marginBottom={1}>
-          <Text>Would you like to:</Text>
+          <Text>您希望：</Text>
         </Box>
         <Box marginBottom={1}>
           <Text>
             {useExistingSecret ? color('success', theme)('> ') : '  '}
-            Use the existing API key
-          </Text>
+            使用现有的 API key</Text>
         </Box>
         <Box marginBottom={1}>
           <Text>
             {!useExistingSecret ? color('success', theme)('> ') : '  '}
-            Create a new secret with a different name
-          </Text>
+            使用不同名称创建新的 secret</Text>
         </Box>
         {!useExistingSecret && (
           <>
             <Box marginBottom={1}>
               <Text>
-                Enter new secret name (alphanumeric with underscores):
-              </Text>
+                输入新的 secret 名称（仅限字母数字和下划线）：</Text>
             </Box>
             <TextInput
               value={secretName}
               onChange={onSecretNameChange}
               onSubmit={onSubmit}
               focus={true}
-              placeholder="e.g., CLAUDE_API_KEY"
+              placeholder="例如：CLAUDE_API_KEY"
               columns={terminalSize.columns}
               cursorOffset={cursorOffset}
               onChangeCursorOffset={setCursorOffset}
@@ -99,7 +95,7 @@ export function CheckExistingSecretStep({
         )}
       </Box>
       <Box marginLeft={3}>
-        <Text dimColor>↑/↓ to select · Enter to continue</Text>
+        <Text dimColor>↑/↓ 选择 · Enter 继续</Text>
       </Box>
     </>
   )

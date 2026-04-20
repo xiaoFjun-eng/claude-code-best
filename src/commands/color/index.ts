@@ -1,13 +1,11 @@
-/**
- * Color command - minimal metadata only.
- * Implementation is lazy-loaded from color.ts to reduce startup time.
- */
+/** 颜色命令 - 仅包含最简元数据。
+实现从 color.ts 延迟加载，以减少启动时间。 */
 import type { Command } from '../../commands.js'
 
 const color = {
   type: 'local-jsx',
   name: 'color',
-  description: 'Set the prompt bar color for this session',
+  description: '为此会话设置提示栏颜色',
   immediate: true,
   argumentHint: '<color|default>',
   load: () => import('./color.js'),

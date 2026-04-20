@@ -16,7 +16,7 @@ import {
 export const call: LocalCommandCall = async (_args, context) => {
   const args = _args.trim()
 
-  // Enable status line + toggle selector open
+  // 启用状态行 + 切换选择器打开
   context.setAppState(prev => {
     const pipeIpc = getPipeIpc(prev)
     return {
@@ -29,11 +29,11 @@ export const call: LocalCommandCall = async (_args, context) => {
     }
   })
 
-  // Handle select/deselect subcommands
+  // 处理选择/取消选择子命令
   if (args.startsWith('select ') || args.startsWith('sel ')) {
     const pipeName = args.replace(/^(select|sel)\s+/, '').trim()
     if (!pipeName)
-      return { type: 'text', value: 'Usage: /pipes select <pipe-name>' }
+      return { type: 'text', value: '用法: /pipes select <pipe-name>' }
     context.setAppState(prev => {
       const pipeIpc = getPipeIpc(prev)
       const selected = pipeIpc.selectedPipes ?? []
@@ -45,7 +45,7 @@ export const call: LocalCommandCall = async (_args, context) => {
     })
     return {
       type: 'text',
-      value: `Selected ${pipeName} — messages will be broadcast to this pipe.`,
+      value: `已选择 ${pipeName} — 消息将广播到此管道。`,
     }
   }
 
@@ -56,7 +56,7 @@ export const call: LocalCommandCall = async (_args, context) => {
   ) {
     const pipeName = args.replace(/^(deselect|desel|unsel)\s+/, '').trim()
     if (!pipeName)
-      return { type: 'text', value: 'Usage: /pipes deselect <pipe-name>' }
+      return { type: 'text', value: '用法: /pipes deselect <pipe-name>' }
     context.setAppState(prev => {
       const pipeIpc = getPipeIpc(prev)
       const selected = (pipeIpc.selectedPipes ?? []).filter(
@@ -64,7 +64,7 @@ export const call: LocalCommandCall = async (_args, context) => {
       )
       return { ...prev, pipeIpc: { ...pipeIpc, selectedPipes: selected } }
     })
-    return { type: 'text', value: `Deselected ${pipeName}.` }
+    return { type: 'text', value: `已取消选择 ${pipeName}。` }
   }
 
   if (args === 'select-all' || args === 'all') {
@@ -77,7 +77,7 @@ export const call: LocalCommandCall = async (_args, context) => {
     }))
     return {
       type: 'text',
-      value: `Selected all ${slaveNames.length} connected pipes.`,
+      value: `已选择所有 ${slaveNames.length} 个已连接的管道。`,
     }
   }
 
@@ -88,7 +88,7 @@ export const call: LocalCommandCall = async (_args, context) => {
     }))
     return {
       type: 'text',
-      value: 'Deselected all pipes. Messages will only run locally.',
+      value: '已取消选择所有管道。消息将仅在本地运行。',
     }
   }
 
@@ -103,15 +103,15 @@ export const call: LocalCommandCall = async (_args, context) => {
 
   const lines: string[] = []
 
-  lines.push(`Your pipe:   ${myName ?? '(not started)'}`)
+  lines.push(`您的管道:   ${myName ?? '(not started)'}`)
   lines.push(`Role:        ${displayRole}`)
   if (pipeState.machineId)
-    lines.push(`Machine ID:  ${pipeState.machineId.slice(0, 8)}...`)
+    lines.push(`机器 ID:  ${pipeState.machineId.slice(0, 8)}...`)
   if (pipeState.localIp) lines.push(`IP:          ${pipeState.localIp}`)
   if (pipeState.hostname) lines.push(`Host:        ${pipeState.hostname}`)
 
   if (isPipeControlled(pipeState)) {
-    lines.push(`Controlled by: ${pipeState.attachedBy}`)
+    lines.push(`控制者: ${pipeState.attachedBy}`)
   }
 
   lines.push('')
@@ -119,11 +119,11 @@ export const call: LocalCommandCall = async (_args, context) => {
   if (registry.mainMachineId) {
     const isMyMachine = isMainMachine(pipeState.machineId ?? '', registry)
     lines.push(
-      `Main machine: ${registry.mainMachineId.slice(0, 8)}...${isMyMachine ? ' (this machine)' : ''}`,
+      `主机器: ${registry.mainMachineId.slice(0, 8)}...${isMyMachine ? ' (this machine)' : ''}`,
     )
   }
 
-  // Show main from registry
+  // 从注册表显示主机器
   if (registry.main) {
     const m = registry.main
     const alive = await isPipeAlive(m.pipeName, 1000)
@@ -133,7 +133,7 @@ export const call: LocalCommandCall = async (_args, context) => {
     )
   }
 
-  // Show subs from registry with selection status
+  // 从注册表显示子机器及其选择状态
   const discoveredPipes: Array<{
     id: string
     pipeName: string
@@ -167,10 +167,10 @@ export const call: LocalCommandCall = async (_args, context) => {
   }
 
   if (!registry.main && registry.subs.length === 0) {
-    lines.push('No other pipes in registry.')
+    lines.push('注册表中没有其他管道。')
   }
 
-  // Show LAN peers (if LAN_PIPES enabled)
+  // 显示局域网对等节点（如果启用了 LAN_PIPES）
   if (feature('LAN_PIPES')) {
     const { getLanBeacon } =
       require('../../utils/lanBeacon.js') as typeof import('../../utils/lanBeacon.js')
@@ -181,7 +181,7 @@ export const call: LocalCommandCall = async (_args, context) => {
       const lanOnly = merged.filter(e => e.source === 'lan')
       if (lanOnly.length > 0) {
         lines.push('')
-        lines.push('LAN Peers:')
+        lines.push('局域网对等节点:')
         for (const peer of lanOnly) {
           const isSelected = selected.includes(peer.pipeName)
           const checkbox = isSelected ? '☑' : '☐'
@@ -203,12 +203,12 @@ export const call: LocalCommandCall = async (_args, context) => {
         }
       } else {
         lines.push('')
-        lines.push('LAN Peers: (none discovered)')
+        lines.push('局域网对等节点: (未发现任何节点)')
       }
     }
   }
 
-  // Update state
+  // 更新状态
   context.setAppState(prev => ({
     ...prev,
     pipeIpc: { ...getPipeIpc(prev), discoveredPipes },
@@ -216,16 +216,16 @@ export const call: LocalCommandCall = async (_args, context) => {
 
   lines.push('')
   lines.push(
-    `Selected: ${selected.length > 0 ? selected.join(', ') : '(none — messages run locally only)'}`,
+    `Selected: ${selected.length > 0 ? selected.join(', ') : '(无 — 消息仅在本地运行)'}`,
   )
   lines.push('')
   lines.push('Commands:')
-  lines.push('  /pipes select <name>    — select pipe for broadcast')
-  lines.push('  /pipes deselect <name>  — deselect pipe')
-  lines.push('  /pipes all              — select all connected')
-  lines.push('  /pipes none             — deselect all')
-  lines.push('  /send <name> <msg>      — send to specific pipe')
-  lines.push('  /claim-main             — claim this machine as main')
+  lines.push('  /pipes select <name>    — 选择管道进行广播')
+  lines.push('  /pipes deselect <name>  — 取消选择管道')
+  lines.push('  /pipes all              — 选择所有已连接的管道')
+  lines.push('  /pipes none             — 取消选择所有管道')
+  lines.push('  /send <name> <msg>      — 发送到指定管道')
+  lines.push('  /claim-main             — 声明此机器为主机器')
 
   return { type: 'text', value: lines.join('\n') }
 }

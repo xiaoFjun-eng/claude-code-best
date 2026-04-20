@@ -16,7 +16,7 @@ import {
 import type { LocalJSXCommandOnDone } from '../../types/command.js'
 
 const FALLBACK_MESSAGE =
-  'Review and manage your privacy settings at https://claude.ai/settings/data-privacy-controls'
+  '请在 https://claude.ai/settings/data-privacy-controls 查看和管理您的隐私设置'
 
 export async function call(
   onDone: LocalJSXCommandOnDone,
@@ -31,7 +31,7 @@ export async function call(
     getGroveSettings(),
     getGroveNoticeConfig(),
   ])
-  // Hide dialog on API failure (after retry)
+  // API 调用失败后（重试后）隐藏对话框
   if (!settingsResult.success) {
     onDone(FALLBACK_MESSAGE)
     return null
@@ -41,7 +41,7 @@ export async function call(
 
   async function onDoneWithDecision(decision: GroveDecision) {
     if (decision === 'escape' || decision === 'defer') {
-      onDone('Privacy settings dialog dismissed', {
+      onDone('隐私设置对话框已关闭', {
         display: 'system',
       })
       return
@@ -52,14 +52,14 @@ export async function call(
   async function onDoneWithSettingsCheck() {
     const updatedSettingsResult = await getGroveSettings()
     if (!updatedSettingsResult.success) {
-      onDone('Unable to retrieve updated privacy settings', {
+      onDone('无法获取更新后的隐私设置', {
         display: 'system',
       })
       return
     }
     const updatedSettings = updatedSettingsResult.data
     const groveStatus = updatedSettings.grove_enabled ? 'true' : 'false'
-    onDone(`"Help improve Claude" set to ${groveStatus}.`)
+    onDone(`"帮助改进 Claude" 已设置为 ${groveStatus}。`)
     if (
       settings.grove_enabled !== null &&
       settings.grove_enabled !== updatedSettings.grove_enabled
@@ -73,8 +73,8 @@ export async function call(
     }
   }
 
-  // Show privacy settings directly if the user has already accepted the
-  // terms.
+  // 如果用户已接受条款，则直接显示隐私
+  // 设置
   if (settings.grove_enabled !== null) {
     return (
       <PrivacySettingsDialog
@@ -85,7 +85,7 @@ export async function call(
     )
   }
 
-  // Show the GroveDialog for users who haven't accepted terms yet
+  // 为尚未接受条款的用户显示 GroveDialog
   return (
     <GroveDialog
       showIfAlreadyViewed={true}

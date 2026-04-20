@@ -13,18 +13,19 @@ export const call: LocalCommandCall = async (_args, context) => {
     return {
       type: 'text',
       value:
-        'Main mode — not connected to any CLIs.\nUse /attach <pipe-name> to connect to a sub session.',
+        '主模式 — 未连接到任何 CLI。\n使用 /attach <管道名称> 连接到子会话。',
     }
   }
 
   if (isPipeControlled(getPipeIpc(currentState))) {
     return {
       type: 'text',
-      value: `${getPipeDisplayRole(getPipeIpc(currentState))} mode — controlled by "${getPipeIpc(currentState).attachedBy}".\nAll session data is being reported to the master.`,
+      value: `${getPipeDisplayRole(getPipeIpc(currentState))} 模式 — 由 "${getPipeIpc(currentState).attachedBy}" 控制。
+所有会话数据正在上报给主控端。`,
     }
   }
 
-  // Master mode
+  // 主控模式
   const slaves = getPipeIpc(currentState).slaves
   const slaveNames = Object.keys(slaves)
   const clients = getAllSlaveClients()
@@ -33,12 +34,12 @@ export const call: LocalCommandCall = async (_args, context) => {
     return {
       type: 'text',
       value:
-        'Master mode but no sub sessions connected.\nUse /attach <pipe-name> to connect.',
+        '主控模式，但无子会话连接。\n使用 /attach <管道名称> 进行连接。',
     }
   }
 
   const lines: string[] = [
-    `Master mode — ${slaveNames.length} sub session(s) connected:`,
+    `主控模式 — 已连接 ${slaveNames.length} 个子会话：`,
     '',
   ]
 
@@ -50,16 +51,16 @@ export const call: LocalCommandCall = async (_args, context) => {
     const connectedAt = slave.connectedAt.slice(11, 19)
 
     lines.push(`  ${name}`)
-    lines.push(`    Status:    ${slave.status} (${connected})`)
+    lines.push(`    状态:    ${slave.status} (${connected})`)
     lines.push(`    Connected: ${connectedAt}`)
-    lines.push(`    History:   ${historyCount} entries`)
+    lines.push(`    历史记录:   ${historyCount} 条条目`)
     lines.push('')
   }
 
   lines.push('Commands:')
-  lines.push('  /send <name> <msg>  — Send a task to a sub session')
-  lines.push('  /history <name>     — View sub session transcript')
-  lines.push('  /detach [name]      — Disconnect from a sub session (or all)')
+  lines.push('  /send <名称> <消息>  — 向子会话发送任务')
+  lines.push('  /history <名称>     — 查看子会话记录')
+  lines.push('  /detach [名称]      — 断开与子会话的连接（或全部断开）')
 
   return { type: 'text', value: lines.join('\n') }
 }

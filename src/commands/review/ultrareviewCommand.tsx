@@ -26,18 +26,18 @@ async function launchAndDone(
   signal?: AbortSignal,
 ): Promise<void> {
   const result = await launchRemoteReview(args, context, billingNote)
-  // User hit Escape during the ~5s launch — the dialog already showed
-  // "cancelled" and unmounted, so skip onDone (would write to a dead
-  // transcript slot) and let the caller skip confirmOverage.
+  // 用户在约 5 秒的启动过程中按下了 Escape 键——对话框已显
+  // 示“已取消”并已卸载，因此跳过 onDone（否则会写入一个无效的
+  // 转录记录槽），让调用方跳过 confirmOverage。
   if (signal?.aborted) return
   if (result) {
     onDone(contentBlocksToString(result), { shouldQuery: true })
   } else {
-    // Precondition failures now return specific ContentBlockParam[] above.
-    // null only reaches here on teleport failure (PR mode) or non-github
-    // repo — both are CCR/repo connectivity issues.
+    // 前置条件失败现在会返回上面特定的 ContentBlockParam[
+    // ]。null 仅在此处出现于传送失败（PR 模式）或非 GitHub
+    // 仓库的情况——两者均为 CCR/仓库连接问题。
     onDone(
-      'Ultrareview failed to launch the remote session. Check that this is a GitHub repo and try again.',
+      'Ultrareview 未能启动远程会话。请确认这是一个 GitHub 仓库，然后重试。',
       { display: 'system' },
     )
   }
@@ -48,7 +48,7 @@ export const call: LocalJSXCommandCall = async (onDone, context, args) => {
 
   if (gate.kind === 'not-enabled') {
     onDone(
-      'Free ultrareviews used. Enable Extra Usage at https://claude.ai/settings/billing to continue.',
+      '免费 Ultrareview 次数已用完。请在 https://claude.ai/settings/billing 启用“额外用量”以继续。',
       { display: 'system' },
     )
     return null
@@ -56,7 +56,7 @@ export const call: LocalJSXCommandCall = async (onDone, context, args) => {
 
   if (gate.kind === 'low-balance') {
     onDone(
-      `Balance too low to launch ultrareview ($${gate.available.toFixed(2)} available, $10 minimum). Top up at https://claude.ai/settings/billing`,
+      `余额过低，无法启动 Ultrareview（当前可用 \$${gate.available.toFixed(2)}，最低需 $10）。请在 https://claude.ai/settings/billing 充值`,
       { display: 'system' },
     )
     return null
@@ -70,15 +70,15 @@ export const call: LocalJSXCommandCall = async (onDone, context, args) => {
             args,
             context,
             onDone,
-            ' This review bills as Extra Usage.',
+            '本次评审将按“额外用量”计费。',
             signal,
           )
-          // Only persist the confirmation flag after a non-aborted launch —
-          // otherwise Escape-during-launch would leave the flag set and
-          // skip this dialog on the next attempt.
+          // 仅在未中止的启动后持久化确认标志——否则启动过
+          // 程中按 Escape 键会导致标志被设置，并
+          // 在下次尝试时跳过此对话框。
           if (!signal.aborted) confirmOverage()
         }}
-        onCancel={() => onDone('Ultrareview cancelled.', { display: 'system' })}
+        onCancel={() => onDone('Ultrareview 已取消。', { display: 'system' })}
       />
     )
   }

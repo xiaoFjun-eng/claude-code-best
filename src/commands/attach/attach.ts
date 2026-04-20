@@ -15,7 +15,7 @@ export const call: LocalCommandCall = async (args, context) => {
   if (!targetName) {
     return {
       type: 'text',
-      value: 'Usage: /attach <pipe-name>\nUse /pipes to list available pipes.',
+      value: '用法：/attach <管道名称>\n使用 /pipes 列出可用管道。',
     }
   }
 
@@ -34,7 +34,7 @@ export const call: LocalCommandCall = async (args, context) => {
     return {
       type: 'text',
       value:
-        'Cannot attach: this sub is currently controlled by a master. Detach it from the master first.',
+        '无法附加：此子进程当前由主进程控制。请先从主进程分离它。',
     }
   }
 
@@ -125,7 +125,7 @@ export const call: LocalCommandCall = async (args, context) => {
 
         resolve({
           type: 'text',
-          value: `附加请求被 "${targetName}" 拒绝：${msg.data ?? 'unknown reason'}`})
+          value: `附加请求被 "${targetName}" 拒绝：${msg.data ?? '未知原因'}`})
       }
     })
 

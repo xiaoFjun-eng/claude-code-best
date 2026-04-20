@@ -7,13 +7,13 @@ export const call: LocalCommandCall = async (_, context) => {
   setPoorMode(newState)
 
   if (newState) {
-    // Disable prompt suggestion in AppState
+    // 在 AppState 中禁用提示建议
     context.setAppState(prev => ({
       ...prev,
       promptSuggestionEnabled: false,
     }))
   } else {
-    // Re-enable prompt suggestion
+    // 重新启用提示建议
     context.setAppState(prev => ({
       ...prev,
       promptSuggestionEnabled: true,
@@ -22,7 +22,7 @@ export const call: LocalCommandCall = async (_, context) => {
 
   const status = newState ? 'ON' : 'OFF'
   const details = newState
-    ? 'extract_memories and prompt_suggestion are disabled'
-    : 'extract_memories and prompt_suggestion are restored'
-  return { type: 'text', value: `Poor mode ${status} — ${details}` }
+    ? 'extract_memories 和 prompt_suggestion 已禁用'
+    : 'extract_memories 和 prompt_suggestion 已恢复'
+  return { type: 'text', value: `差劲的模式 ${status} — ${details}` }
 }

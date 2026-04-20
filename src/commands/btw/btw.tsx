@@ -136,9 +136,7 @@ function BtwSideQuestion({
       {(response || error) && (
         <Box marginTop={1}>
           <Text dimColor>
-            {UP_ARROW}/{DOWN_ARROW} to scroll · Space, Enter, or Escape to
-            dismiss
-          </Text>
+            {UP_ARROW}/{DOWN_ARROW} 滚动 · 按空格键、回车键或 Esc 键可关闭</Text>
         </Box>
       )}
     </Box>
@@ -201,7 +199,7 @@ export async function call(
   const question = args?.trim()
 
   if (!question) {
-    onDone('Usage: /btw <your question>', { display: 'system' })
+    onDone('用法: /btw <你的问题>', { display: 'system' })
     return null
   }
 

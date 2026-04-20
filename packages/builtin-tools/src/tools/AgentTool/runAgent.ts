@@ -332,7 +332,7 @@ export async function* runAgent({
   const agentId = override?.agentId ? override.agentId : createAgentId()
 
   // 如果请求，将此代理的转录路由到分组子目录中（例如，工作流子代理写入
-  // subagents/workflows/<runId>/）。
+  // 子代理/工作流/<runId>/）。
   if (transcriptSubdir) {
     setAgentTranscriptSubdir(agentId, transcriptSubdir)
   }

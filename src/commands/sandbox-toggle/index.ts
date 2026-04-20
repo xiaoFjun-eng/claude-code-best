@@ -11,7 +11,7 @@ const command = {
     const isLocked = SandboxManager.areSandboxSettingsLockedByPolicy()
     const hasDeps = SandboxManager.checkDependencies().errors.length === 0
 
-    // Show warning icon if dependencies missing, otherwise enabled/disabled status
+    // 如果依赖项缺失则显示警告图标，否则显示启用/禁用状态
     let icon: string
     if (!hasDeps) {
       icon = figures.warning
@@ -19,23 +19,23 @@ const command = {
       icon = currentlyEnabled ? figures.tick : figures.circle
     }
 
-    let statusText = 'sandbox disabled'
+    let statusText = '沙盒已禁用'
     if (currentlyEnabled) {
       statusText = autoAllow
-        ? 'sandbox enabled (auto-allow)'
-        : 'sandbox enabled'
+        ? '沙盒已启用（自动允许）'
+        : '沙盒已启用'
 
-      // Add unsandboxed fallback status
-      statusText += allowUnsandboxed ? ', fallback allowed' : ''
+      // 添加非沙盒回退状态
+      statusText += allowUnsandboxed ? '，允许回退' : ''
     }
 
     if (isLocked) {
       statusText += ' (managed)'
     }
 
-    return `${icon} ${statusText} (⏎ to configure)`
+    return `${icon} ${statusText}（按⏎键配置）`
   },
-  argumentHint: 'exclude "command pattern"',
+  argumentHint: '排除“命令模式”',
   get isHidden() {
     return (
       !SandboxManager.isSupportedPlatform() ||

@@ -27,18 +27,18 @@ function ConfirmRemoveTag({
 }): React.ReactNode {
   return (
     <Dialog
-      title="Remove tag?"
-      subtitle={`Current tag: #${tagName}`}
+      title="移除标签？"
+      subtitle={`当前标签：#${tagName}`}
       onCancel={onCancel}
       color="warning"
     >
       <Box flexDirection="column" gap={1}>
-        <Text>This will remove the tag from the current session.</Text>
+        <Text>这将从当前会话中移除标签。</Text>
         <Select<'yes' | 'no'>
           onChange={value => (value === 'yes' ? onConfirm() : onCancel())}
           options={[
-            { label: 'Yes, remove tag', value: 'yes' },
-            { label: 'No, keep tag', value: 'no' },
+            { label: '是，移除标签', value: 'yes' },
+            { label: '否，保留标签', value: 'no' },
           ]}
         />
       </Box>
@@ -58,37 +58,37 @@ function ToggleTagAndClose({
 }): React.ReactNode {
   const [showConfirm, setShowConfirm] = React.useState(false)
   const [sessionId, setSessionId] = React.useState<UUID | null>(null)
-  // Sanitize unicode to prevent hidden character attacks and normalize
+  // 清理 Unicode 字符以防止隐藏字符攻击并进行标准化
   const normalizedTag = recursivelySanitizeUnicode(tagName).trim()
 
   React.useEffect(() => {
     const id = getSessionId() as UUID
 
     if (!id) {
-      onDone('No active session to tag', { display: 'system' })
+      onDone('没有可标记的活动会话', { display: 'system' })
       return
     }
 
     if (!normalizedTag) {
-      onDone('Tag name cannot be empty', { display: 'system' })
+      onDone('标签名称不能为空', { display: 'system' })
       return
     }
 
     setSessionId(id)
     const currentTag = getCurrentSessionTag(id)
 
-    // If same tag exists, show confirmation dialog
+    // 如果存在相同标签，显示确认对话框
     if (currentTag === normalizedTag) {
       logEvent('tengu_tag_command_remove_prompt', {})
       setShowConfirm(true)
     } else {
-      // Add the new tag directly
+      // 直接添加新标签
       const isReplacing = !!currentTag
       logEvent('tengu_tag_command_add', { is_replacing: isReplacing })
       void (async () => {
         const fullPath = getTranscriptPath()
         await saveTag(id, normalizedTag, fullPath)
-        onDone(`Tagged session with ${chalk.cyan(`#${normalizedTag}`)}`, {
+        onDone(`已为会话添加标签 ${chalk.cyan(`#${normalizedTag}`)}`, {
           display: 'system',
         })
       })()
@@ -103,13 +103,13 @@ function ToggleTagAndClose({
           logEvent('tengu_tag_command_remove_confirmed', {})
           const fullPath = getTranscriptPath()
           await saveTag(sessionId, '', fullPath)
-          onDone(`Removed tag ${chalk.cyan(`#${normalizedTag}`)}`, {
+          onDone(`已移除标签 ${chalk.cyan(`#${normalizedTag}`)}`, {
             display: 'system',
           })
         }}
         onCancel={() => {
           logEvent('tengu_tag_command_remove_cancelled', {})
-          onDone(`Kept tag ${chalk.cyan(`#${normalizedTag}`)}`, {
+          onDone(`已保留标签 ${chalk.cyan(`#${normalizedTag}`)}`, {
             display: 'system',
           })
         }}
@@ -130,15 +130,15 @@ function ShowHelp({
 }): React.ReactNode {
   React.useEffect(() => {
     onDone(
-      `Usage: /tag <tag-name>
+      `用法：/tag <标签名称>
 
-Toggle a searchable tag on the current session.
-Run the same command again to remove the tag.
-Tags are displayed after the branch name in /resume and can be searched with /.
+为当前会话切换一个可搜索的标签。
+再次运行相同命令以移除标签。
+标签在 /resume 中显示在分支名称之后，并可使用 / 进行搜索。
 
-Examples:
-  /tag bugfix        # Add tag
-  /tag bugfix        # Remove tag (toggle)
+示例：
+  /tag bugfix        # 添加标签
+  /tag bugfix        # 移除标签（切换）
   /tag feature-auth
   /tag wip`,
       { display: 'system' },

@@ -399,7 +399,7 @@ function getParseError(frontmatter: Record<string, unknown>): string {
     return '前置元数据中缺少必需的 "description" 字段'
   }
 
-  return 'Unknown parsing error'
+  return '未知的解析错误'
 }
 
 /** 使用 HooksSchema 从 frontmatter 解析 hooks

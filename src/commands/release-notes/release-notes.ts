@@ -9,7 +9,7 @@ import {
 function formatReleaseNotes(notes: Array<[string, string[]]>): string {
   return notes
     .map(([version, notes]) => {
-      const header = `Version ${version}:`
+      const header = `版本 ${version}：`
       const bulletPoints = notes.map(note => `· ${note}`).join('\n')
       return `${header}\n${bulletPoints}`
     })
@@ -17,7 +17,7 @@ function formatReleaseNotes(notes: Array<[string, string[]]>): string {
 }
 
 export async function call(): Promise<LocalCommandResult> {
-  // Try to fetch the latest changelog with a 500ms timeout
+  // 尝试以 500 毫秒超时获取最新的更新日志
   let freshNotes: Array<[string, string[]]> = []
 
   try {
@@ -28,23 +28,23 @@ export async function call(): Promise<LocalCommandResult> {
     await Promise.race([fetchAndStoreChangelog(), timeoutPromise])
     freshNotes = getAllReleaseNotes(await getStoredChangelog())
   } catch {
-    // Either fetch failed or timed out - just use cached notes
+    // 获取失败或超时 - 直接使用缓存的说明
   }
 
-  // If we have fresh notes from the quick fetch, use those
+  // 如果快速获取到了新的说明，就使用它们
   if (freshNotes.length > 0) {
     return { type: 'text', value: formatReleaseNotes(freshNotes) }
   }
 
-  // Otherwise check cached notes
+  // 否则检查缓存的说明
   const cachedNotes = getAllReleaseNotes(await getStoredChangelog())
   if (cachedNotes.length > 0) {
     return { type: 'text', value: formatReleaseNotes(cachedNotes) }
   }
 
-  // Nothing available, show link
+  // 无可用内容，显示链接
   return {
     type: 'text',
-    value: `See the full changelog at: ${CHANGELOG_URL}`,
+    value: `查看完整更新日志：${CHANGELOG_URL}`,
   }
 }

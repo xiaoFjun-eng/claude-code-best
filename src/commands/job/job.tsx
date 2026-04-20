@@ -1,11 +1,9 @@
 import type { LocalJSXCommandOnDone, LocalJSXCommandContext } from '../../types/command.js'
 
-/**
- * /job slash command — manages template jobs from inside the REPL.
- *
- * Subcommands: list | new <template> [args] | reply <id> <text> | status <id>
- * Default (no args): list
- */
+/** /job 斜杠命令 — 在 REPL 内管理模板作业。
+
+子命令：list | new <template> [args] | reply <id> <text> | status <id>
+默认（无参数）：list */
 export async function call(
   onDone: LocalJSXCommandOnDone,
   _context: LocalJSXCommandContext,
@@ -14,7 +12,7 @@ export async function call(
   const parts = args ? args.trim().split(/\s+/) : []
   const sub = parts[0] || 'list'
 
-  // Capture console output so we can return it as onDone text
+  // 捕获控制台输出，以便将其作为 onDone 文本返回
   const lines: string[] = []
   const origLog = console.log
   const origError = console.error

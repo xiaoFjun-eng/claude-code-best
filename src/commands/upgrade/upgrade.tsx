@@ -15,7 +15,7 @@ export async function call(
   context: LocalJSXCommandContext,
 ): Promise<React.ReactNode | null> {
   try {
-    // Check if user is already on the highest Max plan (20x)
+    // 检查用户是否已处于最高等级的 Max 套餐（20 倍用量）
     if (isClaudeAISubscriber()) {
       const tokens = getClaudeAIOAuthTokens()
       let isMax20x = false
@@ -35,7 +35,7 @@ export async function call(
         setTimeout(
           onDone,
           0,
-          'You are already on the highest Max subscription plan. For additional usage, run /login to switch to an API usage-billed account.',
+          '您已订阅最高等级的 Max 套餐。如需更多用量，请运行 /login 切换到按 API 使用量计费的账户。',
         )
         return null
       }
@@ -47,11 +47,11 @@ export async function call(
     return (
       <Login
         startingMessage={
-          'Starting new login following /upgrade. Exit with Ctrl-C to use existing account.'
+          '在 /upgrade 后开始新的登录流程。按 Ctrl-C 退出以使用现有账户。'
         }
         onDone={success => {
           context.onChangeAPIKey()
-          onDone(success ? 'Login successful' : 'Login interrupted')
+          onDone(success ? '登录成功' : '登录已中断')
         }}
       />
     )
@@ -60,7 +60,7 @@ export async function call(
     setTimeout(
       onDone,
       0,
-      'Failed to open browser. Please visit https://claude.ai/upgrade/max to upgrade.',
+      '无法打开浏览器。请访问 https://claude.ai/upgrade/max 进行升级。',
     )
   }
   return null

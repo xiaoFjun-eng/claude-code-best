@@ -79,12 +79,12 @@ export function filterToolsForAgent({
   permissionMode?: PermissionMode
 }): Tools {
   return tools.filter(tool => {
-    // Allow MCP tools for all agents
+    // 为所有智能体启用 MCP 工具
     if (tool.name.startsWith('mcp__')) {
       return true
     }
-    // Allow ExitPlanMode for agents in plan mode (e.g., in-process teammates)
-    // This bypasses both the ALL_AGENT_DISALLOWED_TOOLS and async tool filters
+    // 允许处于计划模式下的智能体（例如，进程内队友）使用 ExitPlanMode。
+    // 这将绕过 ALL_AGENT_DISALLOWED_TOOLS 和异步工具过滤器
     if (
       toolMatchesName(tool, EXIT_PLAN_MODE_V2_TOOL_NAME) &&
       permissionMode === 'plan'
@@ -99,12 +99,12 @@ export function filterToolsForAgent({
     }
     if (isAsync && !ASYNC_AGENT_ALLOWED_TOOLS.has(tool.name)) {
       if (isAgentSwarmsEnabled() && isInProcessTeammate()) {
-        // Allow AgentTool for in-process teammates to spawn sync subagents.
-        // Validation in AgentTool.call() prevents background agents and teammate spawning.
+        // 允许进程内队友使用 AgentTool 来生成同步子智能体
+        // 。AgentTool.call() 中的验证会阻止后台智能体和队友生成。
         if (toolMatchesName(tool, AGENT_TOOL_NAME)) {
           return true
         }
-        // Allow task tools for in-process teammates to coordinate via shared task list
+        // 允许进程内队友使用任务工具通过共享任务列表进行协调
         if (IN_PROCESS_TEAMMATE_ALLOWED_TOOLS.has(tool.name)) {
           return true
         }
@@ -115,10 +115,8 @@ export function filterToolsForAgent({
   })
 }
 
-/**
- * Resolves and validates agent tools against available tools
- * Handles wildcard expansion and validation in one place
- */
+/** 根据可用工具解析并验证智能体工具
+在一个地方处理通配符扩展和验证 */
 export function resolveAgentTools(
   agentDefinition: Pick<
     AgentDefinition,
@@ -134,9 +132,9 @@ export function resolveAgentTools(
     source,
     permissionMode,
   } = agentDefinition
-  // When isMainThread is true, skip filterToolsForAgent entirely — the main
-  // thread's tool pool is already properly assembled by useMergedTools(), so
-  // the sub-agent disallow lists shouldn't apply.
+  // 当 isMainThread 为 true 时，完全跳过 filterToo
+  // lsForAgent —— 主线程的工具池已由 useMergedTools
+  // () 正确组装，因此子智能体的禁用列表不应适用。
   const filteredAvailableTools = isMainThread
     ? availableTools
     : filterToolsForAgent({
@@ -146,7 +144,7 @@ export function resolveAgentTools(
         permissionMode,
       })
 
-  // Create a set of disallowed tool names for quick lookup
+  // 创建一个禁用的工具名称集合以便快速查找
   const disallowedToolSet = new Set(
     disallowedTools?.map(toolSpec => {
       const { toolName } = permissionRuleValueFromString(toolSpec)
@@ -154,12 +152,12 @@ export function resolveAgentTools(
     }) ?? [],
   )
 
-  // Filter available tools based on disallowed list
+  // 根据禁用列表过滤可用工具
   const allowedAvailableTools = filteredAvailableTools.filter(
     tool => !disallowedToolSet.has(tool.name),
   )
 
-  // If tools is undefined or ['*'], allow all tools (after filtering disallowed)
+  // 如果 tools 未定义或为 ['*']，则允许所有工具（在过滤禁用项之后）
   const hasWildcard =
     agentTools === undefined ||
     (agentTools.length === 1 && agentTools[0] === '*')
@@ -184,23 +182,23 @@ export function resolveAgentTools(
   let allowedAgentTypes: string[] | undefined
 
   for (const toolSpec of agentTools) {
-    // Parse the tool spec to extract the base tool name and any permission pattern
+    // 解析工具规范以提取基础工具名称和任何权限模式
     const { toolName, ruleContent } = permissionRuleValueFromString(toolSpec)
 
-    // Special case: Agent tool carries allowedAgentTypes metadata in its spec
+    // 特殊情况：Agent 工具在其规范中携带 allowedAgentTypes 元数据
     if (toolName === AGENT_TOOL_NAME) {
       if (ruleContent) {
-        // Parse comma-separated agent types: "worker, researcher" → ["worker", "researcher"]
+        // 解析逗号分隔的智能体类型："worker, researcher" → ["worker", "researcher"]
         allowedAgentTypes = ruleContent.split(',').map(s => s.trim())
       }
-      // For sub-agents, Agent is excluded by filterToolsForAgent — mark the spec
-      // valid for allowedAgentTypes tracking but skip tool resolution.
+      // 对于子智能体，Agent 被 filterToolsForAgent 排除 —— 将规
+      // 范标记为对 allowedAgentTypes 跟踪有效，但跳过工具解析。
       if (!isMainThread) {
         validTools.push(toolSpec)
         continue
       }
-      // For main thread, filtering was skipped so Agent is in availableToolMap —
-      // fall through to normal resolution below.
+      // 对于主线程，过滤被跳过，因此 Agent 在 availableToolM
+      // ap 中 —— 继续执行下面的正常解析。
     }
 
     const tool = availableToolMap.get(toolName)
@@ -227,9 +225,9 @@ export function resolveAgentTools(
 export const agentToolResultSchema = lazySchema(() =>
   z.object({
     agentId: z.string(),
-    // Optional: older persisted sessions won't have this (resume replays
-    // results verbatim without re-validation). Used to gate the sync
-    // result trailer — one-shot built-ins skip the SendMessage hint.
+    // 可选：较旧的持久化会话不会有此字段（恢复重放会逐字输出
+    // 结果而不重新验证）。用于控制同步结果尾部 —— 一
+    // 次性内置工具会跳过 SendMessage 提示。
     agentType: z.string().optional(),
     content: z.array(z.object({ type: z.literal('text'), text: z.string() })),
     totalToolUseCount: z.number(),
@@ -297,11 +295,11 @@ export function finalizeAgentTool(
 
   const lastAssistantMessage = getLastAssistantMessage(agentMessages)
   if (lastAssistantMessage === undefined) {
-    throw new Error('No assistant messages found')
+    throw new Error('未找到助手消息')
   }
-  // Extract text content from the agent's response. If the final assistant
-  // message is a pure tool_use block (loop exited mid-turn), fall back to
-  // the most recent assistant message that has text content.
+  // 从智能体的响应中提取文本内容。如果最后的助手消息是
+  // 纯 tool_use 块（循环在回合中途退出），
+  // 则回退到最近一条包含文本内容的助手消息。
   let content = (lastAssistantMessage.message?.content as ContentItem[] ?? []).filter(
     _ => _.type === 'text',
   )
@@ -335,7 +333,7 @@ export function finalizeAgentTool(
     is_async: isAsync,
   })
 
-  // Signal to inference that this subagent's cache chain can be evicted.
+  // 通知推理系统，此子智能体的缓存链可以被逐出。
   const lastRequestId = lastAssistantMessage.requestId
   if (lastRequestId) {
     logEvent('tengu_cache_eviction_hint', {
@@ -357,10 +355,8 @@ export function finalizeAgentTool(
   }
 }
 
-/**
- * Returns the name of the last tool_use block in an assistant message,
- * or undefined if the message is not an assistant message with tool_use.
- */
+/** 返回助手消息中最后一个 tool_use 块的名称，
+如果消息不是包含 tool_use 的助手消息，则返回 undefined。 */
 export function getLastToolUseName(message: MessageType): string | undefined {
   if (message.type !== 'assistant') return undefined
   const block = (message.message?.content as ContentItem[] ?? []).findLast(b => b.type === 'tool_use')
@@ -415,7 +411,7 @@ export async function classifyHandoffIfNeeded({
         content: [
           {
             type: 'text',
-            text: "Sub-agent has finished and is handing back control to the main agent. Review the sub-agent's work based on the block rules and let the main agent know if any file is dangerous (the main agent will see the reason).",
+            text: "子智能体已完成工作，并将控制权交还给主智能体。根据块规则审查子智能体的工作，并告知主智能体是否有任何文件是危险的（主智能体将看到原因）。",
           },
         ],
       },
@@ -433,7 +429,7 @@ export async function classifyHandoffIfNeeded({
       decision:
         handoffDecision as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       toolName:
-        // Use legacy name for analytics continuity across the Task→Agent rename
+        // 使用旧名称以保持 Task→Agent 重命名期间的分析连续性
         LEGACY_AGENT_TOOL_NAME as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       inProtectedNamespace: isInProtectedNamespace(),
       classifierModel:
@@ -442,9 +438,9 @@ export async function classifyHandoffIfNeeded({
         subagentType as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       toolUseCount: totalToolUseCount,
       isHandoff: true,
-      // For handoff, the relevant agent completion is the subagent's final
-      // assistant message — the last thing the classifier transcript shows
-      // before the handoff review prompt.
+      // 对于交接，相关的智能体完成情况是子智能体的最后
+      // 一条助手消息 —— 这是分类器转录在交接审查提
+      // 示之前显示的最后内容。
       agentMsgId: getLastAssistantMessage(agentMessages)?.message
         .id as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       classifierStage:
@@ -460,32 +456,30 @@ export async function classifyHandoffIfNeeded({
     })
 
     if (classifierResult.shouldBlock) {
-      // When classifier is unavailable, still propagate the sub-agent's
-      // results but with a warning so the parent agent can verify the work.
+      // 当分类器不可用时，仍然传播子智能体的结果
+      // ，但附带警告，以便父智能体可以验证其工作。
       if (classifierResult.unavailable) {
         logForDebugging(
-          'Handoff classifier unavailable, allowing sub-agent output with warning',
+          '交接分类器不可用，允许子智能体输出但附带警告',
           { level: 'warn' },
         )
-        return `Note: The safety classifier was unavailable when reviewing this sub-agent's work. Please carefully verify the sub-agent's actions and output before acting on them.`
+        return `注意：在审查此子智能体的工作时，安全分类器不可用。请仔细验证子智能体的操作和输出，然后再据此采取行动。`
       }
 
       logForDebugging(
-        `Handoff classifier flagged sub-agent output: ${classifierResult.reason}`,
+        `交接分类器标记了子智能体输出：${classifierResult.reason}`,
         { level: 'warn' },
       )
-      return `SECURITY WARNING: This sub-agent performed actions that may violate security policy. Reason: ${classifierResult.reason}. Review the sub-agent's actions carefully before acting on its output.`
+      return `安全警告：此子智能体执行的操作可能违反安全策略。原因：${classifierResult.reason}。在根据其输出采取行动之前，请仔细审查子智能体的操作。`
     }
   }
 
   return null
 }
 
-/**
- * Extract a partial result string from an agent's accumulated messages.
- * Used when an async agent is killed to preserve what it accomplished.
- * Returns undefined if no text content is found.
- */
+/** 从智能体累积的消息中提取部分结果字符串。
+用于异步智能体被终止时，以保留其已完成的工作。
+如果未找到文本内容，则返回 undefined。 */
 export function extractPartialResult(
   messages: MessageType[],
 ): string | undefined {
@@ -502,10 +496,8 @@ export function extractPartialResult(
 
 type SetAppState = (f: (prev: AppState) => AppState) => void
 
-/**
- * Drives a background agent from spawn to terminal notification.
- * Shared between AgentTool's async-from-start path and resumeAgentBackground.
- */
+/** 驱动后台智能体从生成到终止通知。
+在 AgentTool 的异步启动路径和 resumeAgentBackground 之间共享。 */
 export async function runAsyncAgentLifecycle({
   taskId,
   abortController,
@@ -554,9 +546,9 @@ export async function runAsyncAgentLifecycle({
       : undefined
     for await (const message of makeStream(onCacheSafeParams)) {
       agentMessages.push(message)
-      // Append immediately when UI holds the task (retain). Bootstrap reads
-      // disk in parallel and UUID-merges the prefix — disk-write-before-yield
-      // means live is always a suffix of disk, so merge is order-correct.
+      // 当 UI 持有任务（保留）时立即追加。引导程序并行读取磁盘
+      // 并通过 UUID 合并前缀 —— 磁盘写入先于 yield
+      // 意味着实时数据始终是磁盘数据的后缀，因此合并顺序是正确的。
       rootSetAppState(prev => {
         const t = prev.tasks[taskId]
         if (!isLocalAgentTask(t) || !t.retain) return prev
@@ -597,10 +589,10 @@ export async function runAsyncAgentLifecycle({
 
     const agentResult = finalizeAgentTool(agentMessages, taskId, metadata)
 
-    // Mark task completed FIRST so TaskOutput(block=true) unblocks
-    // immediately. classifyHandoffIfNeeded (API call) and getWorktreeResult
-    // (git exec) are notification embellishments that can hang — they must
-    // not gate the status transition (gh-20236).
+    // 首先标记任务为已完成，以便 TaskOutput(block=true
+    // ) 能立即解除阻塞。classifyHandoffIfNeeded（API 调用
+    // ）和 getWorktreeResult（git 执行）是可能挂起的通知装饰操作
+    // ——它们绝不能阻塞状态转换（gh-20236）。
     completeAsyncAgent(agentResult, rootSetAppState)
 
     let finalMessage = extractTextContent(agentResult.content, '\n')
@@ -639,10 +631,10 @@ export async function runAsyncAgentLifecycle({
   } catch (error) {
     stopSummarization?.()
     if (error instanceof AbortError) {
-      // killAsyncAgent is a no-op if TaskStop already set status='killed' —
-      // but only this catch handler has agentMessages, so the notification
-      // must fire unconditionally. Transition status BEFORE worktree cleanup
-      // so TaskOutput unblocks even if git hangs (gh-20236).
+      // 如果 TaskStop 已将状态设为 'killed'，则 killAsync
+      // Agent 为无操作——但只有此 catch 处理程序拥有 agentMess
+      // ages，因此必须无条件触发通知。在工作树清理之前转换状态，这样即使 git 挂
+      // 起，TaskOutput 也能解除阻塞（gh-20236）。
       killAsyncAgent(taskId, rootSetAppState)
       logEvent('tengu_agent_tool_terminated', {
         agent_type:

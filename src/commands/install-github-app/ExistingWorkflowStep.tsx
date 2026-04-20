@@ -13,15 +13,15 @@ export function ExistingWorkflowStep({
 }: ExistingWorkflowStepProps) {
   const options = [
     {
-      label: 'Update workflow file with latest version',
+      label: '使用最新版本更新工作流文件',
       value: 'update',
     },
     {
-      label: 'Skip workflow update (configure secrets only)',
+      label: '跳过工作流更新（仅配置密钥）',
       value: 'skip',
     },
     {
-      label: 'Exit without making changes',
+      label: '退出，不做任何更改',
       value: 'exit',
     },
   ]
@@ -37,16 +37,16 @@ export function ExistingWorkflowStep({
   return (
     <Box flexDirection="column" borderStyle="round" borderDimColor paddingX={1}>
       <Box flexDirection="column" marginBottom={1}>
-        <Text bold>Existing Workflow Found</Text>
+        <Text bold>发现现有工作流</Text>
         <Text dimColor>Repository: {repoName}</Text>
       </Box>
 
       <Box flexDirection="column" marginBottom={1}>
         <Text>
-          A Claude workflow file already exists at{' '}
+          Claude 工作流文件已存在于{' '}
           <Text color="claude">.github/workflows/claude.yml</Text>
         </Text>
-        <Text dimColor>What would you like to do?</Text>
+        <Text dimColor>您希望执行什么操作？</Text>
       </Box>
 
       <Box flexDirection="column">
@@ -59,7 +59,7 @@ export function ExistingWorkflowStep({
 
       <Box marginTop={1}>
         <Text dimColor>
-          View the latest workflow template at:{' '}
+          查看最新的工作流模板：{' '}
           <Text color="claude">
             https://github.com/anthropics/claude-code-action/blob/main/examples/claude.yml
           </Text>

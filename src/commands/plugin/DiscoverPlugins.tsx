@@ -6,7 +6,7 @@ import { SearchBox } from '../../components/SearchBox.js'
 import { Byline } from '@anthropic/ink'
 import { useSearchInput } from '../../hooks/useSearchInput.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
-// eslint-disable-next-line custom-rules/prefer-use-keybindings -- useInput needed for raw search mode text input
+// eslint-disable-next-line custom-rules/prefer-use-keybindings -- 原始搜索模式文本输入需要使用 useInput
 import { Box, Text, useInput, useTerminalFocus } from '@anthropic/ink'
 import {
   useKeybinding,
@@ -76,12 +76,12 @@ export function DiscoverPlugins({
   onSearchModeChange,
   targetPlugin,
 }: Props): React.ReactNode {
-  // View state
+  // 视图状态
   const [viewState, setViewState] = useState<ViewState>('plugin-list')
   const [selectedPlugin, setSelectedPlugin] =
     useState<InstallablePlugin | null>(null)
 
-  // Data state
+  // 数据状态
   const [availablePlugins, setAvailablePlugins] = useState<InstallablePlugin[]>(
     [],
   )
@@ -91,7 +91,7 @@ export function DiscoverPlugins({
     number
   > | null>(null)
 
-  // Search state
+  // 搜索状态
   const [isSearchMode, setIsSearchModeRaw] = useState(false)
   const setIsSearchMode = useCallback(
     (active: boolean) => {
@@ -113,7 +113,7 @@ export function DiscoverPlugins({
   const isTerminalFocused = useTerminalFocus()
   const { columns: terminalWidth } = useTerminalSize()
 
-  // Filter plugins based on search query
+  // 根据搜索查询筛选插件
   const filteredPlugins = useMemo(() => {
     if (!searchQuery) return availablePlugins
     const lowerQuery = searchQuery.toLowerCase()
@@ -125,7 +125,7 @@ export function DiscoverPlugins({
     )
   }, [availablePlugins, searchQuery])
 
-  // Selection state
+  // 选择状态
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [selectedForInstall, setSelectedForInstall] = useState<Set<string>>(
     new Set(),
@@ -134,41 +134,41 @@ export function DiscoverPlugins({
     new Set(),
   )
 
-  // Pagination for plugin list (continuous scrolling)
+  // 插件列表的分页（连续滚动）
   const pagination = usePagination<InstallablePlugin>({
     totalItems: filteredPlugins.length,
     selectedIndex,
   })
 
-  // Reset selection when search query changes
+  // 搜索查询变化时重置选择
   useEffect(() => {
     setSelectedIndex(0)
   }, [searchQuery])
 
-  // Details view state
+  // 详情视图状态
   const [detailsMenuIndex, setDetailsMenuIndex] = useState(0)
   const [isInstalling, setIsInstalling] = useState(false)
   const [installError, setInstallError] = useState<string | null>(null)
 
-  // Warning state for non-critical errors
+  // 非关键错误的警告状态
   const [warning, setWarning] = useState<string | null>(null)
 
-  // Empty state reason
+  // 空状态原因
   const [emptyReason, setEmptyReason] = useState<EmptyMarketplaceReason | null>(
     null,
   )
 
-  // Load all plugins from all marketplaces
+  // 从所有市场加载所有插件
   useEffect(() => {
     async function loadAllPlugins() {
       try {
         const config = await loadKnownMarketplacesConfig()
 
-        // Load marketplaces with graceful degradation
+        // 以优雅降级方式加载市场
         const { marketplaces, failures } =
           await loadMarketplacesWithGracefulDegradation(config)
 
-        // Collect all plugins from all marketplaces
+        // 从所有市场收集所有插件
         const allPlugins: InstallablePlugin[] = []
 
         for (const { name, data: marketplace } of marketplaces) {
@@ -179,27 +179,27 @@ export function DiscoverPlugins({
                 entry,
                 marketplaceName: name,
                 pluginId,
-                // Only block when globally installed (user/managed scope).
-                // Project/local-scope installs don't block — user may want to
-                // promote to user scope so it's available everywhere (gh-29997).
+                // 仅当全局安装（用户/托管作用域）时阻止。项目
+                // /本地作用域的安装不阻止 —— 用户可能希望提
+                // 升到用户作用域，以便随处可用（gh-29997）。
                 isInstalled: isPluginGloballyInstalled(pluginId),
               })
             }
           }
         }
 
-        // Filter out installed and policy-blocked plugins
+        // 过滤掉已安装和策略阻止的插件
         const uninstalledPlugins = allPlugins.filter(
           p => !p.isInstalled && !isPluginBlockedByPolicy(p.pluginId),
         )
 
-        // Fetch install counts and sort by popularity
+        // 获取安装数量并按受欢迎程度排序
         try {
           const counts = await getInstallCounts()
           setInstallCounts(counts)
 
           if (counts) {
-            // Sort by install count (descending), then alphabetically
+            // 按安装数量（降序）排序，然后按字母顺序
             uninstalledPlugins.sort((a, b) => {
               const countA = counts.get(a.pluginId) ?? 0
               const countB = counts.get(b.pluginId) ?? 0
@@ -207,15 +207,15 @@ export function DiscoverPlugins({
               return a.entry.name.localeCompare(b.entry.name)
             })
           } else {
-            // No counts available - sort alphabetically
+            // 无可用数量 - 按字母顺序排序
             uninstalledPlugins.sort((a, b) =>
               a.entry.name.localeCompare(b.entry.name),
             )
           }
         } catch (error) {
-          // Log the error, then gracefully degrade to alphabetical sort
+          // 记录错误，然后优雅降级为字母顺序排序
           logForDebugging(
-            `Failed to fetch install counts: ${errorMessage(error)}`,
+            `获取安装数量失败：${errorMessage(error)}`,
           )
           uninstalledPlugins.sort((a, b) =>
             a.entry.name.localeCompare(b.entry.name),
@@ -224,7 +224,7 @@ export function DiscoverPlugins({
 
         setAvailablePlugins(uninstalledPlugins)
 
-        // Detect empty reason if no plugins available
+        // 如果没有可用插件，检测空状态原因
         const configuredCount = Object.keys(config).length
         if (uninstalledPlugins.length === 0) {
           const reason = await detectEmptyMarketplaceReason({
@@ -234,7 +234,7 @@ export function DiscoverPlugins({
           setEmptyReason(reason)
         }
 
-        // Handle marketplace loading errors/warnings
+        // 处理市场加载错误/警告
         const successCount = count(marketplaces, m => m.data !== null)
         const errorResult = formatMarketplaceLoadingErrors(
           failures,
@@ -242,14 +242,14 @@ export function DiscoverPlugins({
         )
         if (errorResult) {
           if (errorResult.type === 'warning') {
-            setWarning(errorResult.message + '. Showing available plugins.')
+            setWarning(errorResult.message + '。显示可用插件。')
           } else {
             throw new Error(errorResult.message)
           }
         }
 
-        // Handle targetPlugin - navigate directly to plugin details
-        // Search in allPlugins (before filtering) to handle installed plugins gracefully
+        // 处理 targetPlugin - 直接导航
+        // 到插件详情 在所有插件中搜索（筛选前）以优雅处理已安装插件
         if (targetPlugin) {
           const foundPlugin = allPlugins.find(
             p => p.entry.name === targetPlugin,
@@ -258,18 +258,18 @@ export function DiscoverPlugins({
           if (foundPlugin) {
             if (foundPlugin.isInstalled) {
               setError(
-                `Plugin '${foundPlugin.pluginId}' is already installed. Use '/plugin' to manage existing plugins.`,
+                `插件 '${foundPlugin.pluginId}' 已安装。使用 '/plugin' 管理现有插件。`,
               )
             } else {
               setSelectedPlugin(foundPlugin)
               setViewState('plugin-details')
             }
           } else {
-            setError(`Plugin "${targetPlugin}" not found in any marketplace`)
+            setError(`在任何市场中未找到插件 "${targetPlugin}"`)
           }
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load plugins')
+        setError(err instanceof Error ? err.message : '加载插件失败')
       } finally {
         setLoading(false)
       }
@@ -277,7 +277,7 @@ export function DiscoverPlugins({
     void loadAllPlugins()
   }, [setError, targetPlugin])
 
-  // Install selected plugins
+  // 安装选中的插件
   const installSelectedPlugins = async () => {
     if (selectedForInstall.size === 0) return
 
@@ -314,21 +314,21 @@ export function DiscoverPlugins({
     setSelectedForInstall(new Set())
     clearAllCaches()
 
-    // Handle installation results
+    // 处理安装结果
     if (failureCount === 0) {
       const message =
-        `✓ Installed ${successCount} ${plural(successCount, 'plugin')}. ` +
-        `Run /reload-plugins to activate.`
+        `✓ 已安装 ${successCount} ${plural(successCount, 'plugin')}。` +
+        `运行 /reload-plugins 以激活。`
       setResult(message)
     } else if (successCount === 0) {
       setError(
-        `Failed to install: ${formatFailureDetails(newFailedPlugins, true)}`,
+        `安装失败：${formatFailureDetails(newFailedPlugins, true)}`,
       )
     } else {
       const message =
-        `✓ Installed ${successCount} of ${successCount + failureCount} plugins. ` +
-        `Failed: ${formatFailureDetails(newFailedPlugins, false)}. ` +
-        `Run /reload-plugins to activate successfully installed plugins.`
+        `✓ 已安装 ${successCount + failureCount} 个插件中的 ${successCount} 个。` +
+        `失败：${formatFailureDetails(newFailedPlugins, false)}。` +
+        `运行 /reload-plugins 以激活已成功安装的插件。`
       setResult(message)
     }
 
@@ -341,7 +341,7 @@ export function DiscoverPlugins({
     setParentViewState({ type: 'menu' })
   }
 
-  // Install single plugin from details view
+  // 从详情视图安装单个插件
   const handleSinglePluginInstall = async (
     plugin: InstallablePlugin,
     scope: 'user' | 'project' | 'local' = 'user',
@@ -378,14 +378,14 @@ export function DiscoverPlugins({
     }
   }
 
-  // Handle error state
+  // 处理错误状态
   useEffect(() => {
     if (error) {
       setResult(error)
     }
   }, [error, setResult])
 
-  // Escape in plugin-details view - go back to plugin-list
+  // 在插件详情视图中按 Esc - 返回插件列表
   useKeybinding(
     'confirm:no',
     () => {
@@ -398,7 +398,7 @@ export function DiscoverPlugins({
     },
   )
 
-  // Escape in plugin-list view (not search mode) - exit to parent menu
+  // 在插件列表视图中按 Esc（非搜索模式）- 退出到上级菜单
   useKeybinding(
     'confirm:no',
     () => {
@@ -410,12 +410,12 @@ export function DiscoverPlugins({
     },
   )
 
-  // Handle entering search mode (non-escape keys)
+  // 处理进入搜索模式（非 Esc 键）
   useInput(
     (input, _key) => {
       const keyIsNotCtrlOrMeta = !_key.ctrl && !_key.meta
       if (!isSearchMode) {
-        // Enter search mode with '/' or any printable character
+        // 使用 '/' 或任何可打印字符进入搜索模式
         if (input === '/' && keyIsNotCtrlOrMeta) {
           setIsSearchMode(true)
           setSearchQuery('')
@@ -423,7 +423,7 @@ export function DiscoverPlugins({
           keyIsNotCtrlOrMeta &&
           input.length > 0 &&
           !/^\s+$/.test(input) &&
-          // Don't enter search mode for navigation keys
+          // 导航键不进入搜索模式
           input !== 'j' &&
           input !== 'k' &&
           input !== 'i'
@@ -436,7 +436,7 @@ export function DiscoverPlugins({
     { isActive: viewState === 'plugin-list' && !loading },
   )
 
-  // Plugin-list navigation (non-search mode)
+  // 插件列表导航（非搜索模式）
   useKeybindings(
     {
       'select:previous': () => {
@@ -510,7 +510,7 @@ export function DiscoverPlugins({
     },
   )
 
-  // Plugin-details navigation
+  // 插件详情导航
   const detailsMenuOptions = React.useMemo(() => {
     if (!selectedPlugin) return []
     const hasHomepage = selectedPlugin.entry.homepage
@@ -574,16 +574,16 @@ export function DiscoverPlugins({
           switch (outcome) {
             case 'configured':
               finish(
-                `✓ Installed and configured ${plugin.name}. Run /reload-plugins to apply.`,
+                `✓ 已安装并配置 ${plugin.name}。运行 /reload-plugins 以应用。`,
               )
               break
             case 'skipped':
               finish(
-                `✓ Installed ${plugin.name}. Run /reload-plugins to apply.`,
+                `✓ 已安装 ${plugin.name}。运行 /reload-plugins 以应用。`,
               )
               break
             case 'error':
-              finish(`Installed but failed to save config: ${detail}`)
+              finish(`已安装但保存配置失败：${detail}`)
               break
           }
         }}
@@ -591,17 +591,17 @@ export function DiscoverPlugins({
     )
   }
 
-  // Loading state
+  // 加载状态
   if (loading) {
     return <Text>Loading…</Text>
   }
 
-  // Error state
+  // 错误状态
   if (error) {
     return <Text color="error">{error}</Text>
   }
 
-  // Plugin details view
+  // 插件详情视图
   if (viewState === 'plugin-details' && selectedPlugin) {
     const hasHomepage = selectedPlugin.entry.homepage
     const githubRepo = extractGitHubRepo(selectedPlugin)
@@ -611,7 +611,7 @@ export function DiscoverPlugins({
     return (
       <Box flexDirection="column">
         <Box marginBottom={1}>
-          <Text bold>Plugin details</Text>
+          <Text bold>插件详情</Text>
         </Box>
 
         <Box flexDirection="column" marginBottom={1}>
@@ -681,30 +681,29 @@ export function DiscoverPlugins({
     )
   }
 
-  // Empty state
+  // 空状态
   if (availablePlugins.length === 0) {
     return (
       <Box flexDirection="column">
         <Box marginBottom={1}>
-          <Text bold>Discover plugins</Text>
+          <Text bold>发现插件</Text>
         </Box>
         <EmptyStateMessage reason={emptyReason} />
         <Box marginTop={1}>
           <Text dimColor italic>
-            Esc to go back
-          </Text>
+            按 Esc 返回</Text>
         </Box>
       </Box>
     )
   }
 
-  // Get visible plugins from pagination
+  // 从分页获取可见插件
   const visiblePlugins = pagination.getVisibleItems(filteredPlugins)
 
   return (
     <Box flexDirection="column">
       <Box>
-        <Text bold>Discover plugins</Text>
+        <Text bold>发现插件</Text>
         {pagination.needsPagination && (
           <Text dimColor>
             {' '}
@@ -714,7 +713,7 @@ export function DiscoverPlugins({
         )}
       </Box>
 
-      {/* Search box */}
+      {/* 搜索框 */}
       <Box marginBottom={1}>
         <SearchBox
           query={searchQuery}
@@ -725,7 +724,7 @@ export function DiscoverPlugins({
         />
       </Box>
 
-      {/* Warning banner */}
+      {/* 警告横幅 */}
       {warning && (
         <Box marginBottom={1}>
           <Text color="warning">
@@ -734,21 +733,21 @@ export function DiscoverPlugins({
         </Box>
       )}
 
-      {/* No search results */}
+      {/* 无搜索结果 */}
       {filteredPlugins.length === 0 && searchQuery && (
         <Box marginBottom={1}>
-          <Text dimColor>No plugins match &quot;{searchQuery}&quot;</Text>
+          <Text dimColor>没有匹配的插件{searchQuery}&quot;</Text>
         </Box>
       )}
 
-      {/* Scroll up indicator */}
+      {/* 向上滚动指示器 */}
       {pagination.scrollPosition.canScrollUp && (
         <Box>
-          <Text dimColor> {figures.arrowUp} more above</Text>
+          <Text dimColor> {figures.arrowUp} 上方还有更多</Text>
         </Box>
       )}
 
-      {/* Plugin list - use startIndex in key to force re-render on scroll */}
+      {/* 插件列表 - 在 key 中使用 startIndex 以在滚动时强制重新渲染 */}
       {visiblePlugins.map((plugin, visibleIndex) => {
         const actualIndex = pagination.toActualIndex(visibleIndex)
         const isSelected = selectedIndex === actualIndex
@@ -777,7 +776,7 @@ export function DiscoverPlugins({
                 {plugin.entry.name}
                 <Text dimColor> · {plugin.marketplaceName}</Text>
                 {plugin.entry.tags?.includes('community-managed') && (
-                  <Text dimColor> [Community Managed]</Text>
+                  <Text dimColor> [社区维护]</Text>
                 )}
                 {installCounts &&
                   plugin.marketplaceName === OFFICIAL_MARKETPLACE_NAME && (
@@ -802,14 +801,14 @@ export function DiscoverPlugins({
         )
       })}
 
-      {/* Scroll down indicator */}
+      {/* 向下滚动指示器 */}
       {pagination.scrollPosition.canScrollDown && (
         <Box>
-          <Text dimColor> {figures.arrowDown} more below</Text>
+          <Text dimColor> {figures.arrowDown} 下方还有更多</Text>
         </Box>
       )}
 
-      {/* Error messages */}
+      {/* 错误信息 */}
       {error && (
         <Box marginTop={1}>
           <Text color="error">
@@ -849,7 +848,7 @@ function DiscoverPluginsKeyHint({
               bold
             />
           )}
-          <Text>type to search</Text>
+          <Text>输入以搜索</Text>
           {canToggle && (
             <ConfigurableShortcutHint
               action="plugin:toggle"
@@ -876,9 +875,7 @@ function DiscoverPluginsKeyHint({
   )
 }
 
-/**
- * Context-aware empty state message for the Discover screen
- */
+/** 发现屏幕的上下文感知空状态消息 */
 function EmptyStateMessage({
   reason,
 }: {
@@ -888,54 +885,49 @@ function EmptyStateMessage({
     case 'git-not-installed':
       return (
         <>
-          <Text dimColor>Git is required to install marketplaces.</Text>
-          <Text dimColor>Please install git and restart Claude Code.</Text>
+          <Text dimColor>安装市场需要 Git。</Text>
+          <Text dimColor>请安装 Git 并重启 Claude Code。</Text>
         </>
       )
     case 'all-blocked-by-policy':
       return (
         <>
           <Text dimColor>
-            Your organization policy does not allow any external marketplaces.
-          </Text>
-          <Text dimColor>Contact your administrator.</Text>
+            您的组织策略不允许添加任何外部市场。</Text>
+          <Text dimColor>请联系您的管理员。</Text>
         </>
       )
     case 'policy-restricts-sources':
       return (
         <>
           <Text dimColor>
-            Your organization restricts which marketplaces can be added.
-          </Text>
+            您的组织限制了可以添加的市场。</Text>
           <Text dimColor>
-            Switch to the Marketplaces tab to view allowed sources.
-          </Text>
+            切换到“市场”选项卡以查看允许的来源。</Text>
         </>
       )
     case 'all-marketplaces-failed':
       return (
         <>
-          <Text dimColor>Failed to load marketplace data.</Text>
-          <Text dimColor>Check your network connection.</Text>
+          <Text dimColor>加载市场数据失败。</Text>
+          <Text dimColor>请检查您的网络连接。</Text>
         </>
       )
     case 'all-plugins-installed':
       return (
         <>
-          <Text dimColor>All available plugins are already installed.</Text>
+          <Text dimColor>所有可用插件均已安装。</Text>
           <Text dimColor>
-            Check for new plugins later or add more marketplaces.
-          </Text>
+            稍后检查新插件或添加更多市场。</Text>
         </>
       )
     case 'no-marketplaces-configured':
     default:
       return (
         <>
-          <Text dimColor>No plugins available.</Text>
+          <Text dimColor>没有可用的插件。</Text>
           <Text dimColor>
-            Add a marketplace first using the Marketplaces tab.
-          </Text>
+            请先在“市场”选项卡中添加一个市场。</Text>
         </>
       )
   }

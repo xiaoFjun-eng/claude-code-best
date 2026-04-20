@@ -2,15 +2,15 @@ import { describe, expect, test } from 'bun:test'
 
 import plan from './index.js'
 
-describe('plan bridge invocation safety', () => {
-  test('allows headless plan mode operations over Remote Control', () => {
+describe('规划桥接调用安全性', () => {
+  test('允许通过远程控制进行无头规划模式操作', () => {
     expect(plan.getBridgeInvocationError?.('')).toBeUndefined()
-    expect(plan.getBridgeInvocationError?.('write a migration plan')).toBeUndefined()
+    expect(plan.getBridgeInvocationError?.('编写迁移计划')).toBeUndefined()
   })
 
-  test('blocks /plan open over Remote Control', () => {
+  test('阻止通过远程控制执行 /plan open 命令', () => {
     expect(plan.getBridgeInvocationError?.('open')).toBe(
-      "Opening the local editor via /plan open isn't available over Remote Control.",
+      "通过远程控制无法使用 /plan open 命令打开本地编辑器。",
     )
   })
 })

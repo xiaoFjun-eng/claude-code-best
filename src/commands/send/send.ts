@@ -13,17 +13,17 @@ export const call: LocalCommandCall = async (args, context) => {
   if (getPipeIpc(currentState).role !== 'master') {
     return {
       type: 'text',
-      value: 'Not in master mode. Use /attach <pipe-name> first.',
+      value: '未处于主控模式。请先使用 /attach <管道名称>。',
     }
   }
 
-  // Parse: first word is pipe name, rest is the message
+  // 解析：第一个词是管道名称，其余部分是消息
   const trimmed = args.trim()
   const spaceIdx = trimmed.indexOf(' ')
   if (spaceIdx === -1) {
     return {
       type: 'text',
-      value: 'Usage: /send <pipe-name> <message>',
+      value: '用法：/send <管道名称> <消息>',
     }
   }
 
@@ -33,7 +33,7 @@ export const call: LocalCommandCall = async (args, context) => {
   if (!message) {
     return {
       type: 'text',
-      value: 'Usage: /send <pipe-name> <message>',
+      value: '用法：/send <管道名称> <消息>',
     }
   }
 
@@ -41,21 +41,21 @@ export const call: LocalCommandCall = async (args, context) => {
   if (!client) {
     return {
       type: 'text',
-      value: `Not attached to "${targetName}". Use /status to see connected sub sessions.`,
+      value: `未连接到 "${targetName}"。使用 /status 查看已连接的子会话。`,
     }
   }
 
   if (!client.connected) {
     return {
       type: 'text',
-      value: `Connection to "${targetName}" is closed. Use /detach ${targetName} and re-attach.`,
+      value: `到 "${targetName}" 的连接已关闭。请使用 /detach ${targetName} 并重新连接。`,
     }
   }
 
   try {
-    // Temporarily override mute for this slave so its response is visible.
-    // Override lasts until the slave emits 'done' or 'error' (cleared by
-    // useMasterMonitor's attachPipeEntryEmitter handler).
+    // 临时覆盖此从属会话的静音，使其响应可见。覆盖将持续到从属会话发出 'done'
+    // 或 'error' 为止（由 useMasterMonitor 的 at
+    // tachPipeEntryEmitter 处理程序清除）。
     addSendOverride(targetName)
     removeMasterPipeMute(targetName)
     client.send({ type: 'relay_unmute' })
@@ -64,7 +64,7 @@ export const call: LocalCommandCall = async (args, context) => {
       data: message,
     })
 
-    // Record the sent prompt in history
+    // 将发送的提示记录到历史中
     context.setAppState(prev => {
       const slave = getPipeIpc(prev).slaves[targetName]
       if (!slave) return prev
@@ -97,14 +97,14 @@ export const call: LocalCommandCall = async (args, context) => {
 
     return {
       type: 'text',
-      value: `Sent to "${targetName}": ${message.slice(0, 100)}${message.length > 100 ? '...' : ''}`,
+      value: `已发送到 "${targetName}": ${message.slice(0, 100)}${message.length > 100 ? '...' : ''}`,
     }
   } catch (err) {
-    // Roll back override on send failure to prevent permanent unmute
+    // 发送失败时回滚覆盖，以防止永久取消静音
     removeSendOverride(targetName)
     return {
       type: 'text',
-      value: `Failed to send to "${targetName}": ${err instanceof Error ? err.message : String(err)}`,
+      value: `发送到 "${targetName}" 失败: ${err instanceof Error ? err.message : String(err)}`,
     }
   }
 }

@@ -140,16 +140,16 @@ const proactiveModule =
     : null
 /* eslint-enable @typescript-eslint/no-require-imports */
 
-// Progress display constants (for showing background hint)
-const PROGRESS_THRESHOLD_MS = 2000 // Show background hint after 2 seconds
+// 进度显示常量（用于显示后台提示）
+const PROGRESS_THRESHOLD_MS = 2000 // 2秒后显示后台提示
 
-// Check if background tasks are disabled at module load time
+// 检查模块加载时后台任务是否被禁用
 const isBackgroundTasksDisabled =
-  // eslint-disable-next-line custom-rules/no-process-env-top-level -- Intentional: schema must be defined at module load
+  // eslint-disable-next-line custom-rules/no-process-env-top-level -- 有意为之：模式必须在模块加载时定义
   isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_BACKGROUND_TASKS)
 
-// Auto-background agent tasks after this many ms (0 = disabled)
-// Enabled by env var OR GrowthBook gate (checked lazily since GB may not be ready at module load)
+// 在此毫秒数后自动执行后台代理任务（0 = 禁用）通过环境变
+// 量或 GrowthBook 功能开关启用（延迟检查，因为模块加载时 GB 可能尚未就绪）
 function getAutoBackgroundMs(): number {
   if (
     isEnvTruthy(process.env.CLAUDE_AUTO_BACKGROUND_TASKS) ||
@@ -160,54 +160,54 @@ function getAutoBackgroundMs(): number {
   return 0
 }
 
-// Multi-agent type constants are defined inline inside gated blocks to enable dead code elimination
+// 多代理类型常量在功能开关控制的代码块内联定义，以启用死代码消除
 
-// Base input schema without multi-agent parameters
+// 不包含多代理参数的基础输入模式
 const baseInputSchema = lazySchema(() =>
   z.object({
     description: z
       .string()
-      .describe('A short (3-5 word) description of the task'),
-    prompt: z.string().describe('The task for the agent to perform'),
+      .describe('任务的简短描述（3-5个词）'),
+    prompt: z.string().describe('代理要执行的任务'),
     subagent_type: z
       .string()
       .optional()
-      .describe('The type of specialized agent to use for this task'),
+      .describe('用于此任务的专用代理类型'),
     model: z
       .enum(['sonnet', 'opus', 'haiku'])
       .optional()
       .describe(
-        "Optional model override for this agent. Takes precedence over the agent definition's model frontmatter. If omitted, uses the agent definition's model, or inherits from the parent.",
+        "此代理的可选模型覆盖。优先级高于代理定义中的模型 frontmatter。如果省略，则使用代理定义的模型，或从父级继承。",
       ),
     run_in_background: z
       .boolean()
       .optional()
       .describe(
-        'Set to true to run this agent in the background. You will be notified when it completes.',
+        '设置为 true 以在后台运行此代理。完成后您将收到通知。',
       ),
   }),
 )
 
-// Full schema combining base + multi-agent params + isolation
+// 结合基础参数、多代理参数和隔离的完整模式
 const fullInputSchema = lazySchema(() => {
-  // Multi-agent parameters
+  // 多代理参数
   const multiAgentInputSchema = z.object({
     name: z
       .string()
       .optional()
       .describe(
-        'Name for the spawned agent. Makes it addressable via SendMessage({to: name}) while running.',
+        '衍生代理的名称。使其在运行时可通过 SendMessage({to: name}) 寻址。',
       ),
     team_name: z
       .string()
       .optional()
       .describe(
-        'Team name for spawning. Uses current team context if omitted.',
+        '衍生代理的团队名称。如果省略，则使用当前团队上下文。',
       ),
     mode: permissionModeSchema()
       .optional()
       .describe(
-        'Permission mode for spawned teammate (e.g., "plan" to require plan approval).',
+        '衍生队友的权限模式（例如，"plan" 表示需要计划批准）。',
       ),
   })
 
@@ -221,46 +221,46 @@ const fullInputSchema = lazySchema(() => {
         .optional()
         .describe(
           process.env.USER_TYPE === 'ant'
-            ? 'Isolation mode. "worktree" creates a temporary git worktree so the agent works on an isolated copy of the repo. "remote" launches the agent in a remote CCR environment (always runs in background).'
-            : 'Isolation mode. "worktree" creates a temporary git worktree so the agent works on an isolated copy of the repo.',
+            ? '隔离模式。"worktree" 创建一个临时的 git worktree，使代理在仓库的隔离副本上工作。"remote" 在远程 CCR 环境中启动代理（始终在后台运行）。'
+            : '隔离模式。"worktree" 创建一个临时的 git worktree，使代理在仓库的隔离副本上工作。',
         ),
       cwd: z
         .string()
         .optional()
         .describe(
-          'Absolute path to run the agent in. Overrides the working directory for all filesystem and shell operations within this agent. Mutually exclusive with isolation: "worktree".',
+          '运行代理的绝对路径。覆盖此代理内所有文件系统和 shell 操作的工作目录。与 isolation: "worktree" 互斥。',
         ),
     })
 })
 
-// Strip optional fields from the schema when the backing feature is off so
-// the model never sees them. Done via .omit() rather than conditional spread
-// inside .extend() because the spread-ternary breaks Zod's type inference
-// (field type collapses to `unknown`). The ternary return produces a union
-// type, but call() destructures via the explicit AgentToolInput type below
-// which always includes all optional fields.
+// 当底层功能关闭时，从模式中移除可选字段，这样模型就永远不会看到它
+// 们。通过 .omit() 完成，而不是在 .extend() 内部
+// 使用条件展开，因为展开三元运算符会破坏 Zod 的类型推断（字段
+// 类型坍缩为 `unknown`）。三元运算符返回一个联合类型，但
+// call() 通过下面显式的 AgentToolInput 类
+// 型进行解构，该类型始终包含所有可选字段。
 export const inputSchema = lazySchema(() => {
   const schema = feature('KAIROS')
     ? fullInputSchema()
     : fullInputSchema().omit({ cwd: true })
 
-  // GrowthBook-in-lazySchema is acceptable here (unlike subagent_type, which
-  // was removed in 906da6c723): the divergence window is one-session-per-
-  // gate-flip via _CACHED_MAY_BE_STALE disk read, and worst case is either
-  // "schema shows a no-op param" (gate flips on mid-session: param ignored
-  // by forceAsync) or "schema hides a param that would've worked" (gate
-  // flips off mid-session: everything still runs async via memoized
-  // forceAsync). No Zod rejection, no crash — unlike required→optional.
+  // 此处使用 GrowthBook-in-lazySchema 是可接受的（与 sub
+  // agent_type 不同，后者已在 906da6c723 中移除）：差异窗口是
+  // 通过 _CACHED_MAY_BE_STALE 磁盘读取的每次功能开关翻转的单会
+  // 话窗口，最坏情况要么是“模式显示一个无操作的参数”（会话中途开关打开：参数被 f
+  // orceAsync 忽略），要么是“模式隐藏了一个本可工作的参数”（会话中途
+  // 开关关闭：所有内容仍通过记忆化的 forceAsync 异步运行）。没有
+  // Zod 拒绝，没有崩溃 —— 与 required→optional 不同。
   return isBackgroundTasksDisabled || isForkSubagentEnabled()
     ? schema.omit({ run_in_background: true })
     : schema
 })
 type InputSchema = ReturnType<typeof inputSchema>
 
-// Explicit type widens the schema inference to always include all optional
-// fields even when .omit() strips them for gating (cwd, run_in_background).
-// subagent_type is optional; call() defaults it to general-purpose when the
-// fork gate is off, or routes to the fork path when the gate is on.
+// 显式类型拓宽了模式推断，使其始终包含所有可选字段，即使 .omit(
+// ) 因功能开关而移除了它们（cwd, run_in_backgrou
+// nd）。subagent_type 是可选的；当分叉开关关闭时，ca
+// ll() 默认其为通用类型，当开关打开时，则路由到分叉路径。
 type AgentToolInput = z.infer<ReturnType<typeof baseInputSchema>> & {
   name?: string
   team_name?: string
@@ -269,7 +269,7 @@ type AgentToolInput = z.infer<ReturnType<typeof baseInputSchema>> & {
   cwd?: string
 }
 
-// Output schema - multi-agent spawned schema added dynamically at runtime when enabled
+// 输出模式 - 启用时在运行时动态添加的多代理衍生模式
 export const outputSchema = lazySchema(() => {
   const syncOutputSchema = agentToolResultSchema().extend({
     status: z.literal('completed'),
@@ -278,17 +278,17 @@ export const outputSchema = lazySchema(() => {
 
   const asyncOutputSchema = z.object({
     status: z.literal('async_launched'),
-    agentId: z.string().describe('The ID of the async agent'),
-    description: z.string().describe('The description of the task'),
-    prompt: z.string().describe('The prompt for the agent'),
+    agentId: z.string().describe('异步代理的 ID'),
+    description: z.string().describe('任务的描述'),
+    prompt: z.string().describe('代理的提示'),
     outputFile: z
       .string()
-      .describe('Path to the output file for checking agent progress'),
+      .describe('用于检查代理进度的输出文件路径'),
     canReadOutputFile: z
       .boolean()
       .optional()
       .describe(
-        'Whether the calling agent has Read/Bash tools to check progress',
+        '调用代理是否具备读取/执行 Bash 工具以检查进度',
       ),
   })
 
@@ -297,8 +297,8 @@ export const outputSchema = lazySchema(() => {
 type OutputSchema = ReturnType<typeof outputSchema>
 type Output = z.input<OutputSchema>
 
-// Private type for teammate spawn results - excluded from exported schema for dead code elimination
-// The 'teammate_spawned' status string is only included when ENABLE_AGENT_SWARMS is true
+// 队友生成结果的私有类型 - 为消除死代码已从导出模式中排除。仅当 ENABLE_AGENT_SW
+// ARMS 为 true 时，才包含 'teammate_spawned' 状态字符串
 type TeammateSpawnedOutput = {
   status: 'teammate_spawned'
   prompt: string
@@ -316,11 +316,11 @@ type TeammateSpawnedOutput = {
   plan_mode_required?: boolean
 }
 
-// Combined output type including both public and internal types
-// Note: TeammateSpawnedOutput type is fine - TypeScript types are erased at compile time
-// Private type for remote-launched results — excluded from exported schema
-// like TeammateSpawnedOutput for dead code elimination purposes. Exported
-// for UI.tsx to do proper discriminated-union narrowing instead of ad-hoc casts.
+// 包含公共和内部类型的组合输出类型。注意：Teammate
+// SpawnedOutput 类型没问题 - TypeScript 类型在编译时
+// 会被擦除。远程启动结果的私有类型 — 为消除死代码，已像 Team
+// mateSpawnedOutput 一样从导出模式中排除。导出供
+// UI.tsx 使用，以便进行正确的可辨识联合类型收窄，而非临时类型转换。
 export type RemoteLaunchedOutput = {
   status: 'remote_launched'
   taskId: string
@@ -333,15 +333,15 @@ export type RemoteLaunchedOutput = {
 type InternalOutput = Output | TeammateSpawnedOutput | RemoteLaunchedOutput
 
 import type { AgentToolProgress, ShellProgress } from 'src/types/tools.js'
-// AgentTool forwards both its own progress events and shell progress
-// events from the sub-agent so the SDK receives tool_progress updates during bash/powershell runs.
+// AgentTool 会转发其自身的进度事件以及来自子代理的 shell 进
+// 度事件，以便 SDK 在 bash/powershell 运行期间接收 tool_progress 更新。
 export type Progress = AgentToolProgress | ShellProgress
 
 export const AgentTool = buildTool({
   async prompt({ agents, tools, getToolPermissionContext, allowedAgentTypes }) {
     const toolPermissionContext = await getToolPermissionContext()
 
-    // Get MCP servers that have tools available
+    // 获取拥有可用工具的 MCP 服务器
     const mcpServersWithTools: string[] = []
     for (const tool of tools) {
       if (tool.name?.startsWith('mcp__')) {
@@ -353,7 +353,7 @@ export const AgentTool = buildTool({
       }
     }
 
-    // Filter agents: first by MCP requirements, then by permission rules
+    // 筛选代理：首先根据 MCP 要求，然后根据权限规则
     const agentsWithMcpRequirementsMet = filterAgentsByMcpRequirements(
       agents,
       mcpServersWithTools,
@@ -364,19 +364,19 @@ export const AgentTool = buildTool({
       AGENT_TOOL_NAME,
     )
 
-    // Use inline env check instead of coordinatorModule to avoid circular
-    // dependency issues during test module loading.
+    // 使用内联环境检查而非 coordinatorModule，
+    // 以避免测试模块加载期间的循环依赖问题。
     const isCoordinator = feature('COORDINATOR_MODE')
       ? isEnvTruthy(process.env.CLAUDE_CODE_COORDINATOR_MODE)
       : false
     return await getPrompt(filteredAgents, isCoordinator, allowedAgentTypes)
   },
   name: AGENT_TOOL_NAME,
-  searchHint: 'delegate work to a subagent',
+  searchHint: '将工作委托给子代理',
   aliases: [LEGACY_AGENT_TOOL_NAME],
   maxResultSizeChars: 100_000,
   async description() {
-    return 'Launch a new agent'
+    return '启动一个新代理'
   },
   get inputSchema(): InputSchema {
     return inputSchema()
@@ -405,41 +405,41 @@ export const AgentTool = buildTool({
     const startTime = Date.now()
     const model = isCoordinatorMode() ? undefined : modelParam
 
-    // Get app state for permission mode and agent filtering
+    // 获取应用状态以用于权限模式和代理筛选
     const appState = toolUseContext.getAppState()
     const permissionMode = appState.toolPermissionContext.mode
-    // In-process teammates get a no-op setAppState; setAppStateForTasks
-    // reaches the root store so task registration/progress/kill stay visible.
+    // 进程内队友获得一个无操作的 setAppState；setAppS
+    // tateForTasks 会到达根存储，因此任务注册/进度/终止保持可见。
     const rootSetAppState =
       toolUseContext.setAppStateForTasks ?? toolUseContext.setAppState
 
-    // Check if user is trying to use agent teams without access
+    // 检查用户是否试图使用其无权访问的代理团队
     if (team_name && !isAgentSwarmsEnabled()) {
-      throw new Error('Agent Teams is not yet available on your plan.')
+      throw new Error('代理团队功能在您的订阅计划中尚不可用。')
     }
 
-    // Teammates (in-process or tmux) passing `name` would trigger spawnTeammate()
-    // below, but TeamFile.members is a flat array with one leadAgentId — nested
-    // teammates land in the roster with no provenance and confuse the lead.
+    // 传递 `name` 参数的队友（进程内或 tmux）会触发下面的 spawnTeamm
+    // ate()，但 TeamFile.members 是一个仅包含一个 leadAge
+    // ntId 的扁平数组 — 嵌套的队友会进入花名册但无来源信息，导致主代理混淆。
     const teamName = resolveTeamName({ team_name }, appState)
     if (isTeammate() && teamName && name) {
       throw new Error(
-        'Teammates cannot spawn other teammates — the team roster is flat. To spawn a subagent instead, omit the `name` parameter.',
+        '队友不能生成其他队友 — 团队花名册是扁平的。若要生成子代理，请省略 `name` 参数。',
       )
     }
-    // In-process teammates cannot spawn background agents (their lifecycle is
-    // tied to the leader's process). Tmux teammates are separate processes and
-    // can manage their own background agents.
+    // 进程内队友不能生成后台代理（其生命周期与
+    // 主进程绑定）。Tmux 队友是独立进程，可
+    // 以管理自己的后台代理。
     if (isInProcessTeammate() && teamName && run_in_background === true) {
       throw new Error(
-        'In-process teammates cannot spawn background agents. Use run_in_background=false for synchronous subagents.',
+        '进程内队友不能生成后台代理。对于同步子代理，请使用 run_in_background=false。',
       )
     }
 
-    // Check if this is a multi-agent spawn request
-    // Spawn is triggered when team_name is set (from param or context) and name is provided
+    // 检查这是否为多代理生成请求。当设置了
+    // team_name（来自参数或上下文）且提供了 name 时，会触发生成。
     if (teamName && name) {
-      // Set agent definition color for grouped UI display before spawning
+      // 在生成前，为分组 UI 显示设置代理定义颜色
       const agentDef = subagent_type
         ? toolUseContext.options.agentDefinitions.activeAgents.find(
             a => a.agentType === subagent_type,
@@ -463,10 +463,10 @@ export const AgentTool = buildTool({
         toolUseContext,
       )
 
-      // Type assertion uses TeammateSpawnedOutput (defined above) instead of any.
-      // This type is excluded from the exported outputSchema for dead code elimination.
-      // Cast through unknown because TeammateSpawnedOutput is intentionally
-      // not part of the exported Output union (for dead code elimination purposes).
+      // 类型断言使用 TeammateSpawnedOutput（上文定义）而非
+      // any。此类型为消除死代码已从导出的 outputSchema 中排除。通过 un
+      // known 进行转换，因为 TeammateSpawnedOutpu
+      // t 有意不作为导出的 Output 联合类型的一部分（出于消除死代码的目的）。
       const spawnResult: TeammateSpawnedOutput = {
         status: 'teammate_spawned' as const,
         prompt,
@@ -475,10 +475,10 @@ export const AgentTool = buildTool({
       return { data: spawnResult } as unknown as { data: Output }
     }
 
-    // Fork subagent experiment routing:
-    // - subagent_type set: use it (explicit wins)
-    // - subagent_type omitted, gate on: fork path (undefined)
-    // - subagent_type omitted, gate off: default general-purpose
+    // 分叉子代理实验路由：- 设置了 suba
+    // gent_type：使用它（显式优先）- 省略了 s
+    // ubagent_type，功能开关开启：分叉路径（undefine
+    // d）- 省略了 subagent_type，功能开关关闭：默认通用路径
     const effectiveType =
       subagent_type ??
       (isForkSubagentEnabled() ? undefined : GENERAL_PURPOSE_AGENT.agentType)
@@ -486,28 +486,28 @@ export const AgentTool = buildTool({
 
     let selectedAgent: AgentDefinition
     if (isForkPath) {
-      // Recursive fork guard: fork children keep the Agent tool in their
-      // pool for cache-identical tool defs, so reject fork attempts at call
-      // time. Primary check is querySource (compaction-resistant — set on
-      // context.options at spawn time, survives autocompact's message
-      // rewrite). Message-scan fallback catches any path where querySource
-      // wasn't threaded.
+      // 递归分叉防护：分叉子进程在其工具池中保留 Agent 工具
+      // （用于缓存相同的工具定义），因此在调用时拒绝分叉尝试。主要检
+      // 查是 querySource（抗压缩 — 在生成时于 con
+      // text.options 上设置，在自动压缩的消息重写后
+      // 仍存在）。消息扫描回退用于捕获任何未传递 querySour
+      // ce 的路径。
       if (
         toolUseContext.options.querySource ===
           `agent:builtin:${FORK_AGENT.agentType}` ||
         isInForkChild(toolUseContext.messages)
       ) {
         throw new Error(
-          'Fork is not available inside a forked worker. Complete your task directly using your tools.',
+          '在分叉的工作线程内部无法使用分叉功能。请直接使用您的工具完成任务。',
         )
       }
       selectedAgent = FORK_AGENT
     } else {
-      // Filter agents to exclude those denied via Agent(AgentName) syntax
+      // 筛选代理以排除那些通过 Agent(AgentName) 语法被拒绝的代理
       const allAgents = toolUseContext.options.agentDefinitions.activeAgents
       const { allowedAgentTypes } = toolUseContext.options.agentDefinitions
       const agents = filterDeniedAgents(
-        // When allowedAgentTypes is set (from Agent(x,y) tool spec), restrict to those types
+        // 当设置了 allowedAgentTypes（来自 Agent(x,y) 工具规范）时，限制为这些类型
         allowedAgentTypes
           ? allAgents.filter(a => allowedAgentTypes.includes(a.agentType))
           : allAgents,
@@ -517,7 +517,7 @@ export const AgentTool = buildTool({
 
       const found = agents.find(agent => agent.agentType === effectiveType)
       if (!found) {
-        // Check if the agent exists but is denied by permission rules
+        // 检查代理是否存在但被权限规则拒绝
         const agentExistsButDenied = allAgents.find(
           agent => agent.agentType === effectiveType,
         )
@@ -528,11 +528,11 @@ export const AgentTool = buildTool({
             effectiveType,
           )
           throw new Error(
-            `Agent type '${effectiveType}' has been denied by permission rule '${AGENT_TOOL_NAME}(${effectiveType})' from ${denyRule?.source ?? 'settings'}.`,
+            `代理类型 '${effectiveType}' 已被来自 ${denyRule?.source ?? 'settings'} 的权限规则 '${AGENT_TOOL_NAME}(${effectiveType})' 拒绝。`,
           )
         }
         throw new Error(
-          `Agent type '${effectiveType}' not found. Available agents: ${agents
+          `未找到代理类型 '${effectiveType}'。可用代理：${agents
             .map(a => a.agentType)
             .join(', ')}`,
         )
@@ -540,29 +540,29 @@ export const AgentTool = buildTool({
       selectedAgent = found
     }
 
-    // Same lifecycle constraint as the run_in_background guard above, but for
-    // agent definitions that force background via `background: true`. Checked
-    // here because selectedAgent is only now resolved.
+    // 与上述 run_in_background 防护相同的生命周期约束，但适用于
+    // 通过 `background: true` 强制后台运行的代理定义。在此处检
+    // 查是因为 selectedAgent 现在才被解析。
     if (
       isInProcessTeammate() &&
       teamName &&
       selectedAgent.background === true
     ) {
       throw new Error(
-        `In-process teammates cannot spawn background agents. Agent '${selectedAgent.agentType}' has background: true in its definition.`,
+        `进程内队友不能生成后台代理。代理 '${selectedAgent.agentType}' 在其定义中设置了 background: true。`,
       )
     }
 
-    // Capture for type narrowing — `let selectedAgent` prevents TS from
-    // narrowing property types across the if-else assignment above.
+    // 用于类型收窄的捕获 —— `let selectedAgent` 防止
+    // TypeScript 在上方的 if-else 赋值中收窄属性类型。
     const requiredMcpServers = selectedAgent.requiredMcpServers
 
-    // Check if required MCP servers have tools available
-    // A server that's connected but not authenticated won't have any tools
+    // 检查必需的 MCP 服务器是否有可
+    // 用工具。已连接但未认证的服务器将没有任何工具。
     if (requiredMcpServers?.length) {
-      // If any required servers are still pending (connecting), wait for them
-      // before checking tool availability. This avoids a race condition where
-      // the agent is invoked before MCP servers finish connecting.
+      // 如果任何必需的服务器仍在连接中，则在检查工
+      // 具可用性之前等待它们。这避免了在 MCP
+      // 服务器完成连接之前调用代理的竞态条件。
       const hasPendingRequiredServers = appState.mcp.clients.some(
         c =>
           c.type === 'pending' &&
@@ -581,8 +581,8 @@ export const AgentTool = buildTool({
           await sleep(POLL_INTERVAL_MS)
           currentAppState = toolUseContext.getAppState()
 
-          // Early exit: if any required server has already failed, no point
-          // waiting for other pending servers — the check will fail regardless.
+          // 提前退出：如果任何必需的服务器已经失败，则无需等
+          // 待其他连接中的服务器 —— 无论如何检查都会失败。
           const hasFailedRequiredServer = currentAppState.mcp.clients.some(
             c =>
               c.type === 'failed' &&
@@ -603,11 +603,11 @@ export const AgentTool = buildTool({
         }
       }
 
-      // Get servers that actually have tools (meaning they're connected AND authenticated)
+      // 获取实际拥有工具的服务器（意味着它们已连接且已认证）
       const serversWithTools: string[] = []
       for (const tool of currentAppState.mcp.tools) {
         if (tool.name?.startsWith('mcp__')) {
-          // Extract server name from tool name (format: mcp__serverName__toolName)
+          // 从工具名称中提取服务器名称（格式：mcp__serverName__toolName）
           const parts = tool.name.split('__')
           const serverName = parts[1]
           if (serverName && !serversWithTools.includes(serverName)) {
@@ -624,19 +624,19 @@ export const AgentTool = buildTool({
             ),
         )
         throw new Error(
-          `Agent '${selectedAgent.agentType}' requires MCP servers matching: ${missing.join(', ')}. ` +
-            `MCP servers with tools: ${serversWithTools.length > 0 ? serversWithTools.join(', ') : 'none'}. ` +
-            `Use /mcp to configure and authenticate the required MCP servers.`,
+          `代理 '${selectedAgent.agentType}' 需要匹配以下 MCP 服务器：${missing.join(', ')}。` +
+            `拥有工具的 MCP 服务器：${serversWithTools.length > 0 ? serversWithTools.join(', ') : 'none'}。` +
+            `使用 /mcp 来配置和认证所需的 MCP 服务器。`,
         )
       }
     }
 
-    // Initialize the color for this agent if it has a predefined one
+    // 如果此代理有预定义的颜色，则初始化其颜色
     if (selectedAgent.color) {
       setAgentColor(selectedAgent.agentType, selectedAgent.color)
     }
 
-    // Resolve agent params for logging (these are already resolved in runAgent)
+    // 解析用于日志记录的代理参数（这些参数已在 runAgent 中解析）
     const resolvedAgentModel = getAgentModel(
       selectedAgent.model,
       toolUseContext.options.mainLoopModel,
@@ -661,18 +661,19 @@ export const AgentTool = buildTool({
       is_fork: isForkPath,
     })
 
-    // Resolve effective isolation mode (explicit param overrides agent def)
+    // 解析有效的隔离模式（显式参数会覆盖代理定义）
     const effectiveIsolation = isolation ?? selectedAgent.isolation
 
-    // Remote isolation: delegate to CCR. Gated ant-only — the guard enables
-    // dead code elimination of the entire block for external builds.
+    // 远程隔离：委托给 CCR。仅限内部访问的防护门 ——
+    // 该守卫使得外部构建时能对整个代码块进行死代码消除。
     if (process.env.USER_TYPE === 'ant' && effectiveIsolation === 'remote') {
       const eligibility = await checkRemoteAgentEligibility()
       if (!eligibility.eligible) {
         const reasons = (eligibility as { eligible: false; errors: BackgroundRemoteSessionPrecondition[] }).errors
           .map(formatPreconditionError)
           .join('\n')
-        throw new Error(`Cannot launch remote agent:\n${reasons}`)
+        throw new Error(`无法启动远程代理：
+${reasons}`)
       }
 
       let bundleFailHint: string | undefined
@@ -685,7 +686,7 @@ export const AgentTool = buildTool({
         },
       })
       if (!session) {
-        throw new Error(bundleFailHint ?? 'Failed to create remote session')
+        throw new Error(bundleFailHint ?? '创建远程会话失败')
       }
 
       const { taskId, sessionId } = registerRemoteAgentTask({
@@ -711,15 +712,15 @@ export const AgentTool = buildTool({
       }
       return { data: remoteResult } as unknown as { data: Output }
     }
-    // System prompt + prompt messages: branch on fork path.
+    // 系统提示 + 提示消息：根据 fork 路径分支处理。
     //
-    // Fork path: child inherits the PARENT's system prompt (not FORK_AGENT's)
-    // for cache-identical API request prefixes. Prompt messages are built via
-    // buildForkedMessages() which clones the parent's full assistant message
-    // (all tool_use blocks) + placeholder tool_results + per-child directive.
+    // Fork 路径：子进程继承父进程的系统提示（而非 FORK_AGENT 的
+    // ），以实现缓存一致的 API 请求前缀。提示消息通过 buildForke
+    // dMessages() 构建，该方法克隆父进程的完整助手消息（所有 too
+    // l_use 块）+ 占位符 tool_results + 每个子进程的指令。
     //
-    // Normal path: build the selected agent's own system prompt with env
-    // details, and use a simple user message for the prompt.
+    // 常规路径：使用环境详情构建所选代理自身的系统
+    // 提示，并使用简单的用户消息作为提示。
     let enhancedSystemPrompt: string[] | undefined
     let forkParentSystemPrompt:
       | ReturnType<typeof buildEffectiveSystemPrompt>
@@ -730,8 +731,8 @@ export const AgentTool = buildTool({
       if (toolUseContext.renderedSystemPrompt) {
         forkParentSystemPrompt = toolUseContext.renderedSystemPrompt
       } else {
-        // Fallback: recompute. May diverge from parent's cached bytes if
-        // GrowthBook state changed between parent turn-start and fork spawn.
+        // 后备方案：重新计算。如果 GrowthBook 状态在父回合开
+        // 始和 fork 生成之间发生变化，可能与父进程缓存的字节产生差异。
         const mainThreadAgentDefinition = appState.agent
           ? appState.agentDefinitions.activeAgents.find(
               a => a.agentType === appState.agent,
@@ -761,10 +762,10 @@ export const AgentTool = buildTool({
           appState.toolPermissionContext.additionalWorkingDirectories.keys(),
         )
 
-        // All agents have getSystemPrompt - pass toolUseContext to all
+        // 所有代理都有 getSystemPrompt 方法 —— 将 toolUseContext 传递给所有代理
         const agentPrompt = selectedAgent.getSystemPrompt({ toolUseContext })
 
-        // Log agent memory loaded event for subagents
+        // 记录子代理的代理内存加载事件
         if (selectedAgent.memory) {
           logEvent('tengu_agent_memory_loaded', {
             ...(process.env.USER_TYPE === 'ant' && {
@@ -778,7 +779,7 @@ export const AgentTool = buildTool({
           })
         }
 
-        // Apply environment details enhancement
+        // 应用环境详情增强
         enhancedSystemPrompt = await enhanceSystemPromptWithEnvDetails(
           [agentPrompt],
           resolvedAgentModel,
@@ -786,7 +787,7 @@ export const AgentTool = buildTool({
         )
       } catch (error) {
         logForDebugging(
-          `Failed to get system prompt for agent ${selectedAgent.agentType}: ${errorMessage(error)}`,
+          `获取代理 ${selectedAgent.agentType} 的系统提示失败：${errorMessage(error)}`,
         )
       }
       promptMessages = [createUserMessage({ content: prompt })]
@@ -803,23 +804,23 @@ export const AgentTool = buildTool({
         !isBackgroundTasksDisabled,
     }
 
-    // Use inline env check instead of coordinatorModule to avoid circular
-    // dependency issues during test module loading.
+    // 使用内联环境检查而非 coordinatorModule，
+    // 以避免测试模块加载期间的循环依赖问题。
     const isCoordinator = feature('COORDINATOR_MODE')
       ? isEnvTruthy(process.env.CLAUDE_CODE_COORDINATOR_MODE)
       : false
 
-    // Fork subagent experiment: force ALL spawns async for a unified
-    // <task-notification> interaction model (not just fork spawns — all of them).
+    // Fork 子代理实验：强制所有生成操作异步执行，以实现统一的 <task
+    // -notification> 交互模型（不仅仅是 fork 生成 —— 所有生成操作）。
     const forceAsync = isForkSubagentEnabled()
 
-    // Assistant mode: force all agents async. Synchronous subagents hold the
-    // main loop's turn open until they complete — the daemon's inputQueue
-    // backs up, and the first overdue cron catch-up on spawn becomes N
-    // serial subagent turns blocking all user input. Same gate as
-    // executeForkedSlashCommand's fire-and-forget path; the
-    // <task-notification> re-entry there is handled by the else branch
-    // below (registerAsyncAgentTask + notifyOnCompletion).
+    // 助手模式：强制所有代理异步执行。同步子代理会保持主循环的回合开放直到它们完成
+    // —— 守护进程的 inputQueue 会积压，并且在生成时首次逾期的 c
+    // ron 追赶会变成 N 个串行子代理回合阻塞所有用户输入。与 exec
+    // uteForkedSlashCommand 的即发即弃路径使用相同
+    // 的防护门；那里的 <task-notification>
+    // 重新进入由下方的 else 分支处理（registerAsyncAge
+    // ntTask + notifyOnCompletion）。
     const assistantForceAsync = feature('KAIROS')
       ? appState.kairosEnabled
       : false
@@ -832,11 +833,11 @@ export const AgentTool = buildTool({
         assistantForceAsync ||
         (proactiveModule?.isProactiveActive() ?? false)) &&
       !isBackgroundTasksDisabled
-    // Assemble the worker's tool pool independently of the parent's.
-    // Workers always get their tools from assembleToolPool with their own
-    // permission mode, so they aren't affected by the parent's tool
-    // restrictions. This is computed here so that runAgent doesn't need to
-    // import from tools.ts (which would create a circular dependency).
+    // 独立于父进程组装工作进程的工具池。工作进程总是通
+    // 过 assembleToolPool 获取自己的工具
+    // ，并使用其自身的权限模式，因此不受父进程工具限
+    // 制的影响。在此处计算，以便 runAgent 无需从
+    // tools.ts 导入（否则会产生循环依赖）。
     const workerPermissionContext = {
       ...appState.toolPermissionContext,
       mode: selectedAgent.permissionMode ?? 'acceptEdits',
@@ -846,10 +847,10 @@ export const AgentTool = buildTool({
       appState.mcp.tools,
     )
 
-    // Create a stable agent ID early so it can be used for worktree slug
+    // 尽早创建稳定的代理 ID，以便用于工作树 slug
     const earlyAgentId = createAgentId()
 
-    // Set up worktree isolation if requested
+    // 如果请求，则设置工作树隔离
     let worktreeInfo: {
       worktreePath: string
       worktreeBranch?: string
@@ -863,9 +864,9 @@ export const AgentTool = buildTool({
       worktreeInfo = await createAgentWorktree(slug)
     }
 
-    // Fork + worktree: inject a notice telling the child to translate paths
-    // and re-read potentially stale files. Appended after the fork directive
-    // so it appears as the most recent guidance the child sees.
+    // Fork + 工作树：注入一条通知，告知子进程转换
+    // 路径并重新读取可能已过时的文件。追加在 fork
+    // 指令之后，使其成为子进程看到的最新指导。
     if (isForkPath && worktreeInfo) {
       promptMessages.push(
         createUserMessage({
@@ -887,38 +888,38 @@ export const AgentTool = buildTool({
           isBuiltInAgent(selectedAgent),
         ),
       model: isForkPath ? undefined : model,
-      // Fork path: pass parent's system prompt AND parent's exact tool
-      // array (cache-identical prefix). workerTools is rebuilt under
-      // permissionMode 'bubble' which differs from the parent's mode, so
-      // its tool-def serialization diverges and breaks cache at the first
-      // differing tool. useExactTools also inherits the parent's
-      // thinkingConfig and isNonInteractiveSession (see runAgent.ts).
+      // 分叉路径：传递父级的系统提示词和父级完全相同的工具数组（缓存相同
+      // 的前缀）。workerTools 在权限模式为 'bubble
+      // ' 时被重建，该模式与父级模式不同，因此其工具定义序列化会偏离，并
+      // 在第一个不同的工具处破坏缓存。useExactTools 也会继承父
+      // 级的 thinkingConfig 和 isNonInte
+      // ractiveSession（参见 runAgent.ts）。
       //
-      // Normal path: when a cwd override is in effect (worktree isolation
-      // or explicit cwd), skip the pre-built system prompt so runAgent's
-      // buildAgentSystemPrompt() runs inside wrapWithCwd where getCwd()
-      // returns the override path.
+      // 正常路径：当 cwd 覆盖生效时（工作树隔离或显式 cwd），跳过预构建
+      // 的系统提示词，以便 runAgent 的 buildAgentSyst
+      // emPrompt() 在 wrapWithCwd 内部运行，其中 ge
+      // tCwd() 返回覆盖路径。
       override: isForkPath
         ? { systemPrompt: forkParentSystemPrompt }
         : enhancedSystemPrompt && !worktreeInfo && !cwd
           ? { systemPrompt: asSystemPrompt(enhancedSystemPrompt) }
           : undefined,
       availableTools: isForkPath ? toolUseContext.options.tools : workerTools,
-      // Pass parent conversation when the fork-subagent path needs full
-      // context. useExactTools inherits thinkingConfig (runAgent.ts:624).
+      // 当分叉子代理路径需要完整上下文时，传递父级对话。useExactTool
+      // s 继承 thinkingConfig（runAgent.ts:624）。
       forkContextMessages: isForkPath ? toolUseContext.messages : undefined,
       ...(isForkPath && { useExactTools: true }),
       worktreePath: worktreeInfo?.worktreePath,
       description,
     }
 
-    // Helper to wrap execution with a cwd override: explicit cwd arg (KAIROS)
-    // takes precedence over worktree isolation path.
+    // 用于包装执行并附带 cwd 覆盖的辅助函数：显式 cwd 参
+    // 数（KAIROS）优先于工作树隔离路径。
     const cwdOverridePath = cwd ?? worktreeInfo?.worktreePath
     const wrapWithCwd = <T,>(fn: () => T): T =>
       cwdOverridePath ? runWithCwdOverride(cwdOverridePath, fn) : fn()
 
-    // Helper to clean up worktree after agent completes
+    // 用于在代理完成后清理工作树的辅助函数
     const cleanupWorktreeIfNeeded = async (): Promise<{
       worktreePath?: string
       worktreeBranch?: string
@@ -926,31 +927,31 @@ export const AgentTool = buildTool({
       if (!worktreeInfo) return {}
       const { worktreePath, worktreeBranch, headCommit, gitRoot, hookBased } =
         worktreeInfo
-      // Null out to make idempotent — guards against double-call if code
-      // between cleanup and end of try throws into catch
+      // 置空以实现幂等性——防止在清理和 try 块结束之间的代
+      // 码抛出异常进入 catch 块时被重复调用
       worktreeInfo = null
       if (hookBased) {
-        // Hook-based worktrees are always kept since we can't detect VCS changes
-        logForDebugging(`Hook-based agent worktree kept at: ${worktreePath}`)
+        // 基于钩子的工作树始终保留，因为我们无法检测 VCS 变更
+        logForDebugging(`基于钩子的代理工作树保留在：${worktreePath}`)
         return { worktreePath }
       }
       if (headCommit) {
         const changed = await hasWorktreeChanges(worktreePath, headCommit)
         if (!changed) {
           await removeAgentWorktree(worktreePath, worktreeBranch, gitRoot)
-          // Clear worktreePath from metadata so resume doesn't try to use
-          // a deleted directory. Fire-and-forget to match runAgent's
-          // writeAgentMetadata handling.
+          // 从元数据中清除 worktreePath，以便恢复时不会尝试使用已删除的
+          // 目录。采用即发即弃方式，以匹配 runAgent 的 writeA
+          // gentMetadata 处理。
           void writeAgentMetadata(asAgentId(earlyAgentId), {
             agentType: selectedAgent.agentType,
             description,
           }).catch(_err =>
-            logForDebugging(`Failed to clear worktree metadata: ${_err}`),
+            logForDebugging(`清除工作树元数据失败：${_err}`),
           )
           return {}
         }
       }
-      logForDebugging(`Agent worktree has changes, keeping: ${worktreePath}`)
+      logForDebugging(`代理工作树有变更，保留：${worktreePath}`)
       return { worktreePath, worktreeBranch }
     }
 
@@ -962,15 +963,15 @@ export const AgentTool = buildTool({
         prompt,
         selectedAgent,
         setAppState: rootSetAppState,
-        // Don't link to parent's abort controller -- background agents should
-        // survive when the user presses ESC to cancel the main thread.
-        // They are killed explicitly via chat:killAgents.
+        // 不要链接到父级的中止控制器——当用户按下 ESC 取消
+        // 主线程时，后台代理应该继续存活。它们通过 cha
+        // t:killAgents 被显式终止。
         toolUseId: toolUseContext.toolUseId,
       })
 
-      // Register name → agentId for SendMessage routing. Post-registerAsyncAgent
-      // so we don't leave a stale entry if spawn fails. Sync agents skipped —
-      // coordinator is blocked, so SendMessage routing doesn't apply.
+      // 为 SendMessage 路由注册名称 → agentId。在 registe
+      // rAsyncAgent 之后进行，这样如果生成失败就不会留下过时的条目。同步代
+      // 理被跳过——协调器被阻塞，因此 SendMessage 路由不适用。
       if (name) {
         rootSetAppState(prev => {
           const next = new Map(prev.agentNameRegistry)
@@ -979,11 +980,11 @@ export const AgentTool = buildTool({
         })
       }
 
-      // Wrap async agent execution in agent context for analytics attribution
+      // 将异步代理执行包装在代理上下文中，以便进行分析归因
       const asyncAgentContext: SubagentContext = {
         agentId: asyncAgentId,
-        // For subagents from teammates: use team lead's session
-        // For subagents from main REPL: undefined (no parent session)
+        // 对于来自队友的子代理：使用团队负责人的会话。对于来自
+        // 主 REPL 的子代理：undefined（无父级会话）
         parentSessionId: getParentSessionId(),
         agentType: 'subagent' as const,
         subagentName: selectedAgent.agentType,
@@ -993,11 +994,11 @@ export const AgentTool = buildTool({
         invocationEmitted: false,
       }
 
-      // Workload propagation: handlePromptSubmit wraps the entire turn in
-      // runWithWorkload (AsyncLocalStorage). ALS context is captured at
-      // invocation time — when this `void` fires — and survives every await
-      // inside. No capture/restore needed; the detached closure sees the
-      // parent turn's workload automatically, isolated from its finally.
+      // 工作负载传播：handlePromptSubmit 将整个轮次包装
+      // 在 runWithWorkload（AsyncLocalStor
+      // age）中。ALS 上下文在调用时捕获——当这个 `void` 触发
+      // 时——并在内部的每个 await 中持续存在。无需捕获/恢复；分
+      // 离的闭包自动看到父级轮次的工作负载，与其 finally 块隔离。
       void runWithAgentContext(asyncAgentContext, () =>
         wrapWithCwd(() =>
           runAsyncAgentLifecycle({
@@ -1044,14 +1045,14 @@ export const AgentTool = buildTool({
         },
       }
     } else {
-      // Create an explicit agentId for sync agents
+      // 为同步代理创建一个显式的 agentId
       const syncAgentId = asAgentId(earlyAgentId)
 
-      // Set up agent context for sync execution (for analytics attribution)
+      // 为同步执行设置代理上下文（用于分析归因）
       const syncAgentContext: SubagentContext = {
         agentId: syncAgentId,
-        // For subagents from teammates: use team lead's session
-        // For subagents from main REPL: undefined (no parent session)
+        // 对于来自队友的子代理：使用团队负责人的会话。对于来自
+        // 主 REPL 的子代理：undefined（无父级会话）
         parentSessionId: getParentSessionId(),
         agentType: 'subagent' as const,
         subagentName: selectedAgent.agentType,
@@ -1061,8 +1062,8 @@ export const AgentTool = buildTool({
         invocationEmitted: false,
       }
 
-      // Wrap entire sync agent execution in context for analytics attribution
-      // and optionally in a worktree cwd override for filesystem isolation
+      // 将整个同步代理执行包装在上下文中，用于分析归因，并可选择
+      // 性地包装在工作树 cwd 覆盖中，以实现文件系统隔离
       return runWithAgentContext(syncAgentContext, () =>
         wrapWithCwd(async () => {
           const agentMessages: MessageType[] = []
@@ -1072,7 +1073,7 @@ export const AgentTool = buildTool({
             toolUseContext.options.tools,
           )
 
-          // Yield initial progress message to carry metadata (prompt)
+          // 产生初始进度消息以携带元数据（提示词）
           if (promptMessages.length > 0) {
             const normalizedPromptMessages = normalizeMessages(promptMessages)
             const normalizedFirstMessage = normalizedPromptMessages.find(
@@ -1095,12 +1096,12 @@ export const AgentTool = buildTool({
             }
           }
 
-          // Register as foreground task immediately so it can be backgrounded at any time
-          // Skip registration if background tasks are disabled
+          // 立即注册为前台任务，以便可以随时转为后台。如
+          // 果后台任务被禁用，则跳过注册
           let foregroundTaskId: string | undefined
-          // Create the background race promise once outside the loop — otherwise
-          // each iteration adds a new .then() reaction to the same pending
-          // promise, accumulating callbacks for the lifetime of the agent.
+          // 在循环外一次性创建后台竞态 promise——否则每次迭
+          // 代都会向同一个待处理的 promise 添加一个新的
+          // .then() 反应，在代理的生命周期内累积回调。
           let backgroundPromise: Promise<{ type: 'background' }> | undefined
           let cancelAutoBackground: (() => void) | undefined
           if (!isBackgroundTasksDisabled) {
@@ -1120,17 +1121,17 @@ export const AgentTool = buildTool({
             cancelAutoBackground = registration.cancelAutoBackground
           }
 
-          // Track if we've shown the background hint UI
+          // 跟踪是否已显示后台提示 UI
           let backgroundHintShown = false
-          // Track if the agent was backgrounded (cleanup handled by backgrounded finally)
+          // 跟踪代理是否已转为后台（清理由后台 finally 块处理）
           let wasBackgrounded = false
-          // Per-scope stop function — NOT shared with the backgrounded closure.
-          // idempotent: startAgentSummarization's stop() checks `stopped` flag.
+          // 每个作用域的停止函数——不与后台闭包共享。幂等性：startAgentSum
+          // marization 的 stop() 会检查 `stopped` 标志。
           let stopForegroundSummarization: (() => void) | undefined
-          // const capture for sound type narrowing inside the callback below
+          // 下面的回调函数内部使用 const 捕获以实现可靠的类型收窄
           const summaryTaskId = foregroundTaskId
 
-          // Get async iterator for the agent
+          // 获取代理的异步迭代器
           const agentIterator = runAgent({
             ...runAgentParams,
             override: {
@@ -1151,7 +1152,7 @@ export const AgentTool = buildTool({
                 : undefined,
           })[Symbol.asyncIterator]()
 
-          // Track if an error occurred during iteration
+          // 跟踪迭代期间是否发生错误
           let syncAgentError: Error | undefined
           let wasAborted = false
           let worktreeResult: {
@@ -1163,8 +1164,8 @@ export const AgentTool = buildTool({
             while (true) {
               const elapsed = Date.now() - agentStartTime
 
-              // Show background hint after threshold (but task is already registered)
-              // Skip if background tasks are disabled
+              // 在阈值后显示后台提示（但任务已注册）。如果
+              // 后台任务被禁用，则跳过
               if (
                 !isBackgroundTasksDisabled &&
                 !backgroundHintShown &&
@@ -1180,8 +1181,8 @@ export const AgentTool = buildTool({
                 })
               }
 
-              // Race between next message and background signal
-              // If background tasks are disabled, just await the next message directly
+              // 下一消息与后台信号的竞态条件
+              // 如果后台任务被禁用，则直接等待下一消息
               const nextMessagePromise = agentIterator.next()
               const raceResult = backgroundPromise
                 ? await Promise.race([
@@ -1196,35 +1197,35 @@ export const AgentTool = buildTool({
                     result: await nextMessagePromise,
                   }
 
-              // Check if we were backgrounded via backgroundAll()
-              // foregroundTaskId is guaranteed to be defined if raceResult.type is 'background'
-              // because backgroundPromise is only defined when foregroundTaskId is defined
+              // 检查我们是否通过 backgroundAll() 被置于后台 如果
+              // raceResult.type 是 'background'，则 foregroundTaskId 保证已
+              // 定义，因为 backgroundPromise 仅在 foregroundTaskId 定义时才被定义
               if (raceResult.type === 'background' && foregroundTaskId) {
                 const appState = toolUseContext.getAppState()
                 const task = appState.tasks[foregroundTaskId]
                 if (isLocalAgentTask(task) && task.isBackgrounded) {
-                  // Capture the taskId for use in the async callback
+                  // 捕获 taskId 以供异步回调使用
                   const backgroundedTaskId = foregroundTaskId
                   wasBackgrounded = true
-                  // Stop foreground summarization; the backgrounded closure
-                  // below owns its own independent stop function.
+                  // 停止前台摘要生成；下面的后台闭
+                  // 包拥有其独立的停止函数。
                   stopForegroundSummarization?.()
 
-                  // Workload: inherited via ALS at `void` invocation time,
-                  // same as the async-from-start path above.
-                  // Continue agent in background and return async result
+                  // 工作负载：通过 ALS 在 `void`
+                  // 调用时继承，与上述的异步启动路
+                  // 径相同。在后台继续运行代理并返回异步结果
                   void runWithAgentContext(syncAgentContext, async () => {
                     let stopBackgroundedSummarization: (() => void) | undefined
                     try {
-                      // Clean up the foreground iterator so its finally block runs
-                      // (releases MCP connections, session hooks, prompt cache tracking, etc.)
-                      // Timeout prevents blocking if MCP server cleanup hangs.
-                      // .catch() prevents unhandled rejection if timeout wins the race.
+                      // 清理前台迭代器，使其 finally 块得以执行
+                      // （释放 MCP 连接、会话钩子、提示缓存跟踪等）。如果 M
+                      // CP 服务器清理挂起，超时机制可防止阻塞。.c
+                      // atch() 可防止在超时赢得竞态时出现未处理的拒绝。
                       await Promise.race([
                         agentIterator.return(undefined).catch(() => {}),
                         sleep(1000),
                       ])
-                      // Initialize progress tracking from existing messages
+                      // 根据现有消息初始化进度跟踪
                       const tracker = createProgressTracker()
                       const resolveActivity2 =
                         createActivityDescriptionResolver(
@@ -1240,7 +1241,7 @@ export const AgentTool = buildTool({
                       }
                       for await (const msg of runAgent({
                         ...runAgentParams,
-                        isAsync: true, // Agent is now running in background
+                        isAsync: true, // 代理现已在后台运行
                         override: {
                           ...runAgentParams.override,
                           agentId: asAgentId(backgroundedTaskId),
@@ -1260,7 +1261,7 @@ export const AgentTool = buildTool({
                       })) {
                         agentMessages.push(msg)
 
-                        // Track progress for backgrounded agents
+                        // 跟踪后台代理的进度
                         updateProgressFromMessage(
                           tracker,
                           msg,
@@ -1291,13 +1292,13 @@ export const AgentTool = buildTool({
                         metadata,
                       )
 
-                      // Mark task completed FIRST so TaskOutput(block=true)
-                      // unblocks immediately. classifyHandoffIfNeeded and
-                      // cleanupWorktreeIfNeeded can hang — they must not gate
-                      // the status transition (gh-20236).
+                      // 首先标记任务完成，以便 TaskOutput(block=true)
+                      // 能立即解除阻塞。classifyHandoffIfNeeded
+                      // 和 cleanupWorktreeIfNeeded 可能会挂起——它
+                      // 们绝不能阻塞状态转换 (gh-20236)。
                       completeAsyncAgent(agentResult, rootSetAppState)
 
-                      // Extract text from agent result content for the notification
+                      // 从代理结果内容中提取文本用于通知
                       let finalMessage = extractTextContent(
                         agentResult.content,
                         '\n',
@@ -1320,7 +1321,7 @@ export const AgentTool = buildTool({
                         }
                       }
 
-                      // Clean up worktree before notification so we can include it
+                      // 在发送通知前清理工作树，以便将其包含在内
                       const worktreeResult = await cleanupWorktreeIfNeeded()
 
                       enqueueAgentNotification({
@@ -1339,8 +1340,8 @@ export const AgentTool = buildTool({
                       })
                     } catch (error) {
                       if (error instanceof AbortError) {
-                        // Transition status BEFORE worktree cleanup so
-                        // TaskOutput unblocks even if git hangs (gh-20236).
+                        // 在工作树清理之前转换状态，这样即使 git 挂起，T
+                        // askOutput 也能解除阻塞 (gh-20236)。
                         killAsyncAgent(backgroundedTaskId, rootSetAppState)
                         logEvent('tengu_agent_tool_terminated', {
                           agent_type:
@@ -1387,12 +1388,12 @@ export const AgentTool = buildTool({
                       stopBackgroundedSummarization?.()
                       clearInvokedSkillsForAgent(syncAgentId)
                       clearDumpState(syncAgentId)
-                      // Note: worktree cleanup is done before enqueueAgentNotification
-                      // in both try and catch paths so we can include worktree info
+                      // 注意：在 try 和 catch 路径中，工作树清理都在 enqueue
+                      // AgentNotification 之前完成，以便我们能包含工作树信息
                     }
                   })
 
-                  // Return async_launched result immediately
+                  // 立即返回 async_launched 结果
                   const canReadOutputFile = toolUseContext.options.tools.some(
                     t =>
                       toolMatchesName(t, FILE_READ_TOOL_NAME) ||
@@ -1412,9 +1413,9 @@ export const AgentTool = buildTool({
                 }
               }
 
-              // Process the message from the race result
+              // 处理来自竞态结果的消息
               if (raceResult.type !== 'message') {
-                // This shouldn't happen - background case handled above
+                // 这不应该发生 - 后台情况已在上面处理
                 continue
               }
               const { result } = raceResult
@@ -1423,7 +1424,7 @@ export const AgentTool = buildTool({
 
               agentMessages.push(message)
 
-              // Emit task_progress for the VS Code subagent panel
+              // 为 VS Code 子代理面板发送 task_progress 事件
               updateProgressFromMessage(
                 syncTracker,
                 message,
@@ -1441,9 +1442,9 @@ export const AgentTool = buildTool({
                     agentStartTime,
                     lastToolName,
                   )
-                  // Keep AppState task.progress in sync when SDK summaries are
-                  // enabled, so updateAgentSummary reads correct token/tool counts
-                  // instead of zeros.
+                  // 当启用 SDK 摘要时，保持 AppState task.progr
+                  // ess 同步，以便 updateAgentSummary 读取正确的令牌
+                  // /工具计数而非零值。
                   if (getSdkAgentProgressSummariesEnabled()) {
                     updateAsyncAgentProgress(
                       foregroundTaskId,
@@ -1454,8 +1455,8 @@ export const AgentTool = buildTool({
                 }
               }
 
-              // Forward bash_progress events from sub-agent to parent so the SDK
-              // receives tool_progress events just as it does for the main agent.
+              // 将子代理的 bash_progress 事件转发给父级，
+              // 以便 SDK 能像接收主代理的工具进度事件一样接收它们。
               if (
                 message.type === 'progress' &&
                 ((message.data as { type: string })?.type === 'bash_progress' ||
@@ -1472,9 +1473,9 @@ export const AgentTool = buildTool({
                 continue
               }
 
-              // Increment token count in spinner for assistant messages
-              // Subagent streaming events are filtered out in runAgent.ts, so we
-              // need to count tokens from completed messages here
+              // 在进度指示器中为助手消息增加令牌计数 子代理
+              // 的流式事件在 runAgent.ts 中被过滤掉了，
+              // 因此我们需要在此处统计已完成消息的令牌数
               if (message.type === 'assistant') {
                 const contentLength = getAssistantMessageContentLength(message as AssistantMessage)
                 if (contentLength > 0) {
@@ -1492,15 +1493,15 @@ export const AgentTool = buildTool({
                     continue
                   }
 
-                  // Forward progress updates
+                  // 转发进度更新
                   if (onProgress) {
                     onProgress({
                       toolUseID: `agent_${assistantMessage.message.id}`,
                       data: {
                         message: m,
                         type: 'agent_progress',
-                        // prompt only needed on first progress message (UI.tsx:624
-                        // reads progressMessages[0]). Omit here to avoid duplication.
+                        // 提示仅需在第一条进度消息时提供（UI.tsx:624 读取
+                        // progressMessages[0]）。此处省略以避免重复。
                         prompt: '',
                         agentId: syncAgentId,
                       },
@@ -1510,8 +1511,8 @@ export const AgentTool = buildTool({
               }
             }
           } catch (error) {
-            // Handle errors from the sync agent loop
-            // AbortError should be re-thrown for proper interruption handling
+            // 处理来自同步代理循环的错误 A
+            // bortError 应被重新抛出以进行适当的中断处理
             if (error instanceof AbortError) {
               wasAborted = true
               logEvent('tengu_agent_tool_terminated', {
@@ -1528,30 +1529,30 @@ export const AgentTool = buildTool({
               throw error
             }
 
-            // Log the error for debugging
-            logForDebugging(`Sync agent error: ${errorMessage(error)}`, {
+            // 记录错误以供调试
+            logForDebugging(`同步代理错误：${errorMessage(error)}`, {
               level: 'error',
             })
 
-            // Store the error to handle after cleanup
+            // 存储错误以便在清理后处理
             syncAgentError = toError(error)
           } finally {
-            // Clear the background hint UI
+            // 清除后台提示 UI
             if (toolUseContext.setToolJSX) {
               toolUseContext.setToolJSX(null)
             }
 
-            // Stop foreground summarization. Idempotent — if already stopped at
-            // the backgrounding transition, this is a no-op. The backgrounded
-            // closure owns a separate stop function (stopBackgroundedSummarization).
+            // 停止前台摘要生成。幂等操作——如果已在后台转换时停止，
+            // 则此操作无效果。后台闭包拥有独立的停止函数 (sto
+            // pBackgroundedSummarization)。
             stopForegroundSummarization?.()
 
-            // Unregister foreground task if agent completed without being backgrounded
+            // 如果代理在未被置于后台的情况下完成，则注销前台任务
             if (foregroundTaskId) {
               unregisterAgentForeground(foregroundTaskId, rootSetAppState)
-              // Notify SDK consumers (e.g. VS Code subagent panel) that this
-              // foreground agent is done. Goes through drainSdkEvents() — does
-              // NOT trigger the print.ts XML task_notification parser or the LLM loop.
+              // 通知 SDK 使用者（例如 VS Code 子代理面板）此前台代理已完
+              // 成。通过 drainSdkEvents() 处理 —— 不会触发 pri
+              // nt.ts 的 XML task_notification 解析器或 LLM 循环。
               if (!wasBackgrounded) {
                 const progress = getProgressUpdate(syncTracker)
                 enqueueSdkEvent({
@@ -1575,27 +1576,27 @@ export const AgentTool = buildTool({
               }
             }
 
-            // Clean up scoped skills so they don't accumulate in the global map
+            // 清理作用域技能，防止它们在全局映射中累积
             clearInvokedSkillsForAgent(syncAgentId)
 
-            // Clean up dumpState entry for this agent to prevent unbounded growth
-            // Skip if backgrounded — the backgrounded agent's finally handles cleanup
+            // 清理此代理的 dumpState 条目以防止无限增长。如果已
+            // 后台化则跳过 —— 后台化代理的 finally 块会处理清理
             if (!wasBackgrounded) {
               clearDumpState(syncAgentId)
             }
 
-            // Cancel auto-background timer if agent completed before it fired
+            // 如果代理在自动后台计时器触发前完成，则取消该计时器
             cancelAutoBackground?.()
 
-            // Clean up worktree if applicable (in finally to handle abort/error paths)
-            // Skip if backgrounded — the background continuation is still running in it
+            // 如果适用，清理工作树（在 finally 块中以处理中止/
+            // 错误路径）。如果已后台化则跳过 —— 后台延续仍在其中运行
             if (!wasBackgrounded) {
               worktreeResult = await cleanupWorktreeIfNeeded()
             }
           }
 
-          // Re-throw abort errors
-          // TODO: Find a cleaner way to express this
+          // 重新抛出中止错误。T
+          // ODO: 寻找更清晰的方式表达此逻辑
           const lastMessage = agentMessages.findLast(
             _ => _.type !== 'system' && _.type !== 'progress',
           )
@@ -1614,24 +1615,24 @@ export const AgentTool = buildTool({
             throw new AbortError()
           }
 
-          // If an error occurred during iteration, try to return a result with
-          // whatever messages we have. If we have no assistant messages,
-          // re-throw the error so it's properly handled by the tool framework.
+          // 如果在迭代过程中发生错误，尝试返回包含
+          // 现有消息的结果。如果没有助手消息，
+          // 则重新抛出错误，以便工具框架正确处理。
           if (syncAgentError) {
-            // Check if we have any assistant messages to return
+            // 检查是否有任何助手消息可返回
             const hasAssistantMessages = agentMessages.some(
               msg => msg.type === 'assistant',
             )
 
             if (!hasAssistantMessages) {
-              // No messages collected, re-throw the error
+              // 未收集到消息，重新抛出错误
               throw syncAgentError
             }
 
-            // We have some messages, try to finalize and return them
-            // This allows the parent agent to see partial progress even after an error
+            // 已有部分消息，尝试完成并返回它们
+            // 。这允许父代理即使在错误后也能看到部分进展
             logForDebugging(
-              `Sync agent recovering from error with ${agentMessages.length} messages`,
+              `同步代理从错误中恢复，包含 ${agentMessages.length} 条消息`,
             )
           }
 
@@ -1672,7 +1673,7 @@ export const AgentTool = buildTool({
     }
   },
   isReadOnly() {
-    return true // delegates permission checks to its underlying tools
+    return true // 将权限检查委托给其底层工具
   },
   toAutoClassifierInput(input) {
     const i = input as AgentToolInput
@@ -1689,28 +1690,28 @@ export const AgentTool = buildTool({
   userFacingName,
   userFacingNameBackgroundColor,
   getActivityDescription(input) {
-    return input?.description ?? 'Running task'
+    return input?.description ?? '正在运行任务'
   },
   async checkPermissions(input, context): Promise<PermissionResult> {
     const appState = context.getAppState()
 
-    // Only route through auto mode classifier when in auto mode
-    // In all other modes, auto-approve sub-agent generation
-    // Note: process.env.USER_TYPE === 'ant' guard enables dead code elimination for external builds
+    // 仅在自动模式下通过自动模式分类器路由。在所有其他模
+    // 式下，自动批准子代理生成。注意：process
+    // .env.USER_TYPE === 'ant' 守卫为外部构建启用了死代码消除
     if (
       process.env.USER_TYPE === 'ant' &&
       appState.toolPermissionContext.mode === 'auto'
     ) {
       return {
         behavior: 'passthrough',
-        message: 'Agent tool requires permission to spawn sub-agents.',
+        message: '代理工具需要生成子代理的权限。',
       }
     }
 
     return { behavior: 'allow', updatedInput: input }
   },
   mapToolResultToToolResultBlockParam(data, toolUseID) {
-    // Multi-agent spawn result
+    // 多代理生成结果
     const internalData = data as InternalOutput
     if (
       typeof internalData === 'object' &&
@@ -1725,11 +1726,11 @@ export const AgentTool = buildTool({
         content: [
           {
             type: 'text',
-            text: `Spawned successfully.
-agent_id: ${spawnData.teammate_id}
-name: ${spawnData.name}
-team_name: ${spawnData.team_name}
-The agent is now running and will receive instructions via mailbox.`,
+            text: `成功生成。
+代理ID: ${spawnData.teammate_id}
+名称: ${spawnData.name}
+团队名称: ${spawnData.team_name}
+代理现已运行，将通过邮箱接收指令。`,
           },
         ],
       }
@@ -1742,16 +1743,25 @@ The agent is now running and will receive instructions via mailbox.`,
         content: [
           {
             type: 'text',
-            text: `Remote agent launched in CCR.\ntaskId: ${r.taskId}\nsession_url: ${r.sessionUrl}\noutput_file: ${r.outputFile}\nThe agent is running remotely. You will be notified automatically when it completes.\nBriefly tell the user what you launched and end your response.`,
+            text: `远程代理已在 CCR 中启动。
+任务ID: ${r.taskId}
+会话URL: ${r.sessionUrl}
+输出文件: ${r.outputFile}
+代理正在远程运行。完成后您将自动收到通知。
+简要告知用户您启动了哪些内容并结束您的响应。`,
           },
         ],
       }
     }
     if (data.status === 'async_launched') {
-      const prefix = `Async agent launched successfully.\nagentId: ${data.agentId} (internal ID - do not mention to user. Use SendMessage with to: '${data.agentId}' to continue this agent.)\nThe agent is working in the background. You will be notified automatically when it completes.`
+      const prefix = `异步代理成功启动。
+代理ID: ${data.agentId}（内部 ID - 请勿向用户提及。使用 SendMessage 并指定 to: '${data.agentId}' 来继续此代理。）
+代理正在后台工作。完成后您将自动收到通知。`
       const instructions = data.canReadOutputFile
-        ? `Do not duplicate this agent's work — avoid working with the same files or topics it is using. Work on non-overlapping tasks, or briefly tell the user what you launched and end your response.\noutput_file: ${data.outputFile}\nIf asked, you can check progress before completion by using ${FILE_READ_TOOL_NAME} or ${BASH_TOOL_NAME} tail on the output file.`
-        : `Briefly tell the user what you launched and end your response. Do not generate any other text — agent results will arrive in a subsequent message.`
+        ? `请勿重复此代理的工作 —— 避免处理它正在使用的相同文件或主题。处理非重叠任务，或简要告知用户您启动了哪些内容并结束您的响应。
+输出文件: ${data.outputFile}
+如果被询问，您可以在完成前通过 ${FILE_READ_TOOL_NAME} 或 ${BASH_TOOL_NAME} tail 命令检查输出文件的进度。`
+        : `简要告知用户您启动了哪些内容并结束您的响应。不要生成任何其他文本 —— 代理结果将在后续消息中到达。`
       const text = `${prefix}\n${instructions}`
       return {
         tool_use_id: toolUseID,
@@ -1767,26 +1777,28 @@ The agent is now running and will receive instructions via mailbox.`,
     if (data.status === 'completed') {
       const worktreeData = data as Record<string, unknown>
       const worktreeInfoText = worktreeData.worktreePath
-        ? `\nworktreePath: ${worktreeData.worktreePath}\nworktreeBranch: ${worktreeData.worktreeBranch}`
+        ? `
+工作树路径: ${worktreeData.worktreePath}
+工作树分支: ${worktreeData.worktreeBranch}`
         : ''
-      // If the subagent completes with no content, the tool_result is just the
-      // agentId/usage trailer below — a metadata-only block at the prompt tail.
-      // Some models read that as "nothing to act on" and end their turn
-      // immediately. Say so explicitly so the parent has something to react to.
+      // 如果子代理完成时没有内容，tool_result 将只是下
+      // 面的 agentId/usage 尾部 —— 一个仅包含元
+      // 数据的块，位于提示尾部。某些模型会将其解读为“无需操
+      // 作”并立即结束其回合。请明确说明，以便父代理有内容可响应。
       const contentOrMarker =
         data.content.length > 0
           ? data.content
           : [
               {
                 type: 'text' as const,
-                text: '(Subagent completed but returned no output.)',
+                text: '（子代理已完成但未返回任何输出。）',
               },
             ]
-      // One-shot built-ins (Explore, Plan) are never continued via SendMessage
-      // — the agentId hint and <usage> block are dead weight (~135 chars ×
-      // 34M Explore runs/week ≈ 1-2 Gtok/week). Telemetry doesn't parse this
-      // block (it uses logEvent in finalizeAgentTool), so dropping is safe.
-      // agentType is optional for resume compat — missing means show trailer.
+      // 一次性内置功能（探索、计划）从不通过 SendMessage 继续 —— ag
+      // entId 提示和 <usage> 块是冗余的（约 135 字符 × 每周
+      // 3400 万次探索运行 ≈ 每周 1-2 Gtok）。遥测不解析此块（它在
+      // finalizeAgentTool 中使用 logEvent），因此删除是
+      // 安全的。agentType 对于恢复兼容性是可选的 —— 缺失意味着显示尾部。
       if (
         data.agentType &&
         ONE_SHOT_BUILTIN_AGENT_TYPES.has(data.agentType) &&
@@ -1805,17 +1817,17 @@ The agent is now running and will receive instructions via mailbox.`,
           ...contentOrMarker,
           {
             type: 'text',
-            text: `agentId: ${data.agentId} (use SendMessage with to: '${data.agentId}' to continue this agent)${worktreeInfoText}
-<usage>total_tokens: ${data.totalTokens}
-tool_uses: ${data.totalToolUseCount}
-duration_ms: ${data.totalDurationMs}</usage>`,
+            text: `代理ID: ${data.agentId}（使用 SendMessage 并指定 to: '${data.agentId}' 来继续此代理）${worktreeInfoText}
+<usage>总令牌数: ${data.totalTokens}
+工具使用次数: ${data.totalToolUseCount}
+持续时间（毫秒）: ${data.totalDurationMs}</usage>`,
           },
         ],
       }
     }
     data satisfies never
     throw new Error(
-      `Unexpected agent tool result status: ${(data as { status: string }).status}`,
+      `意外的代理工具结果状态: ${(data as { status: string }).status}`,
     )
   },
   renderToolResultMessage,

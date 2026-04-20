@@ -85,7 +85,7 @@ export function BrowseMarketplace({
   targetMarketplace,
   targetPlugin,
 }: Props): React.ReactNode {
-  // View state
+  // 视图状态
   const [viewState, setViewState] = useState<ViewState>('marketplace-list')
   const [selectedMarketplace, setSelectedMarketplace] = useState<string | null>(
     null,
@@ -93,7 +93,7 @@ export function BrowseMarketplace({
   const [selectedPlugin, setSelectedPlugin] =
     useState<InstallablePlugin | null>(null)
 
-  // Data state
+  // 数据状态
   const [marketplaces, setMarketplaces] = useState<MarketplaceInfo[]>([])
   const [availablePlugins, setAvailablePlugins] = useState<InstallablePlugin[]>(
     [],
@@ -104,7 +104,7 @@ export function BrowseMarketplace({
     number
   > | null>(null)
 
-  // Selection state
+  // 选择状态
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [selectedForInstall, setSelectedForInstall] = useState<Set<string>>(
     new Set(),
@@ -113,33 +113,33 @@ export function BrowseMarketplace({
     new Set(),
   )
 
-  // Pagination for plugin list (continuous scrolling)
+  // 插件列表的分页（连续滚动）
   const pagination = usePagination<InstallablePlugin>({
     totalItems: availablePlugins.length,
     selectedIndex,
   })
 
-  // Details view state
+  // 详情视图状态
   const [detailsMenuIndex, setDetailsMenuIndex] = useState(0)
   const [isInstalling, setIsInstalling] = useState(false)
   const [installError, setInstallError] = useState<string | null>(null)
 
-  // Warning state for non-critical errors (e.g., some marketplaces failed to load)
+  // 非关键错误的警告状态（例如，某些市场加载失败）
   const [warning, setWarning] = useState<string | null>(null)
 
-  // Handle escape to go back - viewState-dependent navigation
+  // 处理按 Esc 键返回 - 依赖于 viewState 的导航
   const handleBack = React.useCallback(() => {
     if (viewState === 'plugin-list') {
-      // If navigated directly to a specific marketplace via targetMarketplace,
-      // go back to manage-marketplaces showing that marketplace's details
+      // 如果通过 targetMarketplace 直接导航到特定市场，则
+      // 返回 manage-marketplaces 并显示该市场的详情
       if (targetMarketplace) {
         setParentViewState({
           type: 'manage-marketplaces',
           targetMarketplace,
         })
       } else if (marketplaces.length === 1) {
-        // If there's only one marketplace, skip the marketplace-list view
-        // since we auto-navigated past it on load
+        // 如果只有一个市场，则跳过市场列表视图，因为
+        // 我们在加载时已自动导航过去
         setParentViewState({ type: 'menu' })
       } else {
         setViewState('marketplace-list')
@@ -150,20 +150,20 @@ export function BrowseMarketplace({
       setViewState('plugin-list')
       setSelectedPlugin(null)
     } else {
-      // At root level (marketplace-list), exit the plugin menu
+      // 在根级别（marketplace-list），退出插件菜单
       setParentViewState({ type: 'menu' })
     }
   }, [viewState, targetMarketplace, setParentViewState, marketplaces.length])
 
   useKeybinding('confirm:no', handleBack, { context: 'Confirmation' })
 
-  // Load marketplaces and count installed plugins
+  // 加载市场并统计已安装插件数量
   useEffect(() => {
     async function loadMarketplaceData() {
       try {
         const config = await loadKnownMarketplacesConfig()
 
-        // Load marketplaces with graceful degradation
+        // 以优雅降级的方式加载市场
         const { marketplaces, failures } =
           await loadMarketplacesWithGracefulDegradation(config)
 
@@ -174,7 +174,7 @@ export function BrowseMarketplace({
           data: marketplace,
         } of marketplaces) {
           if (marketplace) {
-            // Count how many plugins from this marketplace are installed
+            // 统计此市场中有多少插件已安装
             const installedFromThisMarketplace = count(
               marketplace.plugins,
               plugin => isPluginInstalled(createPluginId((plugin as { name: string }).name, name)),
@@ -189,7 +189,7 @@ export function BrowseMarketplace({
           }
         }
 
-        // Sort so claude-plugin-directory is always first
+        // 排序，使 claude-plugin-directory 始终排在首位
         marketplaceInfos.sort((a, b) => {
           if (a.name === 'claude-plugin-directory') return -1
           if (b.name === 'claude-plugin-directory') return 1
@@ -198,7 +198,7 @@ export function BrowseMarketplace({
 
         setMarketplaces(marketplaceInfos)
 
-        // Handle marketplace loading errors/warnings
+        // 处理市场加载错误/警告
         const successCount = count(marketplaces, m => m.data !== null)
         const errorResult = formatMarketplaceLoadingErrors(
           failures,
@@ -207,14 +207,14 @@ export function BrowseMarketplace({
         if (errorResult) {
           if (errorResult.type === 'warning') {
             setWarning(
-              errorResult.message + '. Showing available marketplaces.',
+              errorResult.message + '。显示可用市场。',
             )
           } else {
             throw new Error(errorResult.message)
           }
         }
 
-        // Skip marketplace selection if there's only one marketplace
+        // 如果只有一个市场，则跳过市场选择
         if (
           marketplaceInfos.length === 1 &&
           !targetMarketplace &&
@@ -227,9 +227,9 @@ export function BrowseMarketplace({
           }
         }
 
-        // Handle targetMarketplace and targetPlugin after marketplaces are loaded
+        // 在市场加载后处理 targetMarketplace 和 targetPlugin
         if (targetPlugin) {
-          // Search for the plugin across all marketplaces
+          // 在所有市场中搜索插件
           let foundPlugin: InstallablePlugin | null = null
           let foundMarketplace: string | null = null
 
@@ -245,9 +245,9 @@ export function BrowseMarketplace({
                   entry: plugin,
                   marketplaceName: name,
                   pluginId,
-                  // isPluginGloballyInstalled: only block when user/managed scope
-                  // exists (nothing to add). Project/local-scope installs don't
-                  // block — user may want to promote to user scope (gh-29997).
+                  // isPluginGloballyInstalled：仅当用户/
+                  // 托管作用域存在时阻止（无需添加）。项目/本地作用域的安装不阻
+                  // 止 — 用户可能希望提升到用户作用域 (gh-29997)。
                   isInstalled: isPluginGloballyInstalled(pluginId),
                 }
                 foundMarketplace = name
@@ -257,30 +257,30 @@ export function BrowseMarketplace({
           }
 
           if (foundPlugin && foundMarketplace) {
-            // Block only on global (user/managed) install — project/local scope
-            // means the user might still want to add a user-scope entry so the
-            // plugin is available in other projects (gh-29997, gh-29240, gh-29392).
-            // The plugin-details view offers all three scope options; the backend
-            // (installPluginOp → addInstalledPlugin) already supports multiple
-            // scope entries per plugin.
+            // 仅阻止全局（用户/托管）安装 — 项目/本地作用域意味着用户
+            // 可能仍希望添加用户作用域条目，以便该插件在其他项目中可用 (
+            // gh-29997, gh-29240, gh-29392)。插件
+            // 详情视图提供所有三种作用域选项；后端 (installPlug
+            // inOp → addInstalledPlugin) 已支持
+            // 每个插件的多个作用域条目。
             const pluginId = foundPlugin.pluginId
             const globallyInstalled = isPluginGloballyInstalled(pluginId)
 
             if (globallyInstalled) {
               setError(
-                `Plugin '${pluginId}' is already installed globally. Use '/plugin' to manage existing plugins.`,
+                `插件 '${pluginId}' 已全局安装。使用 '/plugin' 管理现有插件。`,
               )
             } else {
-              // Navigate to the plugin details view
+              // 导航到插件详情视图
               setSelectedMarketplace(foundMarketplace)
               setSelectedPlugin(foundPlugin)
               setViewState('plugin-details')
             }
           } else {
-            setError(`Plugin "${targetPlugin}" not found in any marketplace`)
+            setError(`在任何市场中均未找到插件 "${targetPlugin}"`)
           }
         } else if (targetMarketplace) {
-          // Navigate directly to the specified marketplace
+          // 直接导航到指定的市场
           const marketplaceExists = marketplaceInfos.some(
             m => m.name === targetMarketplace,
           )
@@ -288,12 +288,12 @@ export function BrowseMarketplace({
             setSelectedMarketplace(targetMarketplace)
             setViewState('plugin-list')
           } else {
-            setError(`Marketplace "${targetMarketplace}" not found`)
+            setError(`未找到市场 "${targetMarketplace}"`)
           }
         }
       } catch (err) {
         setError(
-          err instanceof Error ? err.message : 'Failed to load marketplaces',
+          err instanceof Error ? err.message : '加载市场失败',
         )
       } finally {
         setLoading(false)
@@ -302,7 +302,7 @@ export function BrowseMarketplace({
     void loadMarketplaceData()
   }, [setError, targetMarketplace, targetPlugin])
 
-  // Load plugins when a marketplace is selected
+  // 在选择市场时加载插件
   useEffect(() => {
     if (!selectedMarketplace) return
 
@@ -314,10 +314,10 @@ export function BrowseMarketplace({
         const marketplace = await getMarketplace(marketplaceName)
         if (cancelled) return
         if (!marketplace) {
-          throw new Error(`Failed to load marketplace: ${marketplaceName}`)
+          throw new Error(`加载市场失败：${marketplaceName}`)
         }
 
-        // Filter out already installed plugins
+        // 过滤掉已安装的插件
         const installablePlugins: InstallablePlugin[] = []
         for (const entry of marketplace.plugins) {
           const pluginId = createPluginId(entry.name, marketplaceName)
@@ -326,21 +326,21 @@ export function BrowseMarketplace({
             entry,
             marketplaceName: marketplaceName,
             pluginId,
-            // Only mark as "installed" when globally scoped (user/managed).
-            // Project/local installs don't block — user can add user scope
-            // via the plugin-details view (gh-29997).
+            // 仅当全局作用域（用户/托管）时标记为“已安装”。项
+            // 目/本地安装不阻止——用户可通过插件详情视图添加
+            // 用户作用域（gh-29997）。
             isInstalled: isPluginGloballyInstalled(pluginId),
           })
         }
 
-        // Fetch install counts and sort by popularity
+        // 获取安装数量并按受欢迎程度排序
         try {
           const counts = await getInstallCounts()
           if (cancelled) return
           setInstallCounts(counts)
 
           if (counts) {
-            // Sort by install count (descending), then alphabetically
+            // 按安装数量（降序）排序，然后按字母顺序排序
             installablePlugins.sort((a, b) => {
               const countA = counts.get(a.pluginId) ?? 0
               const countB = counts.get(b.pluginId) ?? 0
@@ -348,16 +348,16 @@ export function BrowseMarketplace({
               return a.entry.name.localeCompare(b.entry.name)
             })
           } else {
-            // No counts available - sort alphabetically
+            // 无可用数量 - 按字母顺序排序
             installablePlugins.sort((a, b) =>
               a.entry.name.localeCompare(b.entry.name),
             )
           }
         } catch (error) {
           if (cancelled) return
-          // Log the error, then gracefully degrade to alphabetical sort
+          // 记录错误，然后优雅降级为字母顺序排序
           logForDebugging(
-            `Failed to fetch install counts: ${errorMessage(error)}`,
+            `获取安装数量失败：${errorMessage(error)}`,
           )
           installablePlugins.sort((a, b) =>
             a.entry.name.localeCompare(b.entry.name),
@@ -369,7 +369,7 @@ export function BrowseMarketplace({
         setSelectedForInstall(new Set())
       } catch (err) {
         if (cancelled) return
-        setError(err instanceof Error ? err.message : 'Failed to load plugins')
+        setError(err instanceof Error ? err.message : '加载插件失败')
       } finally {
         setLoading(false)
       }
@@ -381,7 +381,7 @@ export function BrowseMarketplace({
     }
   }, [selectedMarketplace, setError])
 
-  // Install selected plugins
+  // 安装所选插件
   const installSelectedPlugins = async () => {
     if (selectedForInstall.size === 0) return
 
@@ -418,30 +418,30 @@ export function BrowseMarketplace({
     setSelectedForInstall(new Set())
     clearAllCaches()
 
-    // Handle installation results
+    // 处理安装结果
     if (failureCount === 0) {
-      // All succeeded
+      // 全部成功
       const message =
-        `✓ Installed ${successCount} ${plural(successCount, 'plugin')}. ` +
-        `Run /reload-plugins to activate.`
+        `✓ 已安装 ${successCount} ${plural(successCount, 'plugin')}。` +
+        `运行 /reload-plugins 以激活。`
 
       setResult(message)
     } else if (successCount === 0) {
-      // All failed - show error with reasons
+      // 全部失败 - 显示错误及原因
       setError(
-        `Failed to install: ${formatFailureDetails(newFailedPlugins, true)}`,
+        `安装失败：${formatFailureDetails(newFailedPlugins, true)}`,
       )
     } else {
-      // Mixed results - show partial success
+      // 混合结果 - 显示部分成功
       const message =
-        `✓ Installed ${successCount} of ${successCount + failureCount} plugins. ` +
-        `Failed: ${formatFailureDetails(newFailedPlugins, false)}. ` +
-        `Run /reload-plugins to activate successfully installed plugins.`
+        `✓ 已安装 ${successCount} 个插件，共 ${successCount + failureCount} 个。` +
+        `失败：${formatFailureDetails(newFailedPlugins, false)}。` +
+        `运行 /reload-plugins 以激活已成功安装的插件。`
 
       setResult(message)
     }
 
-    // Handle completion callback and navigation
+    // 处理完成回调和导航
     if (successCount > 0) {
       if (onInstallComplete) {
         await onInstallComplete()
@@ -451,7 +451,7 @@ export function BrowseMarketplace({
     setParentViewState({ type: 'menu' })
   }
 
-  // Install single plugin from details view
+  // 从详情视图安装单个插件
   const handleSinglePluginInstall = async (
     plugin: InstallablePlugin,
     scope: 'user' | 'project' | 'local' = 'user',
@@ -488,14 +488,14 @@ export function BrowseMarketplace({
     }
   }
 
-  // Handle error state
+  // 处理错误状态
   useEffect(() => {
     if (error) {
       setResult(error)
     }
   }, [error, setResult])
 
-  // Marketplace-list navigation
+  // 市场列表导航
   useKeybindings(
     {
       'select:previous': () => {
@@ -519,7 +519,7 @@ export function BrowseMarketplace({
     { context: 'Select', isActive: viewState === 'marketplace-list' },
   )
 
-  // Plugin-list navigation
+  // 插件列表导航
   useKeybindings(
     {
       'select:previous': () => {
@@ -585,7 +585,7 @@ export function BrowseMarketplace({
     { context: 'Plugin', isActive: viewState === 'plugin-list' },
   )
 
-  // Plugin-details navigation
+  // 插件详情导航
   const detailsMenuOptions = React.useMemo(() => {
     if (!selectedPlugin) return []
     const hasHomepage = selectedPlugin.entry.homepage
@@ -649,16 +649,16 @@ export function BrowseMarketplace({
           switch (outcome) {
             case 'configured':
               finish(
-                `✓ Installed and configured ${plugin.name}. Run /reload-plugins to apply.`,
+                `✓ 已安装并配置 ${plugin.name}。运行 /reload-plugins 以应用。`,
               )
               break
             case 'skipped':
               finish(
-                `✓ Installed ${plugin.name}. Run /reload-plugins to apply.`,
+                `✓ 已安装 ${plugin.name}。运行 /reload-plugins 以应用。`,
               )
               break
             case 'error':
-              finish(`Installed but failed to save config: ${detail}`)
+              finish(`已安装但保存配置失败：${detail}`)
               break
           }
         }}
@@ -666,27 +666,27 @@ export function BrowseMarketplace({
     )
   }
 
-  // Loading state
+  // 加载状态
   if (loading) {
     return <Text>Loading…</Text>
   }
 
-  // Error state
+  // 错误状态
   if (error) {
     return <Text color="error">{error}</Text>
   }
 
-  // Marketplace selection view
+  // 市场选择视图
   if (viewState === 'marketplace-list') {
     if (marketplaces.length === 0) {
       return (
         <Box flexDirection="column">
           <Box marginBottom={1}>
-            <Text bold>Select marketplace</Text>
+            <Text bold>选择市场</Text>
           </Box>
-          <Text>No marketplaces configured.</Text>
+          <Text>未配置任何市场。</Text>
           <Text dimColor>
-            Add a marketplace first using {"'Add marketplace'"}.
+            请先使用{"'添加市场'"}.
           </Text>
           <Box marginTop={1} paddingLeft={1}>
             <Text dimColor>
@@ -694,7 +694,7 @@ export function BrowseMarketplace({
                 action="confirm:no"
                 context="Confirmation"
                 fallback="Esc"
-                description="go back"
+                description="返回"
               />
             </Text>
           </Box>
@@ -705,10 +705,10 @@ export function BrowseMarketplace({
     return (
       <Box flexDirection="column">
         <Box marginBottom={1}>
-          <Text bold>Select marketplace</Text>
+          <Text bold>选择市场</Text>
         </Box>
 
-        {/* Warning banner for marketplace load failures */}
+        {/* 市场加载失败的警告横幅 */}
         {warning && (
           <Box marginBottom={1} flexDirection="column">
             <Text color="warning">
@@ -733,7 +733,7 @@ export function BrowseMarketplace({
                 {marketplace.totalPlugins}{' '}
                 {plural(marketplace.totalPlugins, 'plugin')} available
                 {marketplace.installedCount > 0 &&
-                  ` · ${marketplace.installedCount} already installed`}
+                  ` · ${marketplace.installedCount} 已安装`}
                 {marketplace.source && ` · ${marketplace.source}`}
               </Text>
             </Box>
@@ -753,7 +753,7 @@ export function BrowseMarketplace({
                 action="confirm:no"
                 context="Confirmation"
                 fallback="Esc"
-                description="go back"
+                description="返回"
               />
             </Byline>
           </Text>
@@ -762,7 +762,7 @@ export function BrowseMarketplace({
     )
   }
 
-  // Plugin details view
+  // 插件详情视图
   if (viewState === 'plugin-details' && selectedPlugin) {
     const hasHomepage = selectedPlugin.entry.homepage
     const githubRepo = extractGitHubRepo(selectedPlugin)
@@ -772,10 +772,10 @@ export function BrowseMarketplace({
     return (
       <Box flexDirection="column">
         <Box marginBottom={1}>
-          <Text bold>Plugin Details</Text>
+          <Text bold>插件详情</Text>
         </Box>
 
-        {/* Plugin metadata */}
+        {/* 插件元数据 */}
         <Box flexDirection="column" marginBottom={1}>
           <Text bold>{selectedPlugin.entry.name}</Text>
           {selectedPlugin.entry.version && (
@@ -798,12 +798,12 @@ export function BrowseMarketplace({
           )}
         </Box>
 
-        {/* What will be installed */}
+        {/* 将要安装的内容 */}
         <Box flexDirection="column" marginBottom={1}>
-          <Text bold>Will install:</Text>
+          <Text bold>将安装：</Text>
           {selectedPlugin.entry.commands && (
             <Text dimColor>
-              · Commands:{' '}
+              · 命令：{' '}
               {Array.isArray(selectedPlugin.entry.commands)
                 ? selectedPlugin.entry.commands.join(', ')
                 : Object.keys(selectedPlugin.entry.commands).join(', ')}
@@ -811,7 +811,7 @@ export function BrowseMarketplace({
           )}
           {selectedPlugin.entry.agents && (
             <Text dimColor>
-              · Agents:{' '}
+              · 代理：{' '}
               {Array.isArray(selectedPlugin.entry.agents)
                 ? selectedPlugin.entry.agents.join(', ')
                 : Object.keys(selectedPlugin.entry.agents).join(', ')}
@@ -819,12 +819,12 @@ export function BrowseMarketplace({
           )}
           {selectedPlugin.entry.hooks && (
             <Text dimColor>
-              · Hooks: {Object.keys(selectedPlugin.entry.hooks).join(', ')}
+              · 钩子：{Object.keys(selectedPlugin.entry.hooks).join(', ')}
             </Text>
           )}
           {selectedPlugin.entry.mcpServers && (
             <Text dimColor>
-              · MCP Servers:{' '}
+              · MCP 服务器：{' '}
               {Array.isArray(selectedPlugin.entry.mcpServers)
                 ? selectedPlugin.entry.mcpServers.join(', ')
                 : typeof selectedPlugin.entry.mcpServers === 'object'
@@ -844,18 +844,16 @@ export function BrowseMarketplace({
                   selectedPlugin.entry.source.source === 'npm' ||
                   selectedPlugin.entry.source.source === 'pip') ? (
                   <Text dimColor>
-                    · Component summary not available for remote plugin
-                  </Text>
+                    · 远程插件的组件摘要不可用</Text>
                 ) : (
-                  // TODO: Actually scan local plugin directories to show real components
-                  // This would require accessing the filesystem to check for:
-                  // - commands/ directory and list files
-                  // - agents/ directory and list files
-                  // - hooks/ directory and list files
-                  // - .mcp.json or mcp-servers.json files
+                  // 待办：实际扫描本地插件目录以显示真实组件 这需要访问文件系统来检
+                  // 查： - commands/ 目录并列出文件 - a
+                  // gents/ 目录并列出文件 -
+                  // hooks/ 目录并列出文件 -
+                  // .mcp.json 或 mc
+                  // p-servers.json 文件
                   <Text dimColor>
-                    · Components will be discovered at installation
-                  </Text>
+                    · 组件将在安装时被发现</Text>
                 )}
               </>
             )}
@@ -863,14 +861,14 @@ export function BrowseMarketplace({
 
         <PluginTrustWarning />
 
-        {/* Error message */}
+        {/* 错误信息 */}
         {installError && (
           <Box marginBottom={1}>
             <Text color="error">Error: {installError}</Text>
           </Box>
         )}
 
-        {/* Menu options */}
+        {/* 菜单选项 */}
         <Box flexDirection="column">
           {menuOptions.map((option, index) => (
             <Box key={option.action}>
@@ -907,24 +905,23 @@ export function BrowseMarketplace({
     )
   }
 
-  // Plugin installation view
+  // 插件安装视图
   if (availablePlugins.length === 0) {
     return (
       <Box flexDirection="column">
         <Box marginBottom={1}>
-          <Text bold>Install plugins</Text>
+          <Text bold>安装插件</Text>
         </Box>
-        <Text dimColor>No new plugins available to install.</Text>
+        <Text dimColor>没有可安装的新插件。</Text>
         <Text dimColor>
-          All plugins from this marketplace are already installed.
-        </Text>
+          此市场中的所有插件均已安装。</Text>
         <Box marginLeft={3}>
           <Text dimColor italic>
             <ConfigurableShortcutHint
               action="confirm:no"
               context="Confirmation"
               fallback="Esc"
-              description="go back"
+              description="返回"
             />
           </Text>
         </Box>
@@ -932,23 +929,23 @@ export function BrowseMarketplace({
     )
   }
 
-  // Get visible plugins from pagination
+  // 从分页获取可见插件
   const visiblePlugins = pagination.getVisibleItems(availablePlugins)
 
   return (
     <Box flexDirection="column">
       <Box marginBottom={1}>
-        <Text bold>Install Plugins</Text>
+        <Text bold>安装插件</Text>
       </Box>
 
-      {/* Scroll up indicator */}
+      {/* 向上滚动指示器 */}
       {pagination.scrollPosition.canScrollUp && (
         <Box>
-          <Text dimColor> {figures.arrowUp} more above</Text>
+          <Text dimColor> {figures.arrowUp} 上方还有更多</Text>
         </Box>
       )}
 
-      {/* Plugin list */}
+      {/* 插件列表 */}
       {visiblePlugins.map((plugin, visibleIndex) => {
         const actualIndex = pagination.toActualIndex(visibleIndex)
         const isSelected = selectedIndex === actualIndex
@@ -979,7 +976,7 @@ export function BrowseMarketplace({
                   <Text dimColor> [{plugin.entry.category}]</Text>
                 )}
                 {plugin.entry.tags?.includes('community-managed') && (
-                  <Text dimColor> [Community Managed]</Text>
+                  <Text dimColor> [社区维护]</Text>
                 )}
                 {plugin.isInstalled && <Text dimColor> (installed)</Text>}
                 {installCounts &&
@@ -1008,14 +1005,14 @@ export function BrowseMarketplace({
         )
       })}
 
-      {/* Scroll down indicator */}
+      {/* 向下滚动指示器 */}
       {pagination.scrollPosition.canScrollDown && (
         <Box>
-          <Text dimColor> {figures.arrowDown} more below</Text>
+          <Text dimColor> {figures.arrowDown} 下方还有更多</Text>
         </Box>
       )}
 
-      {/* Error messages shown in the UI */}
+      {/* 界面中显示的错误信息 */}
       {error && (
         <Box marginTop={1}>
           <Text color="error">

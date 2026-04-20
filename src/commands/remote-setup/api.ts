@@ -6,13 +6,8 @@ import { fetchEnvironments } from '../../utils/teleport/environments.js'
 
 const CCR_BYOC_BETA_HEADER = 'ccr-byoc-2025-07-29'
 
-/**
- * Wraps a raw GitHub token so that its string representation is redacted.
- * `String(token)`, template literals, `JSON.stringify(token)`, and any
- * attached error messages will show `[REDACTED:gh-token]` instead of the
- * token value. Call `.reveal()` only at the single point where the raw
- * value is placed into an HTTP body.
- */
+/** 包装一个原始的 GitHub 令牌，使其字符串表示形式被隐去。
+`String(token)`、模板字面量、`JSON.stringify(token)` 以及任何附加的错误信息都将显示 `[REDACTED:gh-token]` 而非令牌值。仅在将原始值放入 HTTP 请求体的唯一位置调用 `.reveal()`。 */
 export class RedactedGithubToken {
   readonly #value: string
   constructor(raw: string) {
@@ -42,12 +37,8 @@ export type ImportTokenError =
   | { kind: 'server'; status: number }
   | { kind: 'network' }
 
-/**
- * POSTs a GitHub token to the CCR backend, which validates it against
- * GitHub's /user endpoint and stores it Fernet-encrypted in sync_user_tokens.
- * The stored token satisfies the same read paths as an OAuth token, so
- * clone/push in claude.ai/code works immediately after this succeeds.
- */
+/** 向 CCR 后端 POST 一个 GitHub 令牌，后端会通过 GitHub 的 /user 端点验证该令牌，并将其以 Fernet 加密方式存储在 sync_user_tokens 中。
+存储的令牌满足与 OAuth 令牌相同的读取路径，因此在此操作成功后，claude.ai/code 中的克隆/推送功能可立即使用。 */
 export async function importGithubToken(
   token: RedactedGithubToken,
 ): Promise<
@@ -83,15 +74,15 @@ export async function importGithubToken(
     if (response.status === 401) {
       return { ok: false, error: { kind: 'not_signed_in' } }
     }
-    logForDebugging(`import-token returned ${response.status}`, {
+    logForDebugging(`import-token 返回了 ${response.status}`, {
       level: 'error',
     })
     return { ok: false, error: { kind: 'server', status: response.status } }
   } catch (err) {
     if (axios.isAxiosError(err)) {
-      // err.config.data would contain the POST body with the raw token.
-      // Do not include it in any log. The error code alone is enough.
-      logForDebugging(`import-token network error: ${err.code ?? 'unknown'}`, {
+      // err.config.data 将包含带有原始令牌的 POS
+      // T 请求体。请勿将其包含在任何日志中。仅错误代码就足够了。
+      logForDebugging(`import-token 网络错误：${err.code ?? 'unknown'}`, {
         level: 'error',
       })
     }
@@ -108,14 +99,7 @@ async function hasExistingEnvironment(): Promise<boolean> {
   }
 }
 
-/**
- * Best-effort default environment creation. Mirrors the web onboarding's
- * DEFAULT_CLOUD_ENVIRONMENT_REQUEST so a first-time user lands on the
- * composer instead of env-setup. Checks for existing environments first
- * so re-running /web-setup doesn't pile up duplicates. Failures are
- * non-fatal — the token import already succeeded, and the web state
- * machine falls back to env-setup on next load.
- */
+/** 尽力创建默认环境。镜像 Web 引导流程中的 DEFAULT_CLOUD_ENVIRONMENT_REQUEST，以便首次用户直接进入编辑器而非环境设置页面。首先检查是否存在现有环境，以避免重复运行 /web-setup 时产生重复项。失败不影响关键流程——令牌导入已成功，Web 状态机将在下次加载时回退到环境设置。 */
 export async function createDefaultEnvironment(): Promise<boolean> {
   let accessToken: string, orgUUID: string
   try {
@@ -128,9 +112,9 @@ export async function createDefaultEnvironment(): Promise<boolean> {
     return true
   }
 
-  // The /private/organizations/{org}/ path rejects CLI OAuth tokens (wrong
-  // auth dep). The public path uses build_flexible_auth — same path
-  // fetchEnvironments() uses. Org is passed via x-organization-uuid header.
+  // /private/organizations/{org}/ 路径会拒绝 CLI OAuth 令牌（错误
+  // 的认证依赖）。公共路径使用 build_flexible_auth —— 与 fetchEn
+  // vironments() 使用的路径相同。组织通过 x-organization-uuid 请求头传递。
   const url = `${getOauthConfig().BASE_API_URL}/v1/environment_providers/cloud/create`
   const headers = {
     ...getOAuthHeaders(accessToken),
@@ -143,7 +127,7 @@ export async function createDefaultEnvironment(): Promise<boolean> {
       {
         name: 'Default',
         kind: 'anthropic_cloud',
-        description: 'Default - trusted network access',
+        description: '默认 - 受信任的网络访问',
         config: {
           environment_type: 'anthropic',
           cwd: '/home/user',
@@ -167,7 +151,7 @@ export async function createDefaultEnvironment(): Promise<boolean> {
   }
 }
 
-/** Returns true when the user has valid Claude OAuth credentials. */
+/** 当用户拥有有效的 Claude OAuth 凭据时返回 true。 */
 export async function isSignedIn(): Promise<boolean> {
   try {
     await prepareApiRequest()

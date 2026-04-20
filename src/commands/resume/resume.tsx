@@ -36,9 +36,9 @@ type ResumeResult =
 function resumeHelpMessage(result: ResumeResult): string {
   switch (result.resultType) {
     case 'sessionNotFound':
-      return `Session ${chalk.bold(result.arg)} was not found.`
+      return `未找到会话 ${chalk.bold(result.arg)}。`
     case 'multipleMatches':
-      return `Found ${result.count} sessions matching ${chalk.bold(result.arg)}. Please use /resume to pick a specific session.`
+      return `找到 ${result.count} 个与 ${chalk.bold(result.arg)} 匹配的会话。请使用 /resume 命令选择一个特定会话。`
   }
 }
 
@@ -99,12 +99,12 @@ function ResumeCommand({
           : await loadSameRepoMessageLogs(paths)
         const resumable = filterResumableSessions(allLogs, getSessionId())
         if (resumable.length === 0) {
-          onDone('No conversations found to resume')
+          onDone('未找到可恢复的对话')
           return
         }
         setLogs(resumable)
       } catch (_err) {
-        onDone('Failed to load conversations')
+        onDone('加载对话失败')
       } finally {
         setLoading(false)
       }
@@ -130,14 +130,14 @@ function ResumeCommand({
   async function handleSelect(log: LogOption) {
     const sessionId = validateUuid(getSessionIdFromLog(log))
     if (!sessionId) {
-      onDone('Failed to resume conversation')
+      onDone('恢复对话失败')
       return
     }
 
-    // Load full messages for lite logs
+    // 为精简日志加载完整消息
     const fullLog = isLiteLog(log) ? await loadFullLog(log) : log
 
-    // Check if this conversation is from a different directory
+    // 检查此对话是否来自其他目录
     const crossProjectCheck = checkCrossProjectResume(
       fullLog,
       showAllProjects,
@@ -145,25 +145,25 @@ function ResumeCommand({
     )
     if (crossProjectCheck.isCrossProject) {
       if (crossProjectCheck.isSameRepoWorktree) {
-        // Same repo worktree - can resume directly
+        // 相同仓库工作树 - 可直接恢复
         setResuming(true)
         void onResume(sessionId, fullLog, 'slash_command_picker')
         return
       }
 
-      // Different project - show command instead of resuming
+      // 不同项目 - 显示命令而非恢复
       const raw = await setClipboard((crossProjectCheck as { command: string }).command)
       if (raw) process.stdout.write(raw)
 
-      // Format the output message
+      // 格式化输出消息
       const message = [
         '',
-        'This conversation is from a different directory.',
+        '此对话来自其他目录。',
         '',
-        'To resume, run:',
+        '要恢复，请运行：',
         `  ${(crossProjectCheck as { command: string }).command}`,
         '',
-        '(Command copied to clipboard)',
+        '（命令已复制到剪贴板）',
         '',
       ].join('\n')
 
@@ -171,20 +171,20 @@ function ResumeCommand({
       return
     }
 
-    // Same directory - proceed with resume
+    // 相同目录 - 继续恢复
     setResuming(true)
     void onResume(sessionId, fullLog, 'slash_command_picker')
   }
 
   function handleCancel() {
-    onDone('Resume cancelled', { display: 'system' })
+    onDone('恢复已取消', { display: 'system' })
   }
 
   if (loading) {
     return (
       <Box>
         <Spinner />
-        <Text> Loading conversations…</Text>
+        <Text> 正在加载对话…</Text>
       </Box>
     )
   }
@@ -193,7 +193,7 @@ function ResumeCommand({
     return (
       <Box>
         <Spinner />
-        <Text> Resuming conversation…</Text>
+        <Text> 正在恢复对话…</Text>
       </Box>
     )
   }
@@ -232,24 +232,24 @@ export const call: LocalJSXCommandCall = async (onDone, context, args) => {
       onDone(undefined, { display: 'skip' })
     } catch (error) {
       logError(error as Error)
-      onDone(`Failed to resume: ${(error as Error).message}`)
+      onDone(`恢复失败：${(error as Error).message}`)
     }
   }
 
   const arg = args?.trim()
 
-  // No argument provided - show picker
+  // 未提供参数 - 显示选择器
   if (!arg) {
     return (
       <ResumeCommand key={Date.now()} onDone={onDone} onResume={onResume} />
     )
   }
 
-  // Load logs to search (includes same-repo worktrees)
+  // 加载日志以搜索（包含同仓库工作树）
   const worktreePaths = await getWorktreePaths(getOriginalCwd())
   const logs = await loadSameRepoMessageLogs(worktreePaths)
   if (logs.length === 0) {
-    const message = 'No conversations found to resume.'
+    const message = '未找到可恢复的对话。'
     return (
       <ResumeError
         message={message}
@@ -259,7 +259,7 @@ export const call: LocalJSXCommandCall = async (onDone, context, args) => {
     )
   }
 
-  // First, check if arg is a valid UUID
+  // 首先，检查参数是否为有效的 UUID
   const maybeSessionId = validateUuid(arg)
   if (maybeSessionId) {
     const matchingLogs = logs
@@ -273,9 +273,9 @@ export const call: LocalJSXCommandCall = async (onDone, context, args) => {
       return null
     }
 
-    // Enriched logs didn't find it — try direct file lookup. This handles
-    // sessions filtered out by enrichLogs (e.g., first message >16KB makes
-    // firstPrompt extraction fail, causing the session to be dropped).
+    // 增强日志未找到它 — 尝试直接文件查找。这用于处理被 enr
+    // ichLogs 过滤掉的会话（例如，首条消息 >16KB 导致
+    // firstPrompt 提取失败，从而使该会话被丢弃）。
     const directLog = await getLastSessionLog(maybeSessionId)
     if (directLog) {
       void onResume(maybeSessionId, directLog, 'slash_command_session_id')
@@ -283,7 +283,7 @@ export const call: LocalJSXCommandCall = async (onDone, context, args) => {
     }
   }
 
-  // Next, try exact custom title match (only if feature is enabled)
+  // 接下来，尝试精确的自定义标题匹配（仅当功能启用时）
   if (isCustomTitleEnabled()) {
     const titleMatches = await searchSessionsByCustomTitle(arg, {
       exact: true,
@@ -298,7 +298,7 @@ export const call: LocalJSXCommandCall = async (onDone, context, args) => {
       }
     }
 
-    // Multiple matches - show error
+    // 多个匹配项 - 显示错误
     if (titleMatches.length > 1) {
       const message = resumeHelpMessage({
         resultType: 'multipleMatches',
@@ -315,7 +315,7 @@ export const call: LocalJSXCommandCall = async (onDone, context, args) => {
     }
   }
 
-  // No match found - show error
+  // 未找到匹配项 - 显示错误
   const message = resumeHelpMessage({ resultType: 'sessionNotFound', arg })
   return (
     <ResumeError message={message} args={arg} onDone={() => onDone(message)} />

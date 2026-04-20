@@ -4,7 +4,7 @@ import { checkStatsigFeatureGate_CACHED_MAY_BE_STALE } from '../../services/anal
 const thinkback = {
   type: 'local-jsx',
   name: 'think-back',
-  description: 'Your 2025 Claude Code Year in Review',
+  description: '你的 2025 年 Claude 代码年度回顾',
   isEnabled: () =>
     checkStatsigFeatureGate_CACHED_MAY_BE_STALE('tengu_thinkback'),
   load: () => import('./thinkback.js'),

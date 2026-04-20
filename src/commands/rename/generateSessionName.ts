@@ -19,7 +19,7 @@ export async function generateSessionName(
   try {
     const result = await queryHaiku({
       systemPrompt: asSystemPrompt([
-        'Generate a short kebab-case name (2-4 words) that captures the main topic of this conversation. Use lowercase words separated by hyphens. Examples: "fix-login-bug", "add-auth-feature", "refactor-api-client", "debug-test-failures". Return JSON with a "name" field.',
+        '生成一个简短的短横线命名（2-4个单词），概括本次对话的核心主题。使用小写单词，并用连字符分隔。示例："修复登录错误"、"添加认证功能"、"重构API客户端"、"调试测试失败"。返回包含 "name" 字段的 JSON。',
       ]),
       userPrompt: conversationText,
       outputFormat: {
@@ -56,10 +56,10 @@ export async function generateSessionName(
     }
     return null
   } catch (error) {
-    // Haiku timeout/rate-limit/network are expected operational failures —
-    // logForDebugging, not logError. Called automatically on every 3rd bridge
-    // message (initReplBridge.ts), so errors here would flood the error file.
-    logForDebugging(`generateSessionName failed: ${errorMessage(error)}`, {
+    // Haiku 超时/速率限制/网络问题是预期的运行故障 —— 应使用 logFo
+    // rDebugging 记录，而非 logError。此函数在每第3条桥接消息时自
+    // 动调用（initReplBridge.ts），因此此处的错误会淹没错误日志文件。
+    logForDebugging(`generateSessionName 失败：${errorMessage(error)}`, {
       level: 'error',
     })
     return null

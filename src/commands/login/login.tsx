@@ -18,9 +18,7 @@ import type { LocalJSXCommandOnDone } from '../../types/command.js'
 import { stripSignatureBlocks } from '../../utils/messages.js'
 import {
   checkAndDisableAutoModeIfNeeded,
-  checkAndDisableBypassPermissionsIfNeeded,
   resetAutoModeGateCheck,
-  resetBypassPermissionsCheck,
 } from '../../utils/permissions/bypassPermissionsKillswitch.js'
 import { resetUserCache } from '../../utils/user.js'
 
@@ -54,20 +52,13 @@ export async function call(
           // 注册为远程控制的受信任设备（10分钟新会话窗口）
           void enrollTrustedDevice()
           // 重置 killswitch 门检查，并使用新组织重新运行
-          resetBypassPermissionsCheck()
+          resetAutoModeGateCheck()
           const appState = context.getAppState()
-          void checkAndDisableBypassPermissionsIfNeeded(
+          void checkAndDisableAutoModeIfNeeded(
             appState.toolPermissionContext,
             context.setAppState,
+            appState.fastMode,
           )
-          if (feature('TRANSCRIPT_CLASSIFIER')) {
-            resetAutoModeGateCheck()
-            void checkAndDisableAutoModeIfNeeded(
-              appState.toolPermissionContext,
-              context.setAppState,
-              appState.fastMode,
-            )
-          }
           // 递增 authVersion 以触发钩子中重新获取依赖认证的数据（例如，MCP 服务器）
           context.setAppState(prev => ({
             ...prev,

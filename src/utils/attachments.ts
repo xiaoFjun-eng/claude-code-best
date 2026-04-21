@@ -2133,6 +2133,7 @@ async function getRelevantMemoryAttachments(
   recentTools: readonly string[],
   signal: AbortSignal,
   alreadySurfaced: ReadonlySet<string>,
+  parentSpan?: unknown,
 ): Promise<Attachment[]> {
   // 如果代理被 @ 提及，则仅搜索其内存目录（隔离
   // ）。否则搜索自动内存目录。
@@ -2153,6 +2154,7 @@ async function getRelevantMemoryAttachments(
         signal,
         recentTools,
         alreadySurfaced,
+        parentSpan as Parameters<typeof findRelevantMemories>[5],
       ).catch(() => []),
     ),
   )
@@ -2276,6 +2278,12 @@ export function startRelevantMemoryPrefetch(
     return undefined
   }
 
+  // Poor mode: skip the side-query to save tokens
+  const { isPoorModeActive } = require('../commands/poor/poorMode.js') as typeof import('../commands/poor/poorMode.js')
+  if (isPoorModeActive()) {
+    return undefined
+  }
+
   const lastUserMessage = messages.findLast(m => m.type === 'user' && !m.isMeta)
   if (!lastUserMessage) {
     return undefined
@@ -2303,6 +2311,7 @@ export function startRelevantMemoryPrefetch(
     collectRecentSuccessfulTools(messages, lastUserMessage),
     controller.signal,
     surfaced.paths,
+    toolUseContext.langfuseTrace,
   ).catch(e => {
     if (!isAbortError(e)) {
       logError(e)

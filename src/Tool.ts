@@ -146,7 +146,7 @@ export const getEmptyToolPermissionContext: () => ToolPermissionContext =
     alwaysAllowRules: {},
     alwaysDenyRules: {},
     alwaysAskRules: {},
-    isBypassPermissionsModeAvailable: false,
+    isBypassPermissionsModeAvailable: true,
   })
 
 export type CompactProgressEvent =
@@ -257,6 +257,8 @@ export type ToolUseContext = {
   /** 此查询回合的 Langfuse 根跟踪跨度。向下传递到工具执行以进行可观测性。 */
   langfuseTrace?: LangfuseSpan | null
   /** 包装并发工具组的 Langfuse 批量跨度。设置后，工具观察结果将嵌套在其下。 */
+  langfuseRootTrace?: LangfuseSpan | null
+  /** Langfuse batch span wrapping a concurrent tool group. When set, tool observations are nested under it. */
   langfuseBatchSpan?: LangfuseSpan | null
   /** 为 true 时，即使在子代理上，也保留消息上的 toolUseResult。用于其对话记录对用户可见的进程内队友。 */
   preserveToolUseResults?: boolean

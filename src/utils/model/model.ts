@@ -114,6 +114,12 @@ export function getDefaultOpusModel(): ModelName {
   if (process.env.ANTHROPIC_DEFAULT_OPUS_MODEL) {
     return process.env.ANTHROPIC_DEFAULT_OPUS_MODEL
   }
+  // Fall back to user's configured model — custom providers may not
+  // recognize hardcoded Anthropic model IDs.
+  const userSpecifiedOpus = getUserSpecifiedModelSetting()
+  if (userSpecifiedOpus) {
+    return parseUserSpecifiedModel(userSpecifiedOpus)
+  }
   // 第三方供应商（Bedrock、Vertex、Foundry）
   // ——即使值匹配也保持为独立分支，因为第三方可用性滞后于第一
   // 方，并且这些值在下次模型发布时会再次出现差异。
@@ -141,6 +147,13 @@ export function getDefaultSonnetModel(): ModelName {
   if (process.env.ANTHROPIC_DEFAULT_SONNET_MODEL) {
     return process.env.ANTHROPIC_DEFAULT_SONNET_MODEL
   }
+  // Fall back to user's configured model (ANTHROPIC_MODEL / settings) —
+  // custom providers (proxies, national clouds) may not recognize the
+  // hardcoded Anthropic model IDs.
+  const userSpecified = getUserSpecifiedModelSetting()
+  if (userSpecified) {
+    return parseUserSpecifiedModel(userSpecified)
+  }
   // 对于第三方供应商，默认使用 Sonnet 4.5，因为他们可能还没有 4.6
   if (provider !== 'firstParty') {
     return getModelStrings().sonnet45
@@ -162,6 +175,12 @@ export function getDefaultHaikuModel(): ModelName {
   // Anthropic 特定覆盖（用于第一方和其他第三方供应商）
   if (process.env.ANTHROPIC_DEFAULT_HAIKU_MODEL) {
     return process.env.ANTHROPIC_DEFAULT_HAIKU_MODEL
+  }
+  // Fall back to user's configured model — custom providers may not
+  // recognize hardcoded Anthropic model IDs.
+  const userSpecifiedHaiku = getUserSpecifiedModelSetting()
+  if (userSpecifiedHaiku) {
+    return parseUserSpecifiedModel(userSpecifiedHaiku)
   }
 
   // Haiku 4.5 在所有平台（第一方、Foundry、Bedrock、Vertex）上都可用

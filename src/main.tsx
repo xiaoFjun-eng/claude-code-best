@@ -242,7 +242,6 @@ import {
 import { ensureModelStringsInitialized } from "./utils/model/modelStrings.js";
 import { PERMISSION_MODES } from "./utils/permissions/PermissionMode.js";
 import {
-	checkAndDisableBypassPermissions,
 	getAutoModeEnabledStateIfCached,
 	initializeToolPermissionContext,
 	initialPermissionModeFromCLI,
@@ -3905,19 +3904,7 @@ ${formattedErrors}
 					onChangeAppState,
 				);
 
-				// 根据 Statsig 开关检查是否应禁用 bypassP
-				// ermissions。这与下方代码并行运行，以避免阻塞主循环。
-				if (
-					toolPermissionContext.mode === "bypassPermissions" ||
-					allowDangerouslySkipPermissions
-				) {
-					void checkAndDisableBypassPermissions(
-						toolPermissionContext,
-					);
-				}
-
-				// 自动模式开关的异步检查——根据需要更正状态并禁用自动模式。基于 TRANSCRIP
-				// T_CLASSIFIER（而非 USER_TYPE）控制，以便 GrowthBook 终止开关也对外部构建生效。
+				// Async check of auto mode gate — corrects state and disables auto if needed.
 				if (feature("TRANSCRIPT_CLASSIFIER")) {
 					void verifyAutoModeGateAccess(
 						toolPermissionContext,
@@ -6564,7 +6551,16 @@ ${formattedErrors}
 			},
 		);
 
-	// ant-only 命令
+	// claude update — update ccb to the latest version via npm or bun
+	program
+		.command("update")
+		.description("Update claude-code-best (ccb) to the latest version")
+		.action(async () => {
+			const { updateCCB } = await import("./cli/updateCCB.js");
+			await updateCCB();
+		});
+
+	// ant-only commands
 	if (process.env.USER_TYPE === "ant") {
 		const validateLogId = (value: string) => {
 			const maybeSessionId = validateUuid(value);

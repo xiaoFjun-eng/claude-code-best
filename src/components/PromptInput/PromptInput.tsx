@@ -151,16 +151,14 @@ import {
   isOpus1mMergeEnabled,
   modelDisplayString,
 } from '../../utils/model/model.js'
-import { setAutoModeActive } from '../../utils/permissions/autoModeState.js'
 import {
   cyclePermissionMode,
   getNextPermissionMode,
 } from '../../utils/permissions/getNextPermissionMode.js'
-import { transitionPermissionMode } from '../../utils/permissions/permissionSetup.js'
 import { getPlatform } from '../../utils/platform.js'
 import type { ProcessUserInputContext } from '../../utils/processUserInput/processUserInput.js'
 import { editPromptInEditor } from '../../utils/promptEditor.js'
-import { hasAutoModeOptIn } from '../../utils/settings/settings.js'
+// hasAutoModeOptIn removed — auto mode is available to all users
 import { findBtwTriggerPositions } from '../../utils/sideQuestion.js'
 import { findSlashCommandPositions } from '../../utils/suggestions/commandSuggestions.js'
 import {
@@ -187,7 +185,7 @@ import {
   findUltraplanTriggerPositions,
   findUltrareviewTriggerPositions,
 } from '../../utils/ultraplan/keyword.js'
-import { AutoModeOptInDialog } from '../AutoModeOptInDialog.js'
+// AutoModeOptInDialog removed — auto mode is available to all users
 import { BridgeDialog } from '../BridgeDialog.js'
 import { ConfigurableShortcutHint } from '../ConfigurableShortcutHint.js'
 import {
@@ -571,10 +569,6 @@ function PromptInput({
   const [showHistoryPicker, setShowHistoryPicker] = useState(false)
   const [showFastModePicker, setShowFastModePicker] = useState(false)
   const [showThinkingToggle, setShowThinkingToggle] = useState(false)
-  const [showAutoModeOptIn, setShowAutoModeOptIn] = useState(false)
-  const [previousModeBeforeAuto, setPreviousModeBeforeAuto] =
-    useState<PermissionMode | null>(null)
-  const autoModeOptInTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // 检查光标是否在输入框的第一行
   const isCursorOnFirstLine = useMemo(() => {
@@ -1883,87 +1877,12 @@ function PromptInput({
 
     // 先计算下一个模式，不触发副作用
     logForDebugging(
-      `[自动模式] handleCycleMode: currentMode=${toolPermissionContext.mode} isAutoModeAvailable=${toolPermissionContext.isAutoModeAvailable} showAutoModeOptIn=${showAutoModeOptIn} timeoutPending=${!!autoModeOptInTimeoutRef.current}`,
+      `[auto-mode] handleCycleMode: currentMode=${toolPermissionContext.mode}`,
     )
     const nextMode = getNextPermissionMode(toolPermissionContext, teamContext)
 
-    // 检查用户是否是首次进入自动模式。此检查基于
-    // 持久化设置标志（hasAutoModeOptIn），而非更宽泛的
-    // hasAutoModeOptInAnySource，以便 --enable-auto-mode 用户仍能
-    // 看到一次警告对话框——CLI 标志应授予轮播访问权限，
-    // 而非绕过安全文本。
-    let isEnteringAutoModeFirstTime = false
-    if (feature('TRANSCRIPT_CLASSIFIER')) {
-      isEnteringAutoModeFirstTime =
-        nextMode === 'auto' &&
-        toolPermissionContext.mode !== 'auto' &&
-        !hasAutoModeOptIn() &&
-        !viewingAgentTaskId // Only show for primary agent, not subagents
-    }
-
-    if (feature('TRANSCRIPT_CLASSIFIER')) {
-      if (isEnteringAutoModeFirstTime) {
-        // 存储上一个模式，以便在用户拒绝时恢复
-        setPreviousModeBeforeAuto(toolPermissionContext.mode)
-
-        // 仅更新 UI 模式标签——暂时不要调用 transitionPermissionMode
-        // 或 cyclePermissionMode；我们尚未与用户确认。
-        setAppState(prev => ({
-          ...prev,
-          toolPermissionContext: {
-            ...prev.toolPermissionContext,
-            mode: 'auto',
-          },
-        }))
-        setToolPermissionContext({
-          ...toolPermissionContext,
-          mode: 'auto',
-        })
-
-        // 在 400ms 防抖后显示选择加入对话框
-        if (autoModeOptInTimeoutRef.current) {
-          clearTimeout(autoModeOptInTimeoutRef.current)
-        }
-        autoModeOptInTimeoutRef.current = setTimeout(
-          (setShowAutoModeOptIn, autoModeOptInTimeoutRef) => {
-            setShowAutoModeOptIn(true)
-            autoModeOptInTimeoutRef.current = null
-          },
-          400,
-          setShowAutoModeOptIn,
-          autoModeOptInTimeoutRef,
-        )
-
-        if (helpOpen) {
-          setHelpOpen(false)
-        }
-        return
-      }
-    }
-
-    // 如果正在显示或待处理（用户正在切换离开），则关闭自动模式选择加入对话框。
-    // 此处不要恢复到 previousModeBeforeAuto——shift+tab 意味着“推进轮播”，
-    // 而非“拒绝”。恢复会导致乒乓循环：自动模式恢复到
-    // 前一个模式，而它的下一个模式又是自动模式，如此循环往复。
-    // 对话框自身的拒绝按钮（handleAutoModeOptInDecline）会处理恢复。
-    if (feature('TRANSCRIPT_CLASSIFIER')) {
-      if (showAutoModeOptIn || autoModeOptInTimeoutRef.current) {
-        if (showAutoModeOptIn) {
-          logEvent('tengu_auto_mode_opt_in_dialog_decline', {})
-        }
-        setShowAutoModeOptIn(false)
-        if (autoModeOptInTimeoutRef.current) {
-          clearTimeout(autoModeOptInTimeoutRef.current)
-          autoModeOptInTimeoutRef.current = null
-        }
-        setPreviousModeBeforeAuto(null)
-        // 继续执行——模式为‘auto’，下面的 cyclePermissionMode 会转到‘default’。
-      }
-    }
-
-    // 既然我们知道这不是首次进入自动模式的路径，
-    // 调用 cyclePermissionMode 以应用副作用（例如，移除
-    // 危险权限，激活分类器）
+    // Call cyclePermissionMode to apply side effects (e.g. strip
+    // dangerous permissions, activate classifier)
     const { context: preparedContext } = cyclePermissionMode(
       toolPermissionContext,
       teamContext,
@@ -2007,91 +1926,10 @@ function PromptInput({
   }, [
     toolPermissionContext,
     teamContext,
-    viewingAgentTaskId,
     viewedTeammate,
     setAppState,
     setToolPermissionContext,
     helpOpen,
-    showAutoModeOptIn,
-  ])
-
-  // 自动模式选择加入对话框接受的处理程序
-  const handleAutoModeOptInAccept = useCallback(() => {
-    if (feature('TRANSCRIPT_CLASSIFIER')) {
-      setShowAutoModeOptIn(false)
-      setPreviousModeBeforeAuto(null)
-
-      // 既然用户已接受，应用完整转换：激活
-      // 自动模式后端（分类器、Beta 标头）并移除危险
-      // 权限（例如 Bash(*) 始终允许规则）。
-      const strippedContext = transitionPermissionMode(
-        previousModeBeforeAuto ?? toolPermissionContext.mode,
-        'auto',
-        toolPermissionContext,
-      )
-      setAppState(prev => ({
-        ...prev,
-        toolPermissionContext: {
-          ...strippedContext,
-          mode: 'auto',
-        },
-      }))
-      setToolPermissionContext({
-        ...strippedContext,
-        mode: 'auto',
-      })
-
-      // 如果启用自动模式时帮助提示已打开，则关闭它们
-      if (helpOpen) {
-        setHelpOpen(false)
-      }
-    }
-  }, [
-    helpOpen,
-    setHelpOpen,
-    previousModeBeforeAuto,
-    toolPermissionContext,
-    setAppState,
-    setToolPermissionContext,
-  ])
-
-  // 自动模式选择对话框拒绝的处理程序
-  const handleAutoModeOptInDecline = useCallback(() => {
-    if (feature('TRANSCRIPT_CLASSIFIER')) {
-      logForDebugging(
-        `[自动模式] handleAutoModeOptInDecline: 恢复到 ${previousModeBeforeAuto}，设置 isAutoModeAvailable=false`,
-      )
-      setShowAutoModeOptIn(false)
-      if (autoModeOptInTimeoutRef.current) {
-        clearTimeout(autoModeOptInTimeoutRef.current)
-        autoModeOptInTimeoutRef.current = null
-      }
-
-      // 恢复到之前的模式并从轮播中移除自动模式
-      // 在当前会话的剩余时间内
-      if (previousModeBeforeAuto) {
-        setAutoModeActive(false)
-        setAppState(prev => ({
-          ...prev,
-          toolPermissionContext: {
-            ...prev.toolPermissionContext,
-            mode: previousModeBeforeAuto,
-            isAutoModeAvailable: false,
-          },
-        }))
-        setToolPermissionContext({
-          ...toolPermissionContext,
-          mode: previousModeBeforeAuto,
-          isAutoModeAvailable: false,
-        })
-        setPreviousModeBeforeAuto(null)
-      }
-    }
-  }, [
-    previousModeBeforeAuto,
-    toolPermissionContext,
-    setAppState,
-    setToolPermissionContext,
   ])
 
   // 处理 chat:imagePaste - 从剪贴板粘贴图像
@@ -2755,23 +2593,10 @@ function PromptInput({
     messages.length,
   ])
 
-  // 将门户对话框传送到全屏的 DialogOverlay，使其脱离底部
-  // 插槽的 overflowY:hidden 裁剪（与 SuggestionsOverlay 模式相同）。
-  // 必须在下面的提前返回之前调用，以满足 hooks 规则。
-  // 已进行记忆化处理，避免 portal 的 useEffect 在每次 PromptInput 渲染时频繁触发。
-  const autoModeOptInDialog = useMemo(
-    () =>
-      feature('TRANSCRIPT_CLASSIFIER') && showAutoModeOptIn ? (
-        <AutoModeOptInDialog
-          onAccept={handleAutoModeOptInAccept}
-          onDecline={handleAutoModeOptInDecline}
-        />
-      ) : null,
-    [showAutoModeOptIn, handleAutoModeOptInAccept, handleAutoModeOptInDecline],
-  )
-  useSetPromptOverlayDialog(
-    isFullscreenEnvEnabled() ? autoModeOptInDialog : null,
-  )
+  // Portal dialog to DialogOverlay in fullscreen so it escapes the bottom
+  // slot's overflowY:hidden clip (same pattern as SuggestionsOverlay).
+  // Must be called before early returns below to satisfy rules-of-hooks.
+  useSetPromptOverlayDialog(null)
 
   if (showBashesDialog) {
     return (
@@ -3077,7 +2902,6 @@ function PromptInput({
           isFullscreenEnvEnabled() ? handleOpenTasksDialog : undefined
         }
       />
-      {isFullscreenEnvEnabled() ? null : autoModeOptInDialog}
       {isFullscreenEnvEnabled() ? (
 // position=absolute 不占布局高度，因此当通知出现/消失时，旋转器不会移动位置。
 // Yoga 将绝对定位的子元素锚定在父元素内容框的原点；marginTop=-1 将其拉入提示边框上方的 marginTop=1 间隙行。
@@ -3089,7 +2913,7 @@ function PromptInput({
         <Box
           position="absolute"
           marginTop={briefOwnsGap ? -2 : -1}
-          height={suggestions.length === 0 && !showAutoModeOptIn ? 1 : 0}
+          height={suggestions.length === 0 ? 1 : 0}
           width="100%"
           paddingLeft={2}
           paddingRight={1}

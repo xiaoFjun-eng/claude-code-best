@@ -28,9 +28,11 @@ import { errorMessage } from '../errors.js'
 import { lazySchema } from '../lazySchema.js'
 import { extractTextContent } from '../messages.js'
 import { resolveAntModel } from '../model/antModels.js'
-import { getMainLoopModel } from '../model/model.js'
+import { getDefaultSonnetModel, getMainLoopModel } from '../model/model.js'
+import { isPoorModeActive } from '../../commands/poor/poorMode.js'
 import { getAutoModeConfig } from '../settings/settings.js'
 import { sideQuery } from '../sideQuery.js'
+import type { LangfuseSpan } from '../../services/langfuse/index.js'
 import { jsonStringify } from '../slowOperations.js'
 import { tokenCountWithEstimation } from '../tokens.js'
 import {
@@ -731,6 +733,7 @@ async function classifyYoloActionXml(
     action: string
   },
   mode: TwoStageMode,
+  parentSpan?: LangfuseSpan | null,
 ): Promise<YoloClassifierResult> {
   const classifierType =
     mode === 'both'
@@ -791,6 +794,7 @@ async function classifyYoloActionXml(
         signal,
         ...(mode !== 'fast' && { stop_sequences: ['</block>'] }),
         querySource: 'auto_mode',
+        parentSpan,
       }
       const stage1Raw = await sideQuery(stage1Opts)
       stage1DurationMs = Date.now() - stage1Start
@@ -877,6 +881,7 @@ async function classifyYoloActionXml(
       maxRetries: getDefaultMaxRetries(),
       signal,
       querySource: 'auto_mode' as const,
+      parentSpan,
     }
     const stage2Raw = await sideQuery(stage2Opts)
     const stage2DurationMs = Date.now() - stage2Start
@@ -1015,6 +1020,7 @@ export async function classifyYoloAction(
   tools: Tools,
   context: ToolPermissionContext,
   signal: AbortSignal,
+  parentSpan?: LangfuseSpan | null,
 ): Promise<YoloClassifierResult> {
   const lookup = buildToolLookup(tools)
   const actionCompact = toCompact(action, lookup)
@@ -1126,6 +1132,7 @@ export async function classifyYoloAction(
         action: actionCompact,
       },
       getTwoStageMode(),
+      parentSpan,
     )
   }
   const [disableThinking, thinkingPadding] = getClassifierThinkingConfig(model)
@@ -1156,6 +1163,7 @@ export async function classifyYoloAction(
       maxRetries: getDefaultMaxRetries(),
       signal,
       querySource: 'auto_mode' as const,
+      parentSpan,
     }
     const result = await sideQuery(sideQueryOpts)
     void maybeDumpAutoMode(sideQueryOpts, result, start)
@@ -1342,6 +1350,10 @@ function getClassifierModel(): string {
   )
   if (config?.model) {
     return config.model
+  }
+  // Poor mode: downgrade classifier to Sonnet to reduce cost
+  if (isPoorModeActive()) {
+    return getDefaultSonnetModel()
   }
   return getMainLoopModel()
 }

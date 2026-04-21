@@ -17,7 +17,6 @@ import {
   notifySessionMetadataChanged,
   type SessionExternalMetadata,
 } from '../utils/sessionState.js'
-import { updateSettingsForSource } from '../utils/settings/settings.js'
 import type { AppState } from './AppStateStore.js'
 
 // 下方推送的逆操作——在 worker 重启时恢复。
@@ -91,23 +90,11 @@ export function onChangeAppState({
     notifyPermissionModeChanged(newMode)
   }
 
-  // mainLoopModel：将其从设置中移除？
-  if (
-    newState.mainLoopModel !== oldState.mainLoopModel &&
-    newState.mainLoopModel === null
-  ) {
-    // 从设置中移除
-    updateSettingsForSource('userSettings', { model: undefined })
-    setMainLoopModelOverride(null)
-  }
-
-  // mainLoopModel：将其添加到设置中？
-  if (
-    newState.mainLoopModel !== oldState.mainLoopModel &&
-    newState.mainLoopModel !== null
-  ) {
-    // 保存到设置
-    updateSettingsForSource('userSettings', { model: newState.mainLoopModel })
+  // mainLoopModel: session-scoped only (do NOT persist to userSettings).
+  // Writing to settings.json would leak model changes into other running
+  // sessions (anthropics/claude-code#37596). Each process keeps its own
+  // model override in memory via setMainLoopModelOverride.
+  if (newState.mainLoopModel !== oldState.mainLoopModel) {
     setMainLoopModelOverride(newState.mainLoopModel)
   }
 

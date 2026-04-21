@@ -52,7 +52,6 @@ import type { PermissionMode } from './utils/permissions/PermissionMode.js'
 import { getBaseRenderOptions } from './utils/renderOptions.js'
 import { getSettingsWithAllErrors } from './utils/settings/allErrors.js'
 import {
-  hasAutoModeOptIn,
   hasSkipDangerousModePermissionPrompt,
 } from './utils/settings/settings.js'
 
@@ -297,25 +296,6 @@ export async function showSetupScreens(
     await showSetupDialog(root, done => (
       <BypassPermissionsModeDialog onAccept={done} />
     ))
-  }
-
-  if (feature('TRANSCRIPT_CLASSIFIER')) {
-    // 仅当自动模式实际解析时才显示选择加入对话框——如果门控拒
-    // 绝了它（组织不在允许列表中、设置已禁用），为一个不可用
-    // 的功能显示同意是没有意义的。verifyAu
-    // toModeGateAccess 通知将解释原因。
-    if (permissionMode === 'auto' && !hasAutoModeOptIn()) {
-      const { AutoModeOptInDialog } = await import(
-        './components/AutoModeOptInDialog.js'
-      )
-      await showSetupDialog(root, done => (
-        <AutoModeOptInDialog
-          onAccept={done}
-          onDecline={() => gracefulShutdownSync(1)}
-          declineExits
-        />
-      ))
-    }
   }
 
   // --dangerously-load-development-channels 确

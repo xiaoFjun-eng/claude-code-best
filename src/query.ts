@@ -227,6 +227,9 @@ export async function* query(
   // 当作为子 agent 调用时，langfuseTrace 已由 runAgent() 设置
   // — 复用而不是创建独立的跟踪。
   const ownsTrace = !params.toolUseContext.langfuseTrace
+  logForDebugging(
+    `[query] ownsTrace=${ownsTrace} incoming langfuseTrace=${params.toolUseContext.langfuseTrace ? 'present' : 'null/undefined'} isLangfuseEnabled=${isLangfuseEnabled()}`,
+  )
   const langfuseTrace = params.toolUseContext.langfuseTrace
     ?? (isLangfuseEnabled()
       ? createTrace({

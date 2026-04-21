@@ -1,6 +1,6 @@
 {
   "name": "claude-code-best",
-  "version": "1.6.0",
+  "version": "1.7.1",
   "description": "Reverse-engineered Anthropic Claude Code CLI — interactive AI coding assistant in the terminal",
   "type": "module",
   "author": "claude-code-best <claude-code-best@proton.me>",
@@ -58,6 +58,7 @@
     "postinstall": "node scripts/run-parallel.mjs scripts/postinstall.cjs scripts/setup-chrome-mcp.mjs",
     "docs:dev": "npx mintlify dev",
     "typecheck": "tsc --noEmit",
+    "test:all": "bun run typecheck && bun test",
     "rcs": "bun run scripts/rcs.ts"
   },
   "dependencies": {

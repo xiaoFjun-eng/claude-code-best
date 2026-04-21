@@ -669,12 +669,16 @@ export const hasPermissionsToUseTool: CanUseToolFn = async (
       setClassifierChecking(toolUseID)
       let classifierResult
       try {
+        logForDebugging(
+          `[auto-mode] classifyYoloAction called with langfuseTrace=${context.langfuseTrace ? `id=${(context.langfuseTrace as unknown as Record<string, unknown>).id ?? 'present'}` : 'null/undefined'}`,
+        )
         classifierResult = await classifyYoloAction(
           context.messages,
           action,
           context.options.tools,
           appState.toolPermissionContext,
           context.abortController.signal,
+          context.langfuseRootTrace ?? context.langfuseTrace,
         )
       } finally {
         clearClassifierChecking(toolUseID)
@@ -829,12 +833,30 @@ export const hasPermissionsToUseTool: CanUseToolFn = async (
               CLASSIFIER_FAIL_CLOSED_REFRESH_MS,
             )
           ) {
+            if (appState.toolPermissionContext.shouldAvoidPermissionPrompts) {
+              logForDebugging(
+                '自动模式分类器不可用，拒绝并附带重试指引（故障关闭）',
+                { level: 'warn' },
+              )
+              return {
+                behavior: 'deny',
+                decisionReason: {
+                  type: 'classifier',
+                  classifier: 'auto-mode',
+                  reason: 'Classifier unavailable',
+                },
+                message: buildClassifierUnavailableMessage(
+                  tool.name,
+                  classifierResult.model,
+                ),
+              }
+            }
             logForDebugging(
-              '自动模式分类器不可用，拒绝并附带重试指引（故障关闭）',
+              'Auto mode classifier unavailable, falling back to prompting with retry guidance (fail closed)',
               { level: 'warn' },
             )
             return {
-              behavior: 'deny',
+              behavior: 'ask',
               decisionReason: {
                 type: 'classifier',
                 classifier: 'auto-mode',

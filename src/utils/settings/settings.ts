@@ -847,20 +847,8 @@ export function hasSkipDangerousModePermissionPrompt(): boolean {
 模式选择加入对话框，则返回 true。projectSettings 被有意排除 —
 否则恶意项目可能会自动绕过对话框（RCE 风险）。 */
 export function hasAutoModeOptIn(): boolean {
-  if (feature('TRANSCRIPT_CLASSIFIER')) {
-    const user = getSettingsForSource('userSettings')?.skipAutoPermissionPrompt
-    const local =
-      getSettingsForSource('localSettings')?.skipAutoPermissionPrompt
-    const flag = getSettingsForSource('flagSettings')?.skipAutoPermissionPrompt
-    const policy =
-      getSettingsForSource('policySettings')?.skipAutoPermissionPrompt
-    const result = !!(user || local || flag || policy)
-    logForDebugging(
-      `[auto-mode] hasAutoModeOptIn=${result} skipAutoPermissionPrompt: user=${user} local=${local} flag=${flag} policy=${policy}`,
-    )
-    return result
-  }
-  return false
+  // Auto mode is available to all users — no opt-in needed
+  return true
 }
 
 /** 返回计划模式是否应使用自动模式语义。默认为 true

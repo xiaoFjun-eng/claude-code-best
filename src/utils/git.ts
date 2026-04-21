@@ -141,16 +141,13 @@ const resolveCanonicalRoot = memoizeWithLRU(
       // 执行来自 .claude/settings.json 的钩子。
       //
       // 验证结构是否与 `git worktree add` 创建的结构匹
-      // 配：
-1. worktreeGitDir 是 <commonDi
+      // 配：1. worktreeGitDir 是 <commonDi
       // r>/worktrees/ 的直接子目录 → 确保我们读取的 co
       // mmondir 文件位于已解析的公共目录内，
-      // 而不是攻击者的仓库内。
-2. <worktreeGitDir
+      // 而不是攻击者的仓库内。2. <worktreeGitDir
       // >/gitdir 指回 <gitRoot>/.git → 确保攻击
       // 者无法通过猜测路径借用受害者
-      // 的现有工作树条目。
-两者都是必需的：如果受害者拥有受信任仓库的工作树，
+      // 的现有工作树条目。两者都是必需的：如果受害者拥有受信任仓库的工作树，
       // 仅（1）会失败；仅（2）会失败，因为攻击者控制 worktreeGitDir。
       if (resolve(dirname(worktreeGitDir)) !== join(commonDir, 'worktrees')) {
         return gitRoot
@@ -294,10 +291,8 @@ export function normalizeGitRemoteUrl(url: string): string | null {
 
     // CCR git 代理 URL 使用格式：
     // 旧版：http://...@127.0.0.1:PORT/git/owner/repo
-    // （假定为 github.com）
-GHE：    http://...@127.0.0.1:PORT/git
-    // /ghe.host/owner/repo （主机名编码在路径中）
-移除 /git/ 前缀。
+    // （假定为 github.com）GHE：    http://...@127.0.0.1:PORT/git
+    // /ghe.host/owner/repo （主机名编码在路径中）移除 /git/ 前缀。
     // 如果第一个段包含点，则它是主机名（GitHub 组织名不能包含点）。否则假定为 github.com。
     if (isLocalHost(host) && path.startsWith('git/')) {
       const proxyPath = path.slice(4) // 移除 "git/" 前缀

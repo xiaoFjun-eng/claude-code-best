@@ -34,7 +34,7 @@ export type File = {
 }
 
 /**
- * Check if a path exists asynchronously.
+ * 异步检查路径是否存在。
  */
 export async function pathExists(path: string): Promise<boolean> {
   try {
@@ -45,7 +45,7 @@ export async function pathExists(path: string): Promise<boolean> {
   }
 }
 
-export const MAX_OUTPUT_SIZE = 0.25 * 1024 * 1024 // 0.25MB in bytes
+export const MAX_OUTPUT_SIZE = 0.25 * 1024 * 1024 // 0.25MB 字节
 
 export function readFileSafe(filepath: string): string | null {
   try {
@@ -58,10 +58,8 @@ export function readFileSafe(filepath: string): string | null {
 }
 
 /**
- * Get the normalized modification time of a file in milliseconds.
- * Uses Math.floor to ensure consistent timestamp comparisons across file operations,
- * reducing false positives from sub-millisecond precision changes (e.g., from IDE
- * file watchers that touch files without changing content).
+ * 获取文件的规范化修改时间（毫秒）。
+ * 使用 Math.floor 确保跨文件操作的时间戳比较一致，减少来自亚毫秒级精度变化（例如，来自 IDE 文件监视器在不更改内容的情况下触及文件）的误报。
  */
 export function getFileModificationTime(filePath: string): number {
   const fs = getFsImplementation()
@@ -69,10 +67,8 @@ export function getFileModificationTime(filePath: string): number {
 }
 
 /**
- * Async variant of getFileModificationTime. Same floor semantics.
- * Use this in async paths (getChangedFiles runs every turn on every readFileState
- * entry — sync statSync there triggers the slow-operation indicator on network/
- * slow disks).
+ * getFileModificationTime 的异步变体。相同的 Math.floor 语义。
+ * 在异步路径中使用此方法（getChangedFiles 在每个轮次对每个 readFileState 条目运行 —— 同步的 statSync 会在网络/慢速磁盘上触发慢操作指示器）。
  */
 export async function getFileModificationTimeAsync(
   filePath: string,
@@ -89,8 +85,7 @@ export function writeTextContent(
 ): void {
   let toWrite = content
   if (endings === 'CRLF') {
-    // Normalize any existing CRLF to LF first so a new_string that already
-    // contains \r\n (raw model output) doesn't become \r\r\n after the join.
+    // 首先将任何现有的 CRLF 规范化为 LF，这样已经包含 \r\n（原始模型输出）的新字符串在拼接后不会变成 \r\r\n。
     toWrite = content.replaceAll('\r\n', '\n').split('\n').join('\r\n')
   }
 
@@ -105,7 +100,7 @@ export function detectFileEncoding(filePath: string): BufferEncoding {
   } catch (error) {
     if (isFsInaccessible(error)) {
       logForDebugging(
-        `detectFileEncoding failed for expected reason: ${error.code}`,
+        `detectFileEncoding 因预期原因失败: ${error.code}`,
         {
           level: 'debug',
         },
@@ -135,8 +130,7 @@ export function detectLineEndings(
 }
 
 export function convertLeadingTabsToSpaces(content: string): string {
-  // The /gm regex scans every line even on no-match; skip it entirely
-  // for the common tab-free case.
+  // 即使不匹配，/gm 正则也会扫描每一行；对于常见的无制表符情况，完全跳过。
   if (!content.includes('\t')) return content
   return content.replace(/^\t+/gm, _ => '  '.repeat(_.length))
 }
@@ -153,26 +147,26 @@ export function getAbsoluteAndRelativePaths(path: string | undefined): {
 }
 
 export function getDisplayPath(filePath: string): string {
-  // Use relative path if file is in the current working directory
+  // 如果文件在当前工作目录中，使用相对路径
   const { relativePath } = getAbsoluteAndRelativePaths(filePath)
   if (relativePath && !relativePath.startsWith('..')) {
     return relativePath
   }
 
-  // Use tilde notation for files in home directory
+  // 对于主目录中的文件，使用波浪号表示法
   const homeDir = homedir()
   if (filePath.startsWith(homeDir + sep)) {
     return '~' + filePath.slice(homeDir.length)
   }
 
-  // Otherwise return the absolute path
+  // 否则返回绝对路径
   return filePath
 }
 
 /**
- * Find files with the same name but different extensions in the same directory
- * @param filePath The path to the file that doesn't exist
- * @returns The found file with a different extension, or undefined if none found
+ * 在同一目录中查找具有相同名称但不同扩展名的文件
+ * @param filePath 不存在文件的路径
+ * @returns 找到的具有不同扩展名的文件，如果没有找到则返回 undefined
  */
 
 export function findSimilarFile(filePath: string): string | undefined {
@@ -181,24 +175,24 @@ export function findSimilarFile(filePath: string): string | undefined {
     const dir = dirname(filePath)
     const fileBaseName = basename(filePath, extname(filePath))
 
-    // Get all files in the directory
+    // 获取目录中的所有文件
     const files = fs.readdirSync(dir)
 
-    // Find files with the same base name but different extension
+    // 查找具有相同基础名称但不同扩展名的文件
     const similarFiles = files.filter(
       file =>
         basename(file.name, extname(file.name)) === fileBaseName &&
         join(dir, file.name) !== filePath,
     )
 
-    // Return just the filename of the first match if found
+    // 如果找到匹配项，则返回第一个匹配项的文件名
     const firstMatch = similarFiles[0]
     if (firstMatch) {
       return firstMatch.name
     }
     return undefined
   } catch (error) {
-    // Missing dir (ENOENT) is expected; for other errors log and return undefined
+    // 缺失目录（ENOENT）是预期的；对于其他错误，记录日志并返回 undefined
     if (!isENOENT(error)) {
       logError(error)
     }
@@ -207,23 +201,22 @@ export function findSimilarFile(filePath: string): string | undefined {
 }
 
 /**
- * Marker included in file-not-found error messages that contain a cwd note.
- * UI renderers check for this to show a short "File not found" message.
+ * 包含 cwd 注释的文件未找到错误消息中包含的标记。
+ * UI 渲染器检查此标记以显示简短的“文件未找到”消息。
  */
-export const FILE_NOT_FOUND_CWD_NOTE = 'Note: your current working directory is'
+export const FILE_NOT_FOUND_CWD_NOTE = '注意：您当前的工作目录是'
 
 /**
- * Suggests a corrected path under the current working directory when a file/directory
- * is not found. Detects the "dropped repo folder" pattern where the model constructs
- * an absolute path missing the repo directory component.
+ * 当文件/目录未找到时，建议当前工作目录下的修正路径。
+ * 检测“丢失的仓库文件夹”模式，即模型构造的绝对路径缺少仓库目录组件。
  *
- * Example:
+ * 示例：
  *   cwd = /Users/zeeg/src/currentRepo
- *   requestedPath = /Users/zeeg/src/foobar           (doesn't exist)
- *   returns        /Users/zeeg/src/currentRepo/foobar (if it exists)
+ *   requestedPath = /Users/zeeg/src/foobar           （不存在）
+ *   returns        /Users/zeeg/src/currentRepo/foobar （如果存在）
  *
- * @param requestedPath - The absolute path that was not found
- * @returns The corrected path if found under cwd, undefined otherwise
+ * @param requestedPath - 未找到的绝对路径
+ * @returns 如果在 cwd 下找到则返回修正后的路径，否则返回 undefined
  */
 export async function suggestPathUnderCwd(
   requestedPath: string,
@@ -231,19 +224,18 @@ export async function suggestPathUnderCwd(
   const cwd = getCwd()
   const cwdParent = dirname(cwd)
 
-  // Resolve symlinks in the requested path's parent directory (e.g., /tmp -> /private/tmp on macOS)
-  // so the prefix comparison works correctly against the cwd (which is already realpath-resolved).
+  // 解析请求路径的父目录中的符号链接（例如 macOS 上的 /tmp -> /private/tmp）
+  // 以便前缀比较能正确针对 cwd（它已经通过 realpath 解析）工作。
   let resolvedPath = requestedPath
   try {
     const resolvedDir = await realpath(dirname(requestedPath))
     resolvedPath = join(resolvedDir, basename(requestedPath))
   } catch {
-    // Parent directory doesn't exist, use the original path
+    // 父目录不存在，使用原始路径
   }
 
-  // Only check if the requested path is under cwd's parent but not under cwd itself.
-  // When cwdParent is the root directory (e.g., '/'), use it directly as the prefix
-  // to avoid a double-separator '//' that would never match.
+  // 仅当请求路径位于 cwd 的父目录下但不在 cwd 本身下时进行检查。
+  // 当 cwdParent 是根目录（例如 '/'）时，直接将其作为前缀使用，以避免出现永远无法匹配的双分隔符 '//'。
   const cwdParentPrefix = cwdParent === sep ? sep : cwdParent + sep
   if (
     !resolvedPath.startsWith(cwdParentPrefix) ||
@@ -253,10 +245,10 @@ export async function suggestPathUnderCwd(
     return undefined
   }
 
-  // Get the relative path from the parent directory
+  // 从父目录获取相对路径
   const relFromParent = relative(cwdParent, resolvedPath)
 
-  // Check if the same relative path exists under cwd
+  // 检查相同的相对路径是否存在于 cwd 下
   const correctedPath = join(cwd, relFromParent)
   try {
     await stat(correctedPath)
@@ -267,17 +259,15 @@ export async function suggestPathUnderCwd(
 }
 
 /**
- * Whether to use the compact line-number prefix format (`N\t` instead of
- * `     N→`). The padded-arrow format costs 9 bytes/line overhead; at
- * 1.35B Read calls × 132 lines avg this is 2.18% of fleet uncached input
- * (bq-queries/read_line_prefix_overhead_verify.sql).
+ * 是否使用紧凑的行号前缀格式（`N\t` 而不是 `     N→`）。填充箭头格式每行开销 9 字节；
+ * 在 13.5 亿次 Read 调用 × 平均 132 行的情况下，这占集群未缓存输入的 2.18%
+ *（bq-queries/read_line_prefix_overhead_verify.sql）。
  *
- * Ant soak validated no Edit error regression (6.29% vs 6.86% baseline).
- * Killswitch pattern: GB can disable if issues surface externally.
+ * Ant 浸泡验证没有 Edit 错误回归（6.29% vs 6.86% 基线）。
+ * 终止开关模式：如果问题在外部浮现，GB 可以禁用。
  */
 export function isCompactLinePrefixEnabled(): boolean {
-  // 3P default: killswitch off = compact format enabled. Client-side only —
-  // no server support needed, safe for Bedrock/Vertex/Foundry.
+  // 3P 默认值：终止开关关闭 = 启用紧凑格式。仅客户端 —— 无需服务器支持，对 Bedrock/Vertex/Foundry 安全。
   return !getFeatureValue_CACHED_MAY_BE_STALE(
     'tengu_compact_line_prefix_killswitch',
     false,
@@ -285,11 +275,11 @@ export function isCompactLinePrefixEnabled(): boolean {
 }
 
 /**
- * Adds cat -n style line numbers to the content.
+ * 向内容添加类似 cat -n 风格的行号。
  */
 export function addLineNumbers({
   content,
-  // 1-indexed
+  // 1 索引
   startLine,
 }: {
   content: string
@@ -319,8 +309,8 @@ export function addLineNumbers({
 }
 
 /**
- * Inverse of addLineNumbers — strips the `N→` or `N\t` prefix from a single
- * line. Co-located so format changes here and in addLineNumbers stay in sync.
+ * addLineNumbers 的逆操作 —— 从单行中去除 `N→` 或 `N\t` 前缀。
+ * 放在这里以便此处的格式更改与 addLineNumbers 中的更改保持同步。
  */
 export function stripLineNumberPrefix(line: string): string {
   const match = line.match(/^\s*\d+[\u2192\t](.*)$/)
@@ -328,23 +318,23 @@ export function stripLineNumberPrefix(line: string): string {
 }
 
 /**
- * Checks if a directory is empty.
- * @param dirPath The path to the directory to check
- * @returns true if the directory is empty or does not exist, false otherwise
+ * 检查目录是否为空。
+ * @param dirPath 要检查的目录路径
+ * @returns 如果目录为空或不存在则返回 true，否则返回 false
  */
 export function isDirEmpty(dirPath: string): boolean {
   try {
     return getFsImplementation().isDirEmptySync(dirPath)
   } catch (e) {
-    // ENOENT: directory doesn't exist, consider it empty
-    // Other errors (EPERM on macOS protected folders, etc.): assume not empty
+    // ENOENT：目录不存在，视为空
+    // 其他错误（macOS 受保护文件夹上的 EPERM 等）：假设不为空
     return isENOENT(e)
   }
 }
 
 /**
- * Reads a file with caching to avoid redundant I/O operations.
- * This is the preferred method for FileEditTool operations.
+ * 使用缓存读取文件以避免冗余的 I/O 操作。
+ * 这是 FileEditTool 操作的首选方法。
  */
 export function readFileSyncCached(filePath: string): string {
   const { content } = fileReadCache.readFile(filePath)
@@ -352,12 +342,12 @@ export function readFileSyncCached(filePath: string): string {
 }
 
 /**
- * Writes to a file and flushes the file to disk
- * @param filePath The path to the file to write to
- * @param content The content to write to the file
- * @param options Options for writing the file, including encoding and mode
- * @deprecated Use `fs.promises.writeFile` with flush option instead for non-blocking writes.
- * Sync file writes block the event loop and cause performance issues.
+ * 将内容写入文件并将文件刷新到磁盘
+ * @param filePath 要写入的文件的路径
+ * @param content 要写入文件的内容
+ * @param options 写入文件的选项，包括编码和模式
+ * @deprecated 对于非阻塞写入，请使用带有 flush 选项的 `fs.promises.writeFile`。
+ * 同步文件写入会阻塞事件循环并导致性能问题。
  */
 export function writeFileSyncAndFlush_DEPRECATED(
   filePath: string,
@@ -366,47 +356,46 @@ export function writeFileSyncAndFlush_DEPRECATED(
 ): void {
   const fs = getFsImplementation()
 
-  // Check if the target file is a symlink to preserve it for all users
-  // Note: We don't use safeResolvePath here because we need to manually handle
-  // symlinks to ensure we write to the target while preserving the symlink itself
+  // 检查目标文件是否为符号链接，以便为所有用户保留它
+  // 注意：我们不使用 safeResolvePath，因为我们需要手动处理符号链接，以确保在保留符号链接本身的同时写入目标
   let targetPath = filePath
   try {
-    // Try to read the symlink - if successful, it's a symlink
+    // 尝试读取符号链接 - 如果成功，则它是符号链接
     const linkTarget = fs.readlinkSync(filePath)
-    // Resolve to absolute path
+    // 解析为绝对路径
     targetPath = isAbsolute(linkTarget)
       ? linkTarget
       : resolve(dirname(filePath), linkTarget)
-    logForDebugging(`Writing through symlink: ${filePath} -> ${targetPath}`)
+    logForDebugging(`通过符号链接写入: ${filePath} -> ${targetPath}`)
   } catch {
-    // ENOENT (doesn't exist) or EINVAL (not a symlink) — keep targetPath = filePath
+    // ENOENT（不存在）或 EINVAL（不是符号链接）—— 保持 targetPath = filePath
   }
 
-  // Try atomic write first
+  // 首先尝试原子写入
   const tempPath = `${targetPath}.tmp.${process.pid}.${Date.now()}`
 
-  // Check if target file exists and get its permissions (single stat, reused in both atomic and fallback paths)
+  // 检查目标文件是否存在并获取其权限（单个 stat，在原子路径和回退路径中重用）
   let targetMode: number | undefined
   let targetExists = false
   try {
     targetMode = fs.statSync(targetPath).mode
     targetExists = true
-    logForDebugging(`Preserving file permissions: ${targetMode.toString(8)}`)
+    logForDebugging(`保留文件权限: ${targetMode.toString(8)}`)
   } catch (e) {
     if (!isENOENT(e)) throw e
     if (options.mode !== undefined) {
-      // Use provided mode for new files
+      // 为新文件使用提供的模式
       targetMode = options.mode
       logForDebugging(
-        `Setting permissions for new file: ${targetMode.toString(8)}`,
+        `为新文件设置权限: ${targetMode.toString(8)}`,
       )
     }
   }
 
   try {
-    logForDebugging(`Writing to temp file: ${tempPath}`)
+    logForDebugging(`写入临时文件: ${tempPath}`)
 
-    // Write to temp file with flush and mode (if specified for new file)
+    // 写入临时文件并刷新，并设置模式（如果是新文件）
     const writeOptions: {
       encoding: BufferEncoding
       flush: boolean
@@ -415,43 +404,43 @@ export function writeFileSyncAndFlush_DEPRECATED(
       encoding: options.encoding,
       flush: true,
     }
-    // Only set mode in writeFileSync for new files to ensure atomic permission setting
+    // 仅在新文件时在 writeFileSync 中设置模式，以确保原子权限设置
     if (!targetExists && options.mode !== undefined) {
       writeOptions.mode = options.mode
     }
 
     fsWriteFileSync(tempPath, content, writeOptions)
     logForDebugging(
-      `Temp file written successfully, size: ${content.length} bytes`,
+      `临时文件写入成功，大小: ${content.length} 字节`,
     )
 
-    // For existing files or if mode was not set atomically, apply permissions
+    // 对于现有文件，或者如果模式未原子设置，则应用权限
     if (targetExists && targetMode !== undefined) {
       chmodSync(tempPath, targetMode)
-      logForDebugging(`Applied original permissions to temp file`)
+      logForDebugging(`已将原始权限应用于临时文件`)
     }
 
-    // Atomic rename (on POSIX systems, this is atomic)
-    // On Windows, this will overwrite the destination if it exists
-    logForDebugging(`Renaming ${tempPath} to ${targetPath}`)
+    // 原子重命名（在 POSIX 系统上，这是原子的）
+    // 在 Windows 上，如果目标存在，这将覆盖目标
+    logForDebugging(`重命名 ${tempPath} 为 ${targetPath}`)
     fs.renameSync(tempPath, targetPath)
-    logForDebugging(`File ${targetPath} written atomically`)
+    logForDebugging(`文件 ${targetPath} 已原子写入`)
   } catch (atomicError) {
-    logForDebugging(`Failed to write file atomically: ${atomicError}`, {
+    logForDebugging(`原子写入文件失败: ${atomicError}`, {
       level: 'error',
     })
     logEvent('tengu_atomic_write_error', {})
 
-    // Clean up temp file on error
+    // 出错时清理临时文件
     try {
-      logForDebugging(`Cleaning up temp file: ${tempPath}`)
+      logForDebugging(`清理临时文件: ${tempPath}`)
       fs.unlinkSync(tempPath)
     } catch (cleanupError) {
-      logForDebugging(`Failed to clean up temp file: ${cleanupError}`)
+      logForDebugging(`清理临时文件失败: ${cleanupError}`)
     }
 
-    // Fallback to non-atomic write
-    logForDebugging(`Falling back to non-atomic write for ${targetPath}`)
+    // 回退到非原子写入
+    logForDebugging(`回退到非原子写入: ${targetPath}`)
     try {
       const fallbackOptions: {
         encoding: BufferEncoding
@@ -461,17 +450,17 @@ export function writeFileSyncAndFlush_DEPRECATED(
         encoding: options.encoding,
         flush: true,
       }
-      // Only set mode for new files
+      // 仅对新文件设置模式
       if (!targetExists && options.mode !== undefined) {
         fallbackOptions.mode = options.mode
       }
 
       fsWriteFileSync(targetPath, content, fallbackOptions)
       logForDebugging(
-        `File ${targetPath} written successfully with non-atomic fallback`,
+        `文件 ${targetPath} 已使用非原子回退成功写入`,
       )
     } catch (fallbackError) {
-      logForDebugging(`Non-atomic write also failed: ${fallbackError}`)
+      logForDebugging(`非原子写入也失败: ${fallbackError}`)
       throw fallbackError
     }
   }
@@ -486,7 +475,7 @@ export function getDesktopPath(): string {
   }
 
   if (platform === 'windows') {
-    // For WSL, try to access Windows desktop
+    // 对于 WSL，尝试访问 Windows 桌面
     const windowsHome = process.env.USERPROFILE
       ? process.env.USERPROFILE.replace(/\\/g, '/')
       : null
@@ -500,7 +489,7 @@ export function getDesktopPath(): string {
       }
     }
 
-    // Fallback: try to find desktop in typical Windows user location
+    // 回退：尝试在典型的 Windows 用户位置查找桌面
     try {
       const usersDir = '/mnt/c/Users'
       const userDirs = getFsImplementation().readdirSync(usersDir)
@@ -526,23 +515,23 @@ export function getDesktopPath(): string {
     }
   }
 
-  // Linux/unknown platform fallback
+  // Linux/未知平台回退
   const desktopPath = join(homeDir, 'Desktop')
   if (getFsImplementation().existsSync(desktopPath)) {
     return desktopPath
   }
 
-  // If Desktop folder doesn't exist, fallback to home directory
+  // 如果 Desktop 文件夹不存在，回退到主目录
   return homeDir
 }
 
 /**
- * Validates that a file size is within the specified limit.
- * Returns true if the file is within the limit, false otherwise.
+ * 验证文件大小是否在指定的限制内。
+ * 如果文件大小在限制内则返回 true，否则返回 false。
  *
- * @param filePath The path to the file to validate
- * @param maxSizeBytes The maximum allowed file size in bytes
- * @returns true if file size is within limit, false otherwise
+ * @param filePath 要验证的文件的路径
+ * @param maxSizeBytes 允许的最大文件大小（字节）
+ * @returns 如果文件大小在限制内则返回 true，否则返回 false
  */
 export function isFileWithinReadSizeLimit(
   filePath: string,
@@ -552,25 +541,23 @@ export function isFileWithinReadSizeLimit(
     const stats = getFsImplementation().statSync(filePath)
     return stats.size <= maxSizeBytes
   } catch {
-    // If we can't stat the file, return false to indicate validation failure
+    // 如果无法获取文件状态，返回 false 表示验证失败
     return false
   }
 }
 
 /**
- * Normalize a file path for comparison, handling platform differences.
- * On Windows, normalizes path separators and converts to lowercase for
- * case-insensitive comparison.
+ * 规范化文件路径以进行比较，处理平台差异。
+ * 在 Windows 上，规范化路径分隔符并转换为小写以实现不区分大小写的比较。
  */
 export function normalizePathForComparison(filePath: string): string {
-  // Use path.normalize() to clean up redundant separators and resolve . and ..
+  // 使用 path.normalize() 清理冗余分隔符并解析 . 和 ..
   let normalized = normalize(filePath)
 
-  // Convert separators to a stable slash form so comparison behavior stays
-  // consistent across platforms and in tests that use POSIX-style fixtures.
+  // 将分隔符转换为稳定的斜杠形式，以便比较行为跨平台以及在测试中使用 POSIX 风格夹具时保持一致。
   normalized = normalized.replace(/\\/g, '/')
 
-  // On Windows, normalize case for case-insensitive comparison.
+  // 在 Windows 上，规范化大小写以实现不区分大小写的比较。
   if (getPlatform() === 'windows') {
     normalized = normalized.toLowerCase()
   }
@@ -579,7 +566,7 @@ export function normalizePathForComparison(filePath: string): string {
 }
 
 /**
- * Compare two file paths for equality, handling Windows case-insensitivity.
+ * 比较两个文件路径是否相等，处理 Windows 不区分大小写的情况。
  */
 export function pathsEqual(path1: string, path2: string): boolean {
   return normalizePathForComparison(path1) === normalizePathForComparison(path2)

@@ -2,8 +2,8 @@ import memoize from 'lodash-es/memoize.js'
 import { homedir } from 'os'
 import { join } from 'path'
 
-// Memoized: 150+ callers, many on hot paths. Keyed off CLAUDE_CONFIG_DIR so
-// tests that change the env var get a fresh value without explicit cache.clear.
+// 已记忆化：150+ 调用方，多位于热路径。以 CLAUDE_CONFIG_DIR 为键，
+// 以便更改环境变量的测试无需显式清除缓存即可获得新值。
 export const getClaudeConfigHomeDir = memoize(
   (): string => {
     return (
@@ -18,8 +18,8 @@ export function getTeamsDir(): string {
 }
 
 /**
- * Check if NODE_OPTIONS contains a specific flag.
- * Splits on whitespace and checks for exact match to avoid false positives.
+ * 检查 NODE_OPTIONS 是否包含指定的标志。
+ * 按空白字符分割并检查精确匹配，以避免误判。
  */
 export function hasNodeOption(flag: string): boolean {
   const nodeOptions = process.env.NODE_OPTIONS
@@ -47,15 +47,15 @@ export function isEnvDefinedFalsy(
 }
 
 /**
- * --bare / CLAUDE_CODE_SIMPLE — skip hooks, LSP, plugin sync, skill dir-walk,
- * attribution, background prefetches, and ALL keychain/credential reads.
- * Auth is strictly ANTHROPIC_API_KEY env or apiKeyHelper from --settings.
- * Explicit CLI flags (--plugin-dir, --add-dir, --mcp-config) still honored.
- * ~30 gates across the codebase.
+ * --bare / CLAUDE_CODE_SIMPLE — 跳过钩子、LSP、插件同步、技能目录遍历、
+ * 归属信息、后台预取以及所有钥匙串/凭证读取。
+ * 认证严格使用 ANTHROPIC_API_KEY 环境变量或通过 --settings 指定的 apiKeyHelper。
+ * 显式的 CLI 标志（--plugin-dir、--add-dir、--mcp-config）仍然生效。
+ * 代码库中约有 30 处门控检查。
  *
- * Checks argv directly (in addition to the env var) because several gates
- * run before main.tsx's action handler sets CLAUDE_CODE_SIMPLE=1 from --bare
- * — notably startKeychainPrefetch() at main.tsx top-level.
+ * 直接检查 argv（除了环境变量），因为部分门控在 main.tsx 的 action 处理器
+ * 通过 --bare 设置 CLAUDE_CODE_SIMPLE=1 之前就会运行
+ * —— 尤其是 main.tsx 顶层中的 startKeychainPrefetch()。
  */
 export function isBareMode(): boolean {
   return (
@@ -65,22 +65,22 @@ export function isBareMode(): boolean {
 }
 
 /**
- * Parses an array of environment variable strings into a key-value object
- * @param envVars Array of strings in KEY=VALUE format
- * @returns Object with key-value pairs
+ * 将环境变量字符串数组解析为键值对象
+ * @param envVars 格式为 KEY=VALUE 的字符串数组
+ * @returns 包含键值对的对象
  */
 export function parseEnvVars(
   rawEnvArgs: string[] | undefined,
 ): Record<string, string> {
   const parsedEnv: Record<string, string> = {}
 
-  // Parse individual env vars
+  // 解析各个环境变量
   if (rawEnvArgs) {
     for (const envStr of rawEnvArgs) {
       const [key, ...valueParts] = envStr.split('=')
       if (!key || valueParts.length === 0) {
         throw new Error(
-          `Invalid environment variable format: ${envStr}, environment variables should be added as: -e KEY1=value1 -e KEY2=value2`,
+          `无效的环境变量格式: ${envStr}，环境变量应按照如下格式添加：-e KEY1=value1 -e KEY2=value2`,
         )
       }
       parsedEnv[key] = valueParts.join('=')
@@ -90,30 +90,30 @@ export function parseEnvVars(
 }
 
 /**
- * Get the AWS region with fallback to default
- * Matches the Anthropic Bedrock SDK's region behavior
+ * 获取 AWS 区域，带回退到默认值
+ * 匹配 Anthropic Bedrock SDK 的区域行为
  */
 export function getAWSRegion(): string {
   return process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION || 'us-east-1'
 }
 
 /**
- * Get the default Vertex AI region
+ * 获取默认的 Vertex AI 区域
  */
 export function getDefaultVertexRegion(): string {
   return process.env.CLOUD_ML_REGION || 'us-east5'
 }
 
 /**
- * Check if bash commands should maintain project working directory (reset to original after each command)
- * @returns true if CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR is set to a truthy value
+ * 检查 bash 命令是否应维持项目工作目录（每条命令后重置为原始目录）
+ * @returns 如果 CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR 设置为真值，则返回 true
  */
 export function shouldMaintainProjectWorkingDir(): boolean {
   return isEnvTruthy(process.env.CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR)
 }
 
 /**
- * Check if running on Homespace (ant-internal cloud environment)
+ * 检查是否在 Homespace（ant 内部云环境）上运行
  */
 export function isRunningOnHomespace(): boolean {
   return (
@@ -123,19 +123,18 @@ export function isRunningOnHomespace(): boolean {
 }
 
 /**
- * Conservative check for whether Claude Code is running inside a protected
- * (privileged or ASL3+) COO namespace or cluster.
+ * 保守检查 Claude Code 是否运行在受保护的
+ * （特权或 ASL3+）COO 命名空间或集群中。
  *
- * Conservative means: when signals are ambiguous, assume protected. We would
- * rather over-report protected usage than miss it. Unprotected environments
- * are homespace, namespaces on the open allowlist, and no k8s/COO signals
- * at all (laptop/local dev).
+ * 保守意味着：当信号不明确时，假设为受保护。我们宁愿多报告受保护的使用情况，
+ * 也不愿遗漏。不受保护的环境包括 homespace、开放白名单上的命名空间，
+ * 以及没有任何 k8s/COO 信号的环境（笔记本电脑/本地开发）。
  *
- * Used for telemetry to measure auto-mode usage in sensitive environments.
+ * 用于遥测，以测量敏感环境中自动模式的使用情况。
  */
 export function isInProtectedNamespace(): boolean {
-  // USER_TYPE is build-time --define'd; in external builds this block is
-  // DCE'd so the require() and namespace allowlist never appear in the bundle.
+  // USER_TYPE 是构建时的 --define；在外部构建中，此代码块会被 DCE 移除，
+  // 因此 require() 和命名空间白名单永远不会出现在打包产物中。
   if (process.env.USER_TYPE === 'ant') {
     /* eslint-disable @typescript-eslint/no-require-imports */
     return (
@@ -146,11 +145,11 @@ export function isInProtectedNamespace(): boolean {
   return false
 }
 
-// @[MODEL LAUNCH]: Add a Vertex region override env var for the new model.
+// @[MODEL LAUNCH]: 为新模型添加 Vertex 区域覆盖的环境变量。
 /**
- * Model prefix → env var for Vertex region overrides.
- * Order matters: more specific prefixes must come before less specific ones
- * (e.g., 'claude-opus-4-1' before 'claude-opus-4').
+ * 模型前缀 → 用于 Vertex 区域覆盖的环境变量。
+ * 顺序重要：更具体的前缀必须放在较不具体的前缀之前
+ * （例如 'claude-opus-4-1' 在 'claude-opus-4' 之前）。
  */
 const VERTEX_REGION_OVERRIDES: ReadonlyArray<[string, string]> = [
   ['claude-haiku-4-5', 'VERTEX_REGION_CLAUDE_HAIKU_4_5'],
@@ -165,8 +164,8 @@ const VERTEX_REGION_OVERRIDES: ReadonlyArray<[string, string]> = [
 ]
 
 /**
- * Get the Vertex AI region for a specific model.
- * Different models may be available in different regions.
+ * 获取特定模型的 Vertex AI 区域。
+ * 不同的模型可能在不同的区域可用。
  */
 export function getVertexRegionForModel(
   model: string | undefined,

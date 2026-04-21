@@ -625,7 +625,7 @@ export async function processMemoryFile(
   if (isSymlink) {
     processedPaths.add(normalizePathForComparison(resolvedPath))
   }
-
+  //解析文件，提取@include等标签
   const { info: memoryFile, includePaths: resolvedIncludePaths } =
     await safelyReadMemoryFileAsync(filePath, type, resolvedPath)
   if (!memoryFile || !memoryFile.content.trim()) {

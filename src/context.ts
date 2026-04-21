@@ -85,7 +85,7 @@ export const getGitStatus = memoize(async (): Promise<string | null> => {
     const truncatedStatus =
       status.length > MAX_STATUS_CHARS
         ? status.substring(0, MAX_STATUS_CHARS) +
-          '\n... (truncated because it exceeds 2k characters. If you need more information, run "git status" using BashTool)'
+          '\n... (内容过长，已截断。如需更多信息，请使用 BashTool 运行 "git status")'
         : status
 
     logForDiagnosticsNoPII('info', 'git_status_completed', {

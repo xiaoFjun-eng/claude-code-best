@@ -82,33 +82,29 @@ export type TeleportProgressStep =
 
 export type TeleportProgressCallback = (step: TeleportProgressStep) => void
 
-/**
- * Creates a system message to inform about teleport session resume
- * @returns SystemMessage indicating session was resumed from another machine
- */
+/** 创建系统消息，通知远程会话恢复
+@returns 返回表示会话从另一台机器恢复的系统消息 */
 function createTeleportResumeSystemMessage(
   branchError: Error | null,
 ): SystemMessage {
   if (branchError === null) {
-    return createSystemMessage('Session resumed', 'suggestion')
+    return createSystemMessage('会话已恢复', 'suggestion')
   }
   const formattedError =
     branchError instanceof TeleportOperationError
       ? branchError.formattedMessage
       : branchError.message
   return createSystemMessage(
-    `Session resumed without branch: ${formattedError}`,
+    `会话恢复，未指定分支：${formattedError}`,
     'warning',
   )
 }
 
-/**
- * Creates a user message to inform the model about teleport session resume
- * @returns User message indicating session was resumed from another machine
- */
+/** 创建用户消息，通知模型远程会话恢复
+@returns 返回表示会话从另一台机器恢复的用户消息 */
 function createTeleportResumeUserMessage() {
   return createUserMessage({
-    content: `This session is being continued from another machine. Application state may have changed. The updated working directory is ${getOriginalCwd()}`,
+    content: `此会话正从另一台机器继续。应用程序状态可能已更改。更新后的工作目录是 ${getOriginalCwd()}`,
     isMeta: true,
   })
 }
@@ -118,33 +114,31 @@ type TeleportToRemoteResponse = {
   title: string
 }
 
-const SESSION_TITLE_AND_BRANCH_PROMPT = `You are coming up with a succinct title and git branch name for a coding session based on the provided description. The title should be clear, concise, and accurately reflect the content of the coding task.
-You should keep it short and simple, ideally no more than 6 words. Avoid using jargon or overly technical terms unless absolutely necessary. The title should be easy to understand for anyone reading it.
-Use sentence case for the title (capitalize only the first word and proper nouns), not Title Case.
+const SESSION_TITLE_AND_BRANCH_PROMPT = `请根据提供的描述，为编码会话构思一个简洁的标题和 git 分支名称。标题应清晰、简洁，准确反映编码任务的内容。
+标题应简短明了，最好不超过 6 个词。除非绝对必要，避免使用行话或过于技术性的术语。标题应易于任何阅读者理解。
+标题使用句子大小写（仅首单词和专有名词大写），而非标题大小写。
 
-The branch name should be clear, concise, and accurately reflect the content of the coding task.
-You should keep it short and simple, ideally no more than 4 words. The branch should always start with "claude/" and should be all lower case, with words separated by dashes.
+分支名称应清晰、简洁，准确反映编码任务的内容。
+分支应简短，最好不超过 4 个词。分支名称始终以 "claude/" 开头，全部小写，单词间用短横线分隔。
 
-Return a JSON object with "title" and "branch" fields.
+返回一个包含 "title" 和 "branch" 字段的 JSON 对象。
 
-Example 1: {"title": "Fix login button not working on mobile", "branch": "claude/fix-mobile-login-button"}
-Example 2: {"title": "Update README with installation instructions", "branch": "claude/update-readme"}
-Example 3: {"title": "Improve performance of data processing script", "branch": "claude/improve-data-processing"}
+示例 1：{"title": "修复移动端登录按钮不工作", "branch": "claude/fix-mobile-login-button"}
+示例 2：{"title": "更新 README 添加安装说明", "branch": "claude/update-readme"}
+示例 3：{"title": "改进数据处理脚本性能", "branch": "claude/improve-data-processing"}
 
-Here is the session description:
+以下是会话描述：
 <description>{description}</description>
-Please generate a title and branch name for this session.`
+请为此会话生成标题和分支名称。`
 
 type TitleAndBranch = {
   title: string
   branchName: string
 }
 
-/**
- * Generates a title and branch name for a coding session using Claude Haiku
- * @param description The description/prompt for the session
- * @returns Promise<TitleAndBranch> The generated title and branch name
- */
+/** 使用 Claude Haiku 为编码会话生成标题和分支名称
+@param description 会话的描述/提示
+@returns Promise<TitleAndBranch> 生成的标题和分支名称 */
 async function generateTitleAndBranch(
   description: string,
   signal: AbortSignal,
@@ -183,7 +177,7 @@ async function generateTitleAndBranch(
       },
     })
 
-    // Extract text from the response
+    // 从响应中提取文本
     const firstBlock = response.message!.content?.[0] as { type?: string; text?: string } | undefined
     if (firstBlock?.type !== 'text') {
       return { title: fallbackTitle, branchName: fallbackBranch }
@@ -202,33 +196,29 @@ async function generateTitleAndBranch(
 
     return { title: fallbackTitle, branchName: fallbackBranch }
   } catch (error) {
-    logError(new Error(`Error generating title and branch: ${error}`))
+    logError(new Error(`生成标题和分支时出错：${error}`))
     return { title: fallbackTitle, branchName: fallbackBranch }
   }
 }
 
-/**
- * Validates that the git working directory is clean (ignoring untracked files)
- * Untracked files are ignored because they won't be lost during branch switching
- */
+/** 验证 git 工作目录是否干净（忽略未跟踪文件）
+忽略未跟踪文件是因为它们在分支切换时不会丢失 */
 export async function validateGitState(): Promise<void> {
   const isClean = await getIsClean({ ignoreUntracked: true })
   if (!isClean) {
     logEvent('tengu_teleport_error_git_not_clean', {})
     const error = new TeleportOperationError(
-      'Git working directory is not clean. Please commit or stash your changes before using --teleport.',
+      'Git 工作目录不干净。使用 --teleport 前请提交或暂存您的更改。',
       chalk.red(
-        'Error: Git working directory is not clean. Please commit or stash your changes before using --teleport.\n',
+        '错误：Git 工作目录不干净。使用 --teleport 前请提交或暂存您的更改。\n',
       ),
     )
     throw error
   }
 }
 
-/**
- * Fetches a specific branch from remote origin
- * @param branch The branch to fetch. If not specified, fetches all branches.
- */
+/** 从远程 origin 获取特定分支
+@param branch 要获取的分支。如果未指定，则获取所有分支。 */
 async function fetchFromOrigin(branch?: string): Promise<void> {
   const fetchArgs = branch
     ? ['fetch', 'origin', `${branch}:${branch}`]
@@ -239,31 +229,29 @@ async function fetchFromOrigin(branch?: string): Promise<void> {
     fetchArgs,
   )
   if (fetchCode !== 0) {
-    // If fetching a specific branch fails, it might not exist locally yet
-    // Try fetching just the ref without mapping to local branch
+    // 如果获取特定分支失败，可能该分支在本地尚不存
+    // 在。尝试仅获取引用而不映射到本地分支
     if (branch && fetchStderr.includes('refspec')) {
       logForDebugging(
-        `Specific branch fetch failed, trying to fetch ref: ${branch}`,
+        `特定分支获取失败，尝试获取引用：${branch}`,
       )
       const { code: refFetchCode, stderr: refFetchStderr } =
         await execFileNoThrow(gitExe(), ['fetch', 'origin', branch])
       if (refFetchCode !== 0) {
         logError(
-          new Error(`Failed to fetch from remote origin: ${refFetchStderr}`),
+          new Error(`从远程 origin 获取失败：${refFetchStderr}`),
         )
       }
     } else {
-      logError(new Error(`Failed to fetch from remote origin: ${fetchStderr}`))
+      logError(new Error(`从远程 origin 获取失败：${fetchStderr}`))
     }
   }
 }
 
-/**
- * Ensures that the current branch has an upstream set
- * If not, sets it to origin/<branchName> if that remote branch exists
- */
+/** 确保当前分支已设置上游
+如果未设置，且远程分支 origin/<branchName> 存在，则将其设置为上游 */
 async function ensureUpstreamIsSet(branchName: string): Promise<void> {
-  // Check if upstream is already set
+  // 检查上游是否已设置
   const { code: upstreamCheckCode } = await execFileNoThrow(gitExe(), [
     'rev-parse',
     '--abbrev-ref',
@@ -271,12 +259,12 @@ async function ensureUpstreamIsSet(branchName: string): Promise<void> {
   ])
 
   if (upstreamCheckCode === 0) {
-    // Upstream is already set
-    logForDebugging(`Branch '${branchName}' already has upstream set`)
+    // 上游已设置
+    logForDebugging(`分支 '${branchName}' 已设置上游`)
     return
   }
 
-  // Check if origin/<branchName> exists
+  // 检查 origin/<branchName> 是否存在
   const { code: remoteCheckCode } = await execFileNoThrow(gitExe(), [
     'rev-parse',
     '--verify',
@@ -284,9 +272,9 @@ async function ensureUpstreamIsSet(branchName: string): Promise<void> {
   ])
 
   if (remoteCheckCode === 0) {
-    // Remote branch exists, set upstream
+    // 远程分支存在，设置上游
     logForDebugging(
-      `Setting upstream for '${branchName}' to 'origin/${branchName}'`,
+      `将 '${branchName}' 的上游设置为 'origin/${branchName}'`,
     )
     const { code: setUpstreamCode, stderr: setUpstreamStderr } =
       await execFileNoThrow(gitExe(), [
@@ -298,36 +286,34 @@ async function ensureUpstreamIsSet(branchName: string): Promise<void> {
 
     if (setUpstreamCode !== 0) {
       logForDebugging(
-        `Failed to set upstream for '${branchName}': ${setUpstreamStderr}`,
+        `为 '${branchName}' 设置上游失败：${setUpstreamStderr}`,
       )
-      // Don't throw, just log - this is not critical
+      // 不要抛出异常，仅记录日志 - 这不关键
     } else {
-      logForDebugging(`Successfully set upstream for '${branchName}'`)
+      logForDebugging(`成功为 '${branchName}' 设置上游`)
     }
   } else {
     logForDebugging(
-      `Remote branch 'origin/${branchName}' does not exist, skipping upstream setup`,
+      `远程分支 'origin/${branchName}' 不存在，跳过上游设置`,
     )
   }
 }
 
-/**
- * Checks out a specific branch
- */
+/** 检出特定分支 */
 async function checkoutBranch(branchName: string): Promise<void> {
-  // First try to checkout the branch as-is (might be local)
+  // 首先尝试直接检出分支（可能是本地分支）
   let { code: checkoutCode, stderr: checkoutStderr } = await execFileNoThrow(
     gitExe(),
     ['checkout', branchName],
   )
 
-  // If that fails, try to checkout from origin
+  // 如果失败，尝试从 origin 检出
   if (checkoutCode !== 0) {
     logForDebugging(
-      `Local checkout failed, trying to checkout from origin: ${checkoutStderr}`,
+      `本地检出失败，尝试从 origin 检出：${checkoutStderr}`,
     )
 
-    // Try to checkout the remote branch and create a local tracking branch
+    // 尝试检出远程分支并创建本地跟踪分支
     const result = await execFileNoThrow(gitExe(), [
       'checkout',
       '-b',
@@ -339,10 +325,10 @@ async function checkoutBranch(branchName: string): Promise<void> {
     checkoutCode = result.code
     checkoutStderr = result.stderr
 
-    // If that also fails, try without -b in case the branch exists but isn't checked out
+    // 如果这也失败，尝试不使用 -b 参数（以防分支存在但未检出）
     if (checkoutCode !== 0) {
       logForDebugging(
-        `Remote checkout with -b failed, trying without -b: ${checkoutStderr}`,
+        `使用 -b 参数的远程检出失败，尝试不使用 -b：${checkoutStderr}`,
       )
       const finalResult = await execFileNoThrow(gitExe(), [
         'checkout',
@@ -357,18 +343,17 @@ async function checkoutBranch(branchName: string): Promise<void> {
   if (checkoutCode !== 0) {
     logEvent('tengu_teleport_error_branch_checkout_failed', {})
     throw new TeleportOperationError(
-      `Failed to checkout branch '${branchName}': ${checkoutStderr}`,
-      chalk.red(`Failed to checkout branch '${branchName}'\n`),
+      `检出分支 '${branchName}' 失败：${checkoutStderr}`,
+      chalk.red(`检出分支 '${branchName}' 失败
+`),
     )
   }
 
-  // After successful checkout, ensure upstream is set
+  // 成功检出后，确保上游已设置
   await ensureUpstreamIsSet(branchName)
 }
 
-/**
- * Gets the current branch name
- */
+/** 获取当前分支名称 */
 async function getCurrentBranch(): Promise<string> {
   const { stdout: currentBranch } = await execFileNoThrow(gitExe(), [
     'branch',
@@ -377,21 +362,19 @@ async function getCurrentBranch(): Promise<string> {
   return currentBranch.trim()
 }
 
-/**
- * Processes messages for teleport resume, removing incomplete tool_use blocks
- * and adding teleport notice messages
- * @param messages The conversation messages
- * @param error Optional error from branch checkout
- * @returns Processed messages ready for resume
- */
+/** 处理远程恢复的消息，移除不完整的 tool_use 块
+并添加远程通知消息
+@param messages 对话消息
+@param error 分支检出的可选错误
+@returns 处理后的消息，准备恢复 */
 export function processMessagesForTeleportResume(
   messages: Message[],
   error: Error | null,
 ): Message[] {
-  // Shared logic with resume for handling interruped session transcripts
+  // 与恢复功能共享处理中断会话记录的逻辑
   const deserializedMessages = deserializeMessages(messages)
 
-  // Add user message about teleport resume (visible to model)
+  // 添加关于远程恢复的用户消息（对模型可见）
   const messagesWithTeleportNotice = [
     ...deserializedMessages,
     createTeleportResumeUserMessage(),
@@ -401,26 +384,24 @@ export function processMessagesForTeleportResume(
   return messagesWithTeleportNotice
 }
 
-/**
- * Checks out the specified branch for a teleported session
- * @param branch Optional branch to checkout
- * @returns The current branch name and any error that occurred
- */
+/** 为远程会话检出指定分支
+@param branch 要检出的可选分支
+@returns 当前分支名称和发生的任何错误 */
 export async function checkOutTeleportedSessionBranch(
   branch?: string,
 ): Promise<{ branchName: string; branchError: Error | null }> {
   try {
     const currentBranch = await getCurrentBranch()
-    logForDebugging(`Current branch before teleport: '${currentBranch}'`)
+    logForDebugging(`远程前的当前分支：'${currentBranch}'`)
 
     if (branch) {
-      logForDebugging(`Switching to branch '${branch}'...`)
+      logForDebugging(`正在切换到分支 '${branch}'...`)
       await fetchFromOrigin(branch)
       await checkoutBranch(branch)
       const newBranch = await getCurrentBranch()
-      logForDebugging(`Branch after checkout: '${newBranch}'`)
+      logForDebugging(`检出后的分支：'${newBranch}'`)
     } else {
-      logForDebugging('No branch specified, staying on current branch')
+      logForDebugging('未指定分支，保持当前分支')
     }
 
     const branchName = await getCurrentBranch()
@@ -432,27 +413,23 @@ export async function checkOutTeleportedSessionBranch(
   }
 }
 
-/**
- * Result of repository validation for teleport
- */
+/** 远程操作的仓库验证结果 */
 export type RepoValidationResult = {
   status: 'match' | 'mismatch' | 'not_in_repo' | 'no_repo_required' | 'error'
   sessionRepo?: string
   currentRepo?: string | null
-  /** Host of the session repo (e.g. "github.com" or "ghe.corp.com") — for display only */
+  /** 会话仓库的主机（例如 "github.com" 或 "ghe.corp.com"）— 仅用于显示 */
   sessionHost?: string
-  /** Host of the current repo (e.g. "github.com" or "ghe.corp.com") — for display only */
+  /** 当前仓库的主机（例如 "github.com" 或 "ghe.corp.com"）— 仅用于显示 */
   currentHost?: string
   errorMessage?: string
 }
 
-/**
- * Validates that the current repository matches the session's repository.
- * Returns a result object instead of throwing, allowing the caller to handle mismatches.
- *
- * @param sessionData The session resource to validate against
- * @returns Validation result with status and repo information
- */
+/** 验证当前仓库是否与会话的仓库匹配。
+返回结果对象而非抛出异常，允许调用者处理不匹配情况。
+
+@param sessionData 要验证的会话资源
+@returns 包含状态和仓库信息的验证结果 */
 export async function validateSessionRepository(
   sessionData: SessionResource,
 ): Promise<RepoValidationResult> {
@@ -466,11 +443,11 @@ export async function validateSessionRepository(
   )
 
   if (!gitSource?.url) {
-    // Session has no repo requirement
+    // 会话无仓库要求
     logForDebugging(
       currentRepo
-        ? 'Session has no associated repository, proceeding without validation'
-        : 'Session has no repo requirement and not in git directory, proceeding',
+        ? '会话无关联仓库，无需验证继续'
+        : '会话无仓库要求且不在 git 目录中，继续',
     )
     return { status: 'no_repo_required' }
   }
@@ -484,11 +461,11 @@ export async function validateSessionRepository(
   }
 
   logForDebugging(
-    `Session is for repository: ${sessionRepo}, current repo: ${currentRepo ?? 'none'}`,
+    `会话针对仓库：${sessionRepo}，当前仓库：${currentRepo ?? 'none'}`,
   )
 
   if (!currentRepo) {
-    // Not in a git repo, but session requires one
+    // 不在 git 仓库中，但会话需要仓库
     return {
       status: 'not_in_repo',
       sessionRepo,
@@ -497,10 +474,10 @@ export async function validateSessionRepository(
     }
   }
 
-  // Compare both owner/repo and host to avoid cross-instance mismatches.
-  // Strip ports before comparing hosts — SSH remotes omit the port while
-  // HTTPS remotes may include a non-standard port (e.g. ghe.corp.com:8443),
-  // which would cause a false mismatch.
+  // 比较所有者/仓库和主机以避免跨实例不匹配。比较主机前去
+  // 除端口 — SSH 远程省略端口，而 HTTPS 远程
+  // 可能包含非标准端口（例如 ghe.corp.com:84
+  // 43），这会导致误判不匹配。
   const stripPort = (host: string): string => host.replace(/:\d+$/, '')
   const repoMatch = currentRepo.toLowerCase() === sessionRepo.toLowerCase()
   const hostMatch =
@@ -517,9 +494,9 @@ export async function validateSessionRepository(
     }
   }
 
-  // Repo mismatch — keep sessionRepo/currentRepo as plain "owner/repo" so
-  // downstream consumers (e.g. getKnownPathsForRepo) can use them as lookup keys.
-  // Include host information in separate fields for display purposes.
+  // 仓库不匹配 — 保持 sessionRepo/currentRepo 为纯
+  // "owner/repo" 格式，以便下游使用者（例如 getKnownPathsF
+  // orRepo）可将其用作查找键。将主机信息包含在单独的字段中用于显示。
   return {
     status: 'mismatch',
     sessionRepo,
@@ -529,24 +506,22 @@ export async function validateSessionRepository(
   }
 }
 
-/**
- * Handles teleporting from a code session ID.
- * Fetches session logs and validates repo.
- * @param sessionId The session ID to resume
- * @param onProgress Optional callback for progress updates
- * @returns The raw session log and branch name
- */
+/** 处理从代码会话 ID 远程传输。
+获取会话日志并验证仓库。
+@param sessionId 要恢复的会话 ID
+@param onProgress 进度更新的可选回调
+@returns 原始会话日志和分支名称 */
 export async function teleportResumeCodeSession(
   sessionId: string,
   onProgress?: TeleportProgressCallback,
 ): Promise<TeleportRemoteResponse> {
   if (!isPolicyAllowed('allow_remote_sessions')) {
     throw new Error(
-      "Remote sessions are disabled by your organization's policy.",
+      "远程会话已被您的组织策略禁用。",
     )
   }
 
-  logForDebugging(`Resuming code session ID: ${sessionId}`)
+  logForDebugging(`正在恢复代码会话 ID：${sessionId}`)
 
   try {
     const accessToken = getClaudeAIOAuthTokens()?.accessToken
@@ -556,11 +531,11 @@ export async function teleportResumeCodeSession(
           'no_access_token' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       })
       throw new Error(
-        'Claude Code web sessions require authentication with a Claude.ai account. API key authentication is not sufficient. Please run /login to authenticate, or check your authentication status with /status.',
+        'Claude Code 网页会话需要使用 Claude.ai 账户进行身份验证。API 密钥身份验证不足。请运行 /login 进行身份验证，或使用 /status 检查您的身份验证状态。',
       )
     }
 
-    // Get organization UUID
+    // 获取组织 UUID
     const orgUUID = await getOrganizationUUID()
     if (!orgUUID) {
       logEvent('tengu_teleport_resume_error', {
@@ -568,11 +543,11 @@ export async function teleportResumeCodeSession(
           'no_org_uuid' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       })
       throw new Error(
-        'Unable to get organization UUID for constructing session URL',
+        '无法获取组织 UUID 以构建会话 URL',
       )
     }
 
-    // Fetch and validate repository matches before resuming
+    // 恢复前获取并验证仓库匹配
     onProgress?.('validating')
     const sessionData = await fetchSession(sessionId)
     const repoValidation = await validateSessionRepository(sessionData)
@@ -580,23 +555,24 @@ export async function teleportResumeCodeSession(
     switch (repoValidation.status) {
       case 'match':
       case 'no_repo_required':
-        // Proceed with teleport
+        // 继续远程传输
         break
       case 'not_in_repo': {
         logEvent('tengu_teleport_error_repo_not_in_git_dir_sessions_api', {
           sessionId:
             sessionId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
         })
-        // Include host for GHE users so they know which instance the repo is on
+        // 为 GHE 用户包含主机信息，以便他们知道仓库位于哪个实例
         const notInRepoDisplay =
           repoValidation.sessionHost &&
           repoValidation.sessionHost.toLowerCase() !== 'github.com'
             ? `${repoValidation.sessionHost}/${repoValidation.sessionRepo}`
             : repoValidation.sessionRepo
         throw new TeleportOperationError(
-          `You must run claude --teleport ${sessionId} from a checkout of ${notInRepoDisplay}.`,
+          `您必须在 ${notInRepoDisplay} 的检出中运行 claude --teleport ${sessionId}。`,
           chalk.red(
-            `You must run claude --teleport ${sessionId} from a checkout of ${chalk.bold(notInRepoDisplay)}.\n`,
+            `您必须在 ${chalk.bold(notInRepoDisplay)} 的检出中运行 claude --teleport ${sessionId}。
+`,
           ),
         )
       }
@@ -605,8 +581,8 @@ export async function teleportResumeCodeSession(
           sessionId:
             sessionId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
         })
-        // Only include host prefix when hosts actually differ to disambiguate
-        // cross-instance mismatches; for same-host mismatches the host is noise.
+        // 仅在实际主机不同时包含主机前缀以区分跨实例
+        // 不匹配；对于同主机不匹配，主机信息是噪音。
         const hostsDiffer =
           repoValidation.sessionHost &&
           repoValidation.currentHost &&
@@ -619,23 +595,26 @@ export async function teleportResumeCodeSession(
           ? `${repoValidation.currentHost}/${repoValidation.currentRepo}`
           : repoValidation.currentRepo
         throw new TeleportOperationError(
-          `You must run claude --teleport ${sessionId} from a checkout of ${sessionDisplay}.\nThis repo is ${currentDisplay}.`,
+          `您必须在 ${sessionDisplay} 的检出中运行 claude --teleport ${sessionId}。
+当前仓库是 ${currentDisplay}。`,
           chalk.red(
-            `You must run claude --teleport ${sessionId} from a checkout of ${chalk.bold(sessionDisplay)}.\nThis repo is ${chalk.bold(currentDisplay)}.\n`,
+            `您必须在 ${chalk.bold(sessionDisplay)} 的检出中运行 claude --teleport ${sessionId}。
+当前仓库是 ${chalk.bold(currentDisplay)}。
+`,
           ),
         )
       }
       case 'error':
         throw new TeleportOperationError(
           repoValidation.errorMessage ||
-            'Failed to validate session repository',
+            '验证会话仓库失败',
           chalk.red(
-            `Error: ${repoValidation.errorMessage || 'Failed to validate session repository'}\n`,
+            `Error: ${repoValidation.errorMessage || '验证会话仓库失败'}\n`,
           ),
         )
       default: {
         const _exhaustive: never = repoValidation.status
-        throw new Error(`Unhandled repo validation status: ${_exhaustive}`)
+        throw new Error(`未处理的仓库验证状态：${_exhaustive}`)
       }
     }
 
@@ -665,17 +644,15 @@ export async function teleportResumeCodeSession(
   }
 }
 
-/**
- * Helper function to handle teleport prerequisites (authentication and git state)
- * Shows TeleportError dialog rendered into the existing root if needed
- */
+/** 处理远程传输先决条件（身份验证和 git 状态）的辅助函数
+如果需要，将 TeleportError 对话框渲染到现有根中 */
 async function handleTeleportPrerequisites(
   root: Root,
   errorsToIgnore?: Set<TeleportLocalErrorType>,
 ): Promise<void> {
   const errors = await getTeleportErrors()
   if (errors.size > 0) {
-    // Log teleport errors detected
+    // 记录检测到的远程传输错误
     logEvent('tengu_teleport_errors_detected', {
       error_types: Array.from(errors).join(
         ',',
@@ -685,7 +662,7 @@ async function handleTeleportPrerequisites(
       ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
     })
 
-    // Show TeleportError dialog for user interaction
+    // 显示 TeleportError 对话框供用户交互
     await new Promise<void>(resolve => {
       root.render(
         <AppStateProvider>
@@ -693,7 +670,7 @@ async function handleTeleportPrerequisites(
             <TeleportError
               errorsToIgnore={errorsToIgnore}
               onComplete={() => {
-                // Log when errors are resolved
+                // 记录错误解决时
                 logEvent('tengu_teleport_errors_resolved', {
                   error_types: Array.from(errors).join(
                     ',',
@@ -709,15 +686,13 @@ async function handleTeleportPrerequisites(
   }
 }
 
-/**
- * Creates a remote Claude.ai session with error handling and UI feedback.
- * Shows prerequisite error dialog in the existing root if needed.
- * @param root The existing Ink root to render dialogs into
- * @param description The description/prompt for the new session (null for no initial prompt)
- * @param signal AbortSignal for cancellation
- * @param branchName Optional branch name for the remote session to use
- * @returns Promise<TeleportToRemoteResponse | null> The created session or null if creation fails
- */
+/** 创建远程 Claude.ai 会话，包含错误处理和 UI 反馈。
+如果需要，在现有根中显示先决条件错误对话框。
+@param root 用于渲染对话框的现有 Ink 根
+@param description 新会话的描述/提示（null 表示无初始提示）
+@param signal 用于取消的 AbortSignal
+@param branchName 远程会话使用的可选分支名称
+@returns Promise<TeleportToRemoteResponse | null> 创建的会话，如果创建失败则返回 null */
 export async function teleportToRemoteWithErrorHandling(
   root: Root,
   description: string | null,
@@ -734,16 +709,14 @@ export async function teleportToRemoteWithErrorHandling(
   })
 }
 
-/**
- * Fetches session data from the session ingress API (/v1/session_ingress/)
- * Uses session logs instead of SDK events to get the correct message structure
- * @param sessionId The session ID to fetch
- * @param orgUUID The organization UUID
- * @param accessToken The OAuth access token
- * @param onProgress Optional callback for progress updates
- * @param sessionData Optional session data (used to extract branch info)
- * @returns TeleportRemoteResponse with session logs as Message[]
- */
+/** 从会话入口 API (/v1/session_ingress/) 获取会话数据
+使用会话日志而非 SDK 事件来获取正确的消息结构
+@param sessionId 要获取的会话 ID
+@param orgUUID 组织 UUID
+@param accessToken OAuth 访问令牌
+@param onProgress 进度更新的可选回调
+@param sessionData 可选会话数据（用于提取分支信息）
+@returns 返回 TeleportRemoteResponse，其中会话日志以 Message[] 形式存储 */
 export async function teleportFromSessionsAPI(
   sessionId: string,
   orgUUID: string,
@@ -754,49 +727,49 @@ export async function teleportFromSessionsAPI(
   const startTime = Date.now()
 
   try {
-    // Fetch session logs via session ingress
-    logForDebugging(`[teleport] Starting fetch for session: ${sessionId}`)
+    // 通过会话入口获取会话日志
+    logForDebugging(`[teleport] 开始获取会话：${sessionId}`)
     onProgress?.('fetching_logs')
 
     const logsStartTime = Date.now()
-    // Try CCR v2 first (GetTeleportEvents — server dispatches Spanner/
-    // threadstore). Fall back to session-ingress if it returns null
-    // (endpoint not yet deployed, or transient error). Once session-ingress
-    // is gone, the fallback becomes a no-op — getSessionLogsViaOAuth will
-    // return null too and we fail with "Failed to fetch session logs".
+    // 首先尝试 CCR v2（GetTeleportEvents — 服务器分发
+    // Spanner/threadstore）。如果返回 null（端点尚未
+    // 部署或出现瞬时错误），则回退到 session-ingress。一旦 sessi
+    // on-ingress 被移除，回退将变为空操作 — getSessionLog
+    // sViaOAuth 也会返回 null，我们会因“无法获取会话日志”而失败。
     let logs = await getTeleportEvents(sessionId, accessToken, orgUUID)
     if (logs === null) {
       logForDebugging(
-        '[teleport] v2 endpoint returned null, trying session-ingress',
+        '[teleport] v2 端点返回 null，正在尝试 session-ingress',
       )
       logs = await getSessionLogsViaOAuth(sessionId, accessToken, orgUUID)
     }
     logForDebugging(
-      `[teleport] Session logs fetched in ${Date.now() - logsStartTime}ms`,
+      `[teleport] 会话日志在 ${Date.now() - logsStartTime}ms 内获取完成`,
     )
 
     if (logs === null) {
-      throw new Error('Failed to fetch session logs')
+      throw new Error('无法获取会话日志')
     }
 
-    // Filter to get only transcript messages, excluding sidechain messages
+    // 筛选仅获取转录消息，排除侧链消息
     const filterStartTime = Date.now()
     const messages = logs.filter(
       entry => isTranscriptMessage(entry) && !entry.isSidechain,
     ) as Message[]
     logForDebugging(
-      `[teleport] Filtered ${logs.length} entries to ${messages.length} messages in ${Date.now() - filterStartTime}ms`,
+      `[teleport] 在 ${Date.now() - filterStartTime}ms 内将 ${logs.length} 个条目筛选为 ${messages.length} 条消息`,
     )
 
-    // Extract branch info from session data
+    // 从会话数据中提取分支信息
     onProgress?.('fetching_branch')
     const branch = sessionData ? getBranchFromSession(sessionData) : undefined
     if (branch) {
-      logForDebugging(`[teleport] Found branch: ${branch}`)
+      logForDebugging(`[teleport] 找到分支：${branch}`)
     }
 
     logForDebugging(
-      `[teleport] Total teleportFromSessionsAPI time: ${Date.now() - startTime}ms`,
+      `[teleport] teleportFromSessionsAPI 总耗时：${Date.now() - startTime}ms`,
     )
 
     return {
@@ -806,27 +779,26 @@ export async function teleportFromSessionsAPI(
   } catch (error) {
     const err = toError(error)
 
-    // Handle 404 specifically
+    // 专门处理 404 错误
     if (axios.isAxiosError(error) && error.response?.status === 404) {
       logEvent('tengu_teleport_error_session_not_found_404', {
         sessionId:
           sessionId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       })
       throw new TeleportOperationError(
-        `${sessionId} not found.`,
-        `${sessionId} not found.\n${chalk.dim('Run /status in Claude Code to check your account.')}`,
+        `未找到 ${sessionId}。`,
+        `未找到 ${sessionId}。
+${chalk.dim('Run /status in Claude Code to check your account.')}`,
       )
     }
 
     logError(err)
 
-    throw new Error(`Failed to fetch session from Sessions API: ${err.message}`)
+    throw new Error(`无法从 Sessions API 获取会话：${err.message}`)
   }
 }
 
-/**
- * Response type for polling remote session events (uses SDK events format)
- */
+/** 轮询远程会话事件的响应类型（使用 SDK 事件格式） */
 export type PollRemoteSessionResponse = {
   newEvents: SDKMessage[]
   lastEventId: string | null
@@ -834,11 +806,7 @@ export type PollRemoteSessionResponse = {
   sessionStatus?: 'idle' | 'running' | 'requires_action' | 'archived'
 }
 
-/**
- * Polls remote session events. Pass the previous response's `lastEventId`
- * as `afterId` to fetch only the delta. Set `skipMetadata` to avoid the
- * per-call GET /v1/sessions/{id} when branch/status aren't needed.
- */
+/** 轮询远程会话事件。将先前响应的 `lastEventId` 作为 `afterId` 传入以仅获取增量。设置 `skipMetadata` 以避免在不需要分支/状态时进行每次调用的 GET /v1/sessions/{id}。 */
 export async function pollRemoteSessionEvents(
   sessionId: string,
   afterId: string | null = null,
@@ -846,12 +814,12 @@ export async function pollRemoteSessionEvents(
 ): Promise<PollRemoteSessionResponse> {
   const accessToken = getClaudeAIOAuthTokens()?.accessToken
   if (!accessToken) {
-    throw new Error('No access token for polling')
+    throw new Error('没有用于轮询的访问令牌')
   }
 
   const orgUUID = await getOrganizationUUID()
   if (!orgUUID) {
-    throw new Error('No org UUID for polling')
+    throw new Error('没有用于轮询的组织 UUID')
   }
 
   const headers = {
@@ -868,7 +836,7 @@ export async function pollRemoteSessionEvents(
     last_id: string | null
   }
 
-  // Cap is a safety valve against stuck cursors; steady-state is 0–1 pages.
+  // Cap 是针对卡住游标的安全阀；稳态为 0–1 页。
   const MAX_EVENT_PAGES = 50
   const sdkMessages: SDKMessage[] = []
   let cursor = afterId
@@ -881,13 +849,13 @@ export async function pollRemoteSessionEvents(
 
     if (eventsResponse.status !== 200) {
       throw new Error(
-        `Failed to fetch session events: ${eventsResponse.statusText}`,
+        `无法获取会话事件：${eventsResponse.statusText}`,
       )
     }
 
     const eventsData: EventsResponse = eventsResponse.data
     if (!eventsData?.data || !Array.isArray(eventsData.data)) {
-      throw new Error('Invalid events response')
+      throw new Error('无效的事件响应')
     }
 
     for (const event of eventsData.data) {
@@ -913,7 +881,7 @@ export async function pollRemoteSessionEvents(
     return { newEvents: sdkMessages, lastEventId: cursor }
   }
 
-  // Fetch session metadata (branch, status)
+  // 获取会话元数据（分支、状态）
   let branch: string | undefined
   let sessionStatus: PollRemoteSessionResponse['sessionStatus']
   try {
@@ -923,7 +891,7 @@ export async function pollRemoteSessionEvents(
       sessionData.session_status as PollRemoteSessionResponse['sessionStatus']
   } catch (e) {
     logForDebugging(
-      `teleport: failed to fetch session ${sessionId} metadata: ${e}`,
+      `teleport: 无法获取会话 ${sessionId} 的元数据：${e}`,
       { level: 'debug' },
     )
   }
@@ -931,109 +899,65 @@ export async function pollRemoteSessionEvents(
   return { newEvents: sdkMessages, lastEventId: cursor, branch, sessionStatus }
 }
 
-/**
- * Creates a remote Claude.ai session using the Sessions API.
- *
- * Two source modes:
- * - GitHub (default): backend clones from the repo's origin URL. Requires a
- *   GitHub remote + CCR-side GitHub connection. 43% of CLI sessions have an
- *   origin remote; far fewer pass the full precondition chain.
- * - Bundle (CCR_FORCE_BUNDLE=1): CLI creates `git bundle --all`, uploads via Files
- *   API, passes file_id as seed_bundle_file_id on the session context. CCR
- *   downloads it and clones from the bundle. No GitHub dependency — works for
- *   local-only repos. Reach: 54% of CLI sessions (anything with .git/).
- *   Backend: anthropic#303856.
- */
+/** 使用 Sessions API 创建远程 Claude.ai 会话。
+
+两种源模式：
+- GitHub（默认）：后端从仓库的原始 URL 克隆。需要 GitHub 远程 + CCR 端的 GitHub 连接。43% 的 CLI 会话具有原始远程；通过完整先决条件链的比例要低得多。
+- Bundle（CCR_FORCE_BUNDLE=1）：CLI 创建 `git bundle --all`，通过 Files API 上传，并将 file_id 作为 seed_bundle_file_id 传递到会话上下文中。CCR 下载它并从 bundle 克隆。不依赖 GitHub — 适用于仅本地的仓库。覆盖范围：54% 的 CLI 会话（任何具有 .git/ 的仓库）。后端：anthropic#303856。 */
 export async function teleportToRemote(options: {
   initialMessage: string | null
   branchName?: string
   title?: string
-  /**
-   * The description of the session. This is used to generate the title and
-   * session branch name (unless they are explicitly provided).
-   */
+  /** 会话的描述。用于生成标题和会话分支名称（除非明确提供）。 */
   description?: string
   model?: string
   permissionMode?: PermissionMode
   ultraplan?: boolean
   signal: AbortSignal
   useDefaultEnvironment?: boolean
-  /**
-   * Explicit environment_id (e.g. the code_review synthetic env). Bypasses
-   * fetchEnvironments; the usual repo-detection → git source still runs so
-   * the container gets the repo checked out (orchestrator reads --repo-dir
-   * from pwd, it doesn't clone).
-   */
+  /** 显式的 environment_id（例如 code_review 合成环境）。绕过 fetchEnvironments；常规的仓库检测 → git 源仍会运行，因此容器会获取已检出的仓库（编排器从 pwd 读取 --repo-dir，它不克隆）。 */
   environmentId?: string
-  /**
-   * Per-session env vars merged into session_context.environment_variables.
-   * Write-only at the API layer (stripped from Get/List responses). When
-   * environmentId is set, CLAUDE_CODE_OAUTH_TOKEN is auto-injected from the
-   * caller's accessToken so the container's hook can hit inference (the
-   * server only passes through what the caller sends; bughunter.go mints
-   * its own, user sessions don't get one automatically).
-   */
+  /** 每个会话的环境变量合并到 session_context.environment_variables 中。在 API 层为只写（从 Get/List 响应中剥离）。当设置 environmentId 时，CLAUDE_CODE_OAUTH_TOKEN 会自动从调用者的 accessToken 注入，以便容器的钩子可以调用推理（服务器仅传递调用者发送的内容；bughunter.go 会生成自己的令牌，用户会话不会自动获得）。 */
   environmentVariables?: Record<string, string>
-  /**
-   * When set with environmentId, creates and uploads a git bundle of the
-   * local working tree (createAndUploadGitBundle handles the stash-create
-   * for uncommitted changes) and passes it as seed_bundle_file_id. Backend
-   * clones from the bundle instead of GitHub — container gets the caller's
-   * exact local state. Needs .git/ only, not a GitHub remote.
-   */
+  /** 与 environmentId 一起设置时，创建并上传本地工作树的 git bundle（createAndUploadGitBundle 处理未提交更改的 stash-create）并将其作为 seed_bundle_file_id 传递。后端从 bundle 克隆而非 GitHub — 容器获得调用者的确切本地状态。仅需要 .git/，不需要 GitHub 远程。 */
   useBundle?: boolean
-  /**
-   * Called with a user-facing message when the bundle path is attempted but
-   * fails. The wrapper stderr.writes it (pre-REPL). Remote-agent callers
-   * capture it to include in their throw (in-REPL, Ink-rendered).
-   */
+  /** 当尝试 bundle 路径但失败时，使用面向用户的消息调用。包装器将其写入 stderr（在 REPL 之前）。Remote-agent 调用者捕获它以包含在它们的抛出中（在 REPL 内，由 Ink 渲染）。 */
   onBundleFail?: (message: string) => void
 
   onCreateFail?: (message: string) => void
-  /**
-   * When true, disables the git-bundle fallback entirely. Use for flows like
-   * autofix where CCR must push to GitHub — a bundle can't do that.
-   */
+  /** 为 true 时，完全禁用 git-bundle 回退。用于像 autofix 这样的流程，其中 CCR 必须推送到 GitHub — bundle 无法做到这一点。 */
   skipBundle?: boolean
-  /**
-   * When set, reuses this branch as the outcome branch instead of generating
-   * a new claude/ branch. Sets allow_unrestricted_git_push on the source and
-   * reuse_outcome_branches on the session context so the remote pushes to the
-   * caller's branch directly.
-   */
+  /** 设置时，重用此分支作为结果分支，而不是生成新的 claude/ 分支。在源上设置 allow_unrestricted_git_push，并在会话上下文中设置 reuse_outcome_branches，以便远程直接推送到调用者的分支。 */
   reuseOutcomeBranch?: string
-  /**
-   * GitHub PR to attach to the session context. Backend uses this to
-   * identify the PR associated with this session.
-   */
+  /** 要附加到会话上下文的 GitHub PR。后端使用此信息来识别与此会话关联的 PR。 */
   githubPr?: { owner: string; repo: string; number: number }
 }): Promise<TeleportToRemoteResponse | null> {
   const { initialMessage, signal } = options
   try {
-    // Check authentication
+    // 检查身份验证
     await checkAndRefreshOAuthTokenIfNeeded()
     const accessToken = getClaudeAIOAuthTokens()?.accessToken
     if (!accessToken) {
-      logError(new Error('No access token found for remote session creation'))
+      logError(new Error('未找到用于创建远程会话的访问令牌'))
       return null
     }
 
-    // Get organization UUID
+    // 获取组织 UUID
     const orgUUID = await getOrganizationUUID()
     if (!orgUUID) {
       logError(
         new Error(
-          'Unable to get organization UUID for remote session creation',
+          '无法获取用于创建远程会话的组织 UUID',
         ),
       )
       return null
     }
 
-    // Explicit environmentId short-circuits Haiku title-gen + env selection.
-    // Still runs repo detection so the container gets a working directory —
-    // the code_review orchestrator reads --repo-dir $(pwd), it doesn't clone
-    // (bughunter.go:520 sets a git source too; env-manager does the checkout
-    // before the SessionStart hook fires).
+    // 显式的 environmentId 会绕过 Haiku 标题生成 + 环
+    // 境选择。仍运行仓库检测，以便容器获得工作目录 — code_revie
+    // w 编排器读取 --repo-dir $(pwd)，它不克隆（bughu
+    // nter.go:520 也设置了 git 源；环境管理器在 Sessio
+    // nStart 钩子触发之前执行检出）。
     if (options.environmentId) {
       const url = `${getOauthConfig().BASE_API_URL}/v1/sessions`
       const headers = {
@@ -1046,9 +970,9 @@ export async function teleportToRemote(options: {
         ...(options.environmentVariables ?? {}),
       }
 
-      // Bundle mode: upload local working tree (uncommitted changes via
-      // refs/seed/stash), container clones from the bundle. No GitHub.
-      // Otherwise: github.com source — caller checked eligibility.
+      // Bundle 模式：上传本地工作树（通过 refs/seed/sta
+      // sh 处理未提交的更改），容器从 bundle 克隆。无需 Git
+      // Hub。否则：github.com 源 — 调用者已检查资格。
       let gitSource: GitSource | null = null
       let seedBundleFileId: string | null = null
       if (options.useBundle) {
@@ -1062,7 +986,7 @@ export async function teleportToRemote(options: {
         )
         if (!bundle.success) {
           const failBundle = bundle as { success: false; error: string; failReason?: string }
-          logError(new Error(`Bundle upload failed: ${failBundle.error}`))
+          logError(new Error(`Bundle 上传失败：${failBundle.error}`))
           return null
         }
         seedBundleFileId = bundle.fileId
@@ -1086,7 +1010,7 @@ export async function teleportToRemote(options: {
       }
 
       const requestBody = {
-        title: options.title || options.description || 'Remote task',
+        title: options.title || options.description || '远程任务',
         events: [],
         session_context: {
           sources: gitSource ? [gitSource] : [],
@@ -1097,13 +1021,13 @@ export async function teleportToRemote(options: {
         environment_id: options.environmentId,
       }
       logForDebugging(
-        `[teleportToRemote] explicit env ${options.environmentId}, ${Object.keys(envVars).length} env vars, ${seedBundleFileId ? `bundle=${seedBundleFileId}` : `source=${gitSource?.url ?? 'none'}@${options.branchName ?? 'default'}`}`,
+        `[teleportToRemote] 显式环境 ${options.environmentId}，${Object.keys(envVars).length} 个环境变量，${seedBundleFileId ? `bundle=${seedBundleFileId}` : `source=${gitSource?.url ?? 'none'}@${options.branchName ?? 'default'}`}`,
       )
       const response = await axios.post(url, requestBody, { headers, signal })
       if (response.status !== 200 && response.status !== 201) {
         logError(
           new Error(
-            `CreateSession ${response.status}: ${jsonStringify(response.data)}`,
+            `CreateSession ${response.status}：${jsonStringify(response.data)}`,
           ),
         )
         return null
@@ -1112,7 +1036,7 @@ export async function teleportToRemote(options: {
       if (!sessionData || typeof sessionData.id !== 'string') {
         logError(
           new Error(
-            `No session id in response: ${jsonStringify(response.data)}`,
+            `响应中没有会话 ID：${jsonStringify(response.data)}`,
           ),
         )
         return null
@@ -1127,23 +1051,23 @@ export async function teleportToRemote(options: {
     let gitOutcome: GitRepositoryOutcome | null = null
     let seedBundleFileId: string | null = null
 
-    // Source selection ladder: GitHub clone (if CCR can actually pull it) →
-    // bundle fallback (if .git exists) → empty sandbox.
+    // 源选择阶梯：GitHub 克隆（如果 CCR 确实可以拉取）→ bu
+    // ndle 回退（如果存在 .git）→ 空沙箱。
     //
-    // The preflight is the same code path the container's git-proxy clone
-    // will hit (get_github_client_with_user_auth → no_sync_user_token_found).
-    // 50% of users who reach the "install GitHub App" step never finish it;
-    // without the preflight, every one of them gets a container that 401s
-    // on clone. With it, they silently fall back to bundle.
+    // 预检与容器的 git-proxy 克隆将命中的代码路径相同（get_g
+    // ithub_client_with_user_auth → no_sync
+    // _user_token_found）。50% 到达“安装 GitHub
+    // App”步骤的用户从未完成；没有预检，他们每个人都会得到一个在克隆时
+    // 401 的容器。有了预检，他们会静默回退到 bundle。
     //
-    // CCR_FORCE_BUNDLE=1 skips the preflight entirely — useful for testing
-    // or when you know your GitHub auth is busted. Read here (not in the
-    // caller) so it works for remote-agent too, not just --remote.
+    // CCR_FORCE_BUNDLE=1 完全跳过预检 — 适用于测试或当您知
+    // 道 GitHub 身份验证已损坏时。在此处读取（而非在调用者中），以便它
+    // 也适用于 remote-agent，而不仅仅是 --remote。
 
     const repoInfo = await detectCurrentRepositoryWithHost()
 
-    // Generate title and branch name for the session. Skip the Haiku call
-    // when both title and outcome branch are explicitly provided.
+    // 为会话生成标题和分支名称。当明确提供了标题
+    // 和结果分支时，跳过 Haiku 调用。
     let sessionTitle: string
     let sessionBranch: string
     if (options.title && options.reuseOutcomeBranch) {
@@ -1151,19 +1075,19 @@ export async function teleportToRemote(options: {
       sessionBranch = options.reuseOutcomeBranch
     } else {
       const generated = await generateTitleAndBranch(
-        options.description || initialMessage || 'Background task',
+        options.description || initialMessage || '后台任务',
         signal,
       )
       sessionTitle = options.title || generated.title
       sessionBranch = options.reuseOutcomeBranch || generated.branchName
     }
 
-    // Preflight: does CCR have a token that can clone this repo?
-    // Only checked for github.com — GHES needs ghe_configuration_id which
-    // we don't have, and GHES users are power users who probably finished
-    // setup. For them (and for non-GitHub hosts that parseGitRemote
-    // somehow accepted), fall through optimistically; if the backend
-    // rejects the host, bundle next time.
+    // 预检：CCR 是否有可以克隆此仓库的令牌？仅针对 git
+    // hub.com 检查 — GHES 需要 ghe_configur
+    // ation_id，我们没有，而 GHES 用户是高级用户，可能已完
+    // 成设置。对于他们（以及对于 parseGitRemote 以
+    // 某种方式接受的非 GitHub 主机），乐观地继续；如果后端
+    // 拒绝主机，下次使用 bundle。
     let ghViable = false
     let sourceReason:
       | 'github_preflight_ok'
@@ -1173,8 +1097,8 @@ export async function teleportToRemote(options: {
       | 'forced_bundle'
       | 'no_git_at_all' = 'no_git_at_all'
 
-    // gitRoot gates both bundle creation and the gate check itself — no
-    // point awaiting GrowthBook when there's nothing to bundle.
+    // gitRoot 控制 bundle 创建和门控检查本身 — 当
+    // 没有内容可打包时，等待 GrowthBook 没有意义。
     const gitRoot = findGitRoot(getCwd())
     const forceBundle =
       !options.skipBundle && isEnvTruthy(process.env.CCR_FORCE_BUNDLE)
@@ -1204,33 +1128,33 @@ export async function teleportToRemote(options: {
       sourceReason = 'no_github_remote'
     }
 
-    // Preflight failed but bundle is off — fall through optimistically like
-    // pre-preflight behavior. Backend reports the real auth error.
+    // 预检失败但 bundle 已关闭 — 像预预检行为
+    // 一样乐观地继续。后端报告真实的身份验证错误。
     if (!ghViable && !bundleSeedGateOn && repoInfo) {
       ghViable = true
     }
 
     if (ghViable && repoInfo) {
       const { host, owner, name } = repoInfo
-      // Resolve the base branch: prefer explicit branchName, fall back to default branch
+      // 解析基础分支：优先使用显式 branchName，回退到默认分支
       const revision =
         options.branchName ?? (await getDefaultBranch()) ?? undefined
       logForDebugging(
-        `[teleportToRemote] Git source: ${host}/${owner}/${name}, revision: ${revision ?? 'none'}`,
+        `[teleportToRemote] Git 源：${host}/${owner}/${name}，修订版本：${revision ?? 'none'}`,
       )
       gitSource = {
         type: 'git_repository',
         url: `https://${host}/${owner}/${name}`,
-        // The revision specifies which ref to checkout as the base branch
+        // 修订版本指定要作为基础分支检出的引用
         revision,
         ...(options.reuseOutcomeBranch && {
           allow_unrestricted_git_push: true,
         }),
       }
-      // type: 'github' is used for all GitHub-compatible hosts (github.com and GHE).
-      // The CLI can't distinguish GHE from non-GitHub hosts (GitLab, Bitbucket)
-      // client-side — the backend validates the URL against configured GHE instances
-      // and ignores git_info for unrecognized hosts.
+      // type: 'github' 用于所有与 GitHub 兼容的主机（github
+      // .com 和 GHE）。CLI 无法在客户端区分 GHE 与非 GitHub
+      // 主机（GitLab、Bitbucket）— 后端根据配置的 GHE 实例验证
+      // URL，并忽略无法识别主机的 git_info。
       gitOutcome = {
         type: 'git_repository',
         git_info: {
@@ -1241,13 +1165,13 @@ export async function teleportToRemote(options: {
       }
     }
 
-    // Bundle fallback. Only try bundle if GitHub wasn't viable, the gate is
-    // on, and there's a .git/ to bundle from. Reaching here with
-    // ghViable=false and repoInfo non-null means the preflight failed —
-    // .git definitely exists (detectCurrentRepositoryWithHost read the
-    // remote from it).
+    // Bundle 回退。仅当 GitHub 不可行、门控开启且存在 .git/ 可
+    // 打包时才尝试 bundle。在此处到达且 ghViable=fal
+    // se 且 repoInfo 非 null 意味着预检失败 — .git 肯
+    // 定存在（detectCurrentRepositoryWithHost
+    // 从中读取了远程）。
     if (!gitSource && bundleSeedGateOn) {
-      logForDebugging(`[teleportToRemote] Bundling (reason: ${sourceReason})`)
+      logForDebugging(`[teleportToRemote] 正在打包（原因：${sourceReason}）`)
       const bundle = await createAndUploadGitBundle(
         {
           oauthToken: accessToken,
@@ -1258,28 +1182,28 @@ export async function teleportToRemote(options: {
       )
       if (!bundle.success) {
         const failBundle = bundle as { success: false; error: string; failReason?: string }
-        logError(new Error(`Bundle upload failed: ${failBundle.error}`))
-        // Only steer users to GitHub setup when there's a remote to clone from.
+        logError(new Error(`Bundle 上传失败：${failBundle.error}`))
+        // 仅当存在要克隆的远程时才引导用户进行 GitHub 设置。
         const setup = repoInfo
-          ? '. Please setup GitHub on https://claude.ai/code'
+          ? '。请在 https://claude.ai/code 上设置 GitHub'
           : ''
         let msg: string
         switch (failBundle.failReason) {
           case 'empty_repo':
             msg =
-              'Repository has no commits — run `git add . && git commit -m "initial"` then retry'
+              '仓库没有提交 — 请运行 `git add . && git commit -m "initial"` 然后重试'
             break
           case 'too_large':
-            msg = `Repo is too large to teleport${setup}`
+            msg = `仓库太大，无法传送${setup}`
             break
           case 'git_error':
-            msg = `Failed to create git bundle (${failBundle.error})${setup}`
+            msg = `无法创建 git bundle (${failBundle.error})${setup}`
             break
           case undefined:
-            msg = `Bundle upload failed: ${failBundle.error}${setup}`
+            msg = `Bundle 上传失败：${failBundle.error}${setup}`
             break
           default: {
-            msg = `Bundle upload failed: ${failBundle.error}`
+            msg = `Bundle 上传失败：${failBundle.error}`
           }
         }
         options.onBundleFail?.(msg)
@@ -1308,44 +1232,44 @@ export async function teleportToRemote(options: {
 
     if (!gitSource && !seedBundleFileId) {
       logForDebugging(
-        '[teleportToRemote] No repository detected — session will have an empty sandbox',
+        '[teleportToRemote] 未检测到仓库 — 会话将具有空沙箱',
       )
     }
 
-    // Fetch available environments
+    // 获取可用环境
     let environments = await fetchEnvironments()
     if (!environments || environments.length === 0) {
-      logError(new Error('No environments available for session creation'))
+      logError(new Error('没有可用于创建会话的环境'))
       return null
     }
 
     logForDebugging(
-      `Available environments: ${environments.map(e => `${e.environment_id} (${e.name}, ${e.kind})`).join(', ')}`,
+      `可用环境：${environments.map(e => `${e.environment_id} (${e.name}, ${e.kind})`).join(', ')}`,
     )
 
-    // Select environment based on settings, then anthropic_cloud preference, then first available.
-    // Prefer anthropic_cloud environments over byoc: anthropic_cloud environments (e.g. "Default")
-    // are the standard compute environments with full repo access, whereas byoc environments
-    // (e.g. "monorepo") are user-owned compute that may not support the current repository.
+    // 根据设置选择环境，然后优先选择 anthropic_cloud，最后选择第一个可用的环境
+    // 。优先选择 anthropic_cloud 环境而非 byoc：anthropic_cl
+    // oud 环境（例如“Default”）是具有完整仓库访问权限的标准计算环境，而 b
+    // yoc 环境（例如“monorepo”）是用户拥有的计算环境，可能不支持当前仓库。
     const settings = getSettings_DEPRECATED()
     const defaultEnvironmentId = options.useDefaultEnvironment
       ? undefined
       : settings?.remote?.defaultEnvironmentId
     let cloudEnv = environments.find(env => env.kind === 'anthropic_cloud')
-    // When the caller opts out of their configured default, do not fall
-    // through to a BYOC env that may not support the current repo or the
-    // requested permission mode. Retry once for eventual consistency,
-    // then fail loudly.
+    // 当调用者选择退出其配置的默认环境时，不要回
+    // 退到可能不支持当前仓库或请求权限模式的 BY
+    // OC 环境。重试一次以实现最终一致性，然后
+    // 大声失败。
     if (options.useDefaultEnvironment && !cloudEnv) {
       logForDebugging(
-        `No anthropic_cloud in env list (${environments.length} envs); retrying fetchEnvironments`,
+        `环境列表中没有 anthropic_cloud（${environments.length} 个环境）；正在重试 fetchEnvironments`,
       )
       const retried = await fetchEnvironments()
       cloudEnv = retried?.find(env => env.kind === 'anthropic_cloud')
       if (!cloudEnv) {
         logError(
           new Error(
-            `No anthropic_cloud environment available after retry (got: ${(retried ?? environments).map(e => `${e.name} (${e.kind})`).join(', ')}). Silent byoc fallthrough would launch into a dead env — fail fast instead.`,
+            `重试后仍无 anthropic_cloud 环境可用（得到：${(retried ?? environments).map(e => `${e.name} (${e.kind})`).join(', ')}）。静默回退到 byoc 会启动到死环境 — 改为快速失败。`,
           ),
         )
         return null
@@ -1362,7 +1286,7 @@ export async function teleportToRemote(options: {
       environments[0]
 
     if (!selectedEnvironment) {
-      logError(new Error('No environments available for session creation'))
+      logError(new Error('没有可用于创建会话的环境'))
       return null
     }
 
@@ -1371,17 +1295,17 @@ export async function teleportToRemote(options: {
         selectedEnvironment.environment_id === defaultEnvironmentId
       logForDebugging(
         matchedDefault
-          ? `Using configured default environment: ${defaultEnvironmentId}`
-          : `Configured default environment ${defaultEnvironmentId} not found, using first available`,
+          ? `使用配置的默认环境：${defaultEnvironmentId}`
+          : `未找到配置的默认环境 ${defaultEnvironmentId}，使用第一个可用的`,
       )
     }
 
     const environmentId = selectedEnvironment.environment_id
     logForDebugging(
-      `Selected environment: ${environmentId} (${selectedEnvironment.name}, ${selectedEnvironment.kind})`,
+      `选定的环境：${environmentId} (${selectedEnvironment.name}, ${selectedEnvironment.kind})`,
     )
 
-    // Prepare API request for Sessions API
+    // 为 Sessions API 准备 API 请求
     const url = `${getOauthConfig().BASE_API_URL}/v1/sessions`
 
     const headers = {
@@ -1399,11 +1323,11 @@ export async function teleportToRemote(options: {
       ...(options.githubPr && { github_pr: options.githubPr }),
     }
 
-    // CreateCCRSessionPayload has no permission_mode field — a top-level
-    // body entry is silently dropped by the proto parser server-side.
-    // Instead prepend a set_permission_mode control_request event. Initial
-    // events are written to threadstore before the container connects, so
-    // the CLI applies the mode before the first user turn — no readiness race.
+    // CreateCCRSessionPayload 没有 permissi
+    // on_mode 字段 —— 一个顶级的请求体条目会被服务端的 pro
+    // to 解析器静默丢弃。应改为前置一个 set_permission_mo
+    // de 控制请求事件。初始事件在容器连接前就已写入 threadstore
+    // ，因此 CLI 会在第一个用户回合前应用该模式 —— 避免了就绪状态的竞争。
     const events: Array<{ type: 'event'; data: Record<string, unknown> }> = []
     if (options.permissionMode) {
       events.push({
@@ -1443,17 +1367,19 @@ export async function teleportToRemote(options: {
     }
 
     logForDebugging(
-      `Creating session with payload: ${jsonStringify(requestBody, null, 2)}`,
+      `正在使用负载创建会话：${jsonStringify(requestBody, null, 2)}`,
     )
 
-    // Make API call
+    // 执行 API 调用
     const response = await axios.post(url, requestBody, { headers, signal, validateStatus: (status) => status < 500  })
     const isSuccess = response.status === 200 || response.status === 201
 
     if (!isSuccess) {
       logError(
         new Error(
-          `API request failed with status ${response.status}: ${response.statusText}\n\nResponse data: ${jsonStringify(response.data, null, 2)}`,
+          `API 请求失败，状态码 ${response.status}：${response.statusText}
+
+响应数据：${jsonStringify(response.data, null, 2)}`,
         ),
       )
 
@@ -1461,18 +1387,18 @@ export async function teleportToRemote(options: {
       return null
     }
 
-    // Parse response as SessionResource
+    // 将响应解析为 SessionResource
     const sessionData = response.data as SessionResource
     if (!sessionData || typeof sessionData.id !== 'string') {
       logError(
         new Error(
-          `Cannot determine session ID from API response: ${jsonStringify(response.data)}`,
+          `无法从 API 响应中确定会话 ID：${jsonStringify(response.data)}`,
         ),
       )
       return null
     }
 
-    logForDebugging(`Successfully created remote session: ${sessionData.id}`)
+    logForDebugging(`成功创建远程会话：${sessionData.id}`)
     return {
       id: sessionData.id,
       title: sessionData.title || requestBody.title,
@@ -1484,14 +1410,7 @@ export async function teleportToRemote(options: {
   }
 }
 
-/**
- * Best-effort session archive. POST /v1/sessions/{id}/archive has no
- * running-status check (unlike DELETE which 409s on RUNNING), so it works
- * mid-implementation. Archived sessions reject new events (send_events.go),
- * so the remote stops on its next write. 409 (already archived) treated as
- * success. Fire-and-forget; failure leaks a visible session until the
- * reaper collects it.
- */
+/** 尽力而为的会话归档。POST /v1/sessions/{id}/archive 没有运行状态检查（不像 DELETE 在 RUNNING 状态时会返回 409），因此它可以在实现过程中执行。已归档的会话会拒绝新事件（send_events.go），因此远程端会在下一次写入时停止。409（已归档）被视为成功。采用“发射后不管”策略；失败会导致会话保持可见，直到回收器将其清理。 */
 export async function archiveRemoteSession(sessionId: string, timeout = 10_000): Promise<void> {
   const accessToken = getClaudeAIOAuthTokens()?.accessToken
   if (!accessToken) return
@@ -1510,10 +1429,10 @@ export async function archiveRemoteSession(sessionId: string, timeout = 10_000):
       { headers, timeout, validateStatus: s => s < 500 },
     )
     if (resp.status === 200 || resp.status === 409) {
-      logForDebugging(`[archiveRemoteSession] archived ${sessionId}`)
+      logForDebugging(`[archiveRemoteSession] 已归档 ${sessionId}`)
     } else {
       logForDebugging(
-        `[archiveRemoteSession] ${sessionId} failed ${resp.status}: ${jsonStringify(resp.data)}`,
+        `[archiveRemoteSession] ${sessionId} 失败 ${resp.status}：${jsonStringify(resp.data)}`,
       )
     }
   } catch (err) {

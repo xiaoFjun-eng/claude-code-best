@@ -672,7 +672,7 @@ export type Attachment =
       addedTypes: string[]
       addedLines: string[]
       removedTypes: string[]
-      /** 当这是会话中的第一个公告时为 true */
+      /** 当这是会话中的第一个公告时为 true，第一次告诉大模型有哪些agent */
       isInitial: boolean
       /** 是否包含“并发启动多个代理”的说明（非专业版订阅） */
       showConcurrencyNote: boolean

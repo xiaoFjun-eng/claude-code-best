@@ -1,12 +1,12 @@
 ---
 name: interview
-description: "Interview me about my requirements"
+description: "就我的需求进行详细访谈"
 ---
 
-Analyze these requirements "$ARGUMENTS" and interview me in detail using the AskUserQuestionTool about literally anything: technical implementation, UI & UX, concerns, tradeoffs, etc. but make sure the questions are not obvious.
-Be very in-depth and continue interviewing me continually until it's complete, then proceed in plan mode.
+分析以下需求 "$ARGUMENTS"，并使用 AskUserQuestionTool 对我进行详细访谈，问题可以涉及任何方面：技术实现、UI与UX、关注点、权衡等，但确保问题不是显而易见的。
+访谈要非常深入，并持续进行直到完整覆盖所有要点，然后进入计划模式。
 
-Rules:
+规则：
 
-- Every question MUST have a recommended option: place it first in options, append "(推荐)" to its label, and start its description with the recommendation reason.
-- All user-facing text (question, header, label, description) MUST be in Chinese.
+- 每个问题必须包含一个推荐选项：将其放在选项列表的第一位，在标签后加上“（推荐）”，并在描述开头说明推荐理由。
+- 所有面向用户的文本（问题、标题、标签、描述）必须使用中文。

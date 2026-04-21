@@ -1,3 +1,4 @@
 [test]
 root = "."
 timeout = 10000
+"MACRO.ISSUES_EXPLAINER" = "告诉用户自己去github反馈。"

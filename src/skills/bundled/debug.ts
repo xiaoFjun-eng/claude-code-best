@@ -14,24 +14,24 @@ export function registerDebugSkill(): void {
     name: 'debug',
     description:
       process.env.USER_TYPE === 'ant'
-        ? 'Debug your current Claude Code session by reading the session debug log. Includes all event logging'
-        : 'Enable debug logging for this session and help diagnose issues',
+        ? '通过读取会话调试日志来调试你当前的 Claude Code 会话。包含所有事件日志记录。'
+        : '为此会话启用调试日志记录，以帮助诊断问题。',
     allowedTools: ['Read', 'Grep', 'Glob'],
-    argumentHint: '[issue description]',
-    // disableModelInvocation so that the user has to explicitly request it in
-    // interactive mode and so the description does not take up context.
+    argumentHint: '[问题描述]',
+    // 禁用模型调用（disableModelInvocation），以
+    // 便用户在交互模式下必须显式请求它，并且描述不会占用上下文。
     disableModelInvocation: true,
     userInvocable: true,
     async getPromptForCommand(args) {
-      // Non-ants don't write debug logs by default — turn logging on now so
-      // subsequent activity in this session is captured.
+      // 默认情况下，非蚂蚁（Non-ants）不写入调试日志——现在
+      // 开启日志记录，以便捕获此会话中的后续活动。
       const wasAlreadyLogging = enableDebugLogging()
       const debugLogPath = getDebugLogPath()
 
       let logInfo: string
       try {
-        // Tail the log without reading the whole thing - debug logs grow
-        // unbounded in long sessions and reading them in full spikes RSS.
+        // 跟踪日志尾部而无需读取整个文件——调试日志在长时间
+        // 会话中会无限增长，完整读取它们会导致 RSS 飙升。
         const stats = await stat(debugLogPath)
         const readSize = Math.min(stats.size, TAIL_READ_BYTES)
         const startOffset = stats.size - readSize
@@ -46,56 +46,62 @@ export function registerDebugSkill(): void {
             .split('\n')
             .slice(-DEFAULT_DEBUG_LINES_READ)
             .join('\n')
-          logInfo = `Log size: ${formatFileSize(stats.size)}\n\n### Last ${DEFAULT_DEBUG_LINES_READ} lines\n\n\`\`\`\n${tail}\n\`\`\``
+          logInfo = `日志大小：${formatFileSize(stats.size)}
+
+### 最后 ${DEFAULT_DEBUG_LINES_READ} 行
+
+\`\`\`
+${tail}
+\`\`\``
         } finally {
           await fd.close()
         }
       } catch (e) {
         logInfo = isENOENT(e)
-          ? 'No debug log exists yet — logging was just enabled.'
-          : `Failed to read last ${DEFAULT_DEBUG_LINES_READ} lines of debug log: ${errorMessage(e)}`
+          ? '调试日志尚不存在——日志记录功能刚刚启用。'
+          : `读取调试日志最后 ${DEFAULT_DEBUG_LINES_READ} 行失败：${errorMessage(e)}`
       }
 
       const justEnabledSection = wasAlreadyLogging
         ? ''
         : `
-## Debug Logging Just Enabled
+## 调试日志记录刚刚启用
 
-Debug logging was OFF for this session until now. Nothing prior to this /debug invocation was captured.
+在此之前，此会话的调试日志记录处于关闭状态。本次 /debug 调用之前的所有内容均未被捕获。
 
-Tell the user that debug logging is now active at \`${debugLogPath}\`, ask them to reproduce the issue, then re-read the log. If they can't reproduce, they can also restart with \`claude --debug\` to capture logs from startup.
+告知用户调试日志记录现已在 \`${debugLogPath}\` 处激活，请他们复现问题，然后重新读取日志。如果他们无法复现，也可以使用 \`claude --debug\` 重启以从启动时捕获日志。
 `
 
-      const prompt = `# Debug Skill
+      const prompt = `# 调试技能
 
-Help the user debug an issue they're encountering in this current Claude Code session.
+帮助用户调试他们在当前 Claude Code 会话中遇到的问题。
 ${justEnabledSection}
-## Session Debug Log
+## 会话调试日志
 
-The debug log for the current session is at: \`${debugLogPath}\`
+当前会话的调试日志位于：\`${debugLogPath}\`
 
 ${logInfo}
 
-For additional context, grep for [ERROR] and [WARN] lines across the full file.
+如需更多上下文，请在整个文件中 grep 查找 [ERROR] 和 [WARN] 行。
 
-## Issue Description
+## 问题描述
 
 ${args || 'The user did not describe a specific issue. Read the debug log and summarize any errors, warnings, or notable issues.'}
 
-## Settings
+## 设置
 
-Remember that settings are in:
-* user - ${getSettingsFilePathForSource('userSettings')}
-* project - ${getSettingsFilePathForSource('projectSettings')}
-* local - ${getSettingsFilePathForSource('localSettings')}
+请记住，设置位于：
+* 用户 - ${getSettingsFilePathForSource('userSettings')}
+* 项目 - ${getSettingsFilePathForSource('projectSettings')}
+* 本地 - ${getSettingsFilePathForSource('localSettings')}
 
-## Instructions
+## 说明
 
-1. Review the user's issue description
-2. The last ${DEFAULT_DEBUG_LINES_READ} lines show the debug file format. Look for [ERROR] and [WARN] entries, stack traces, and failure patterns across the file
-3. Consider launching the ${CLAUDE_CODE_GUIDE_AGENT_TYPE} subagent to understand the relevant Claude Code features
-4. Explain what you found in plain language
-5. Suggest concrete fixes or next steps
+1. 查看用户的问题描述
+2. 最后 ${DEFAULT_DEBUG_LINES_READ} 行展示了调试文件的格式。在整个文件中查找 [ERROR] 和 [WARN] 条目、堆栈跟踪和失败模式
+3. 考虑启动 ${CLAUDE_CODE_GUIDE_AGENT_TYPE} 子代理以了解相关的 Claude Code 功能
+4. 用通俗易懂的语言解释你的发现
+5. 建议具体的修复方法或后续步骤
 `
       return [{ type: 'text', text: prompt }]
     },

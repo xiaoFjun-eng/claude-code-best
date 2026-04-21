@@ -1,6 +1,6 @@
-// This file represents useful wrappers over node:child_process
-// These wrappers ease error handling and cross-platform compatbility
-// By using execa, Windows automatically gets shell escaping + BAT / CMD handling
+// 本文件提供了对 node:child_process 模块的有
+// 用封装。这些封装简化了错误处理和跨平台兼容性。通过使用 execa，
+// Windows 平台能自动获得 shell 转义以及 BAT/CMD 处理支持。
 
 import { type ExecaError, execa } from 'execa'
 import { getCwd } from '../utils/cwd.js'
@@ -15,8 +15,8 @@ type ExecFileOptions = {
   abortSignal?: AbortSignal
   timeout?: number
   preserveOutputOnError?: boolean
-  // Setting useCwd=false avoids circular dependencies during initialization
-  // getCwd() -> PersistentShell -> logEvent() -> execFileNoThrow
+  // 设置 useCwd=false 可避免初始化期间的循环依赖：getCwd() -> Persist
+  // entShell -> logEvent() -> execFileNoThrow。
   useCwd?: boolean
   env?: NodeJS.ProcessEnv
   stdin?: 'ignore' | 'inherit' | 'pipe'
@@ -60,16 +60,13 @@ type ExecaResultWithError = {
   signal?: string
 }
 
-/**
- * Extracts a human-readable error message from an execa result.
- *
- * Priority order:
- * 1. shortMessage - execa's human-readable error (e.g., "Command failed with exit code 1: ...")
- *    This is preferred because it already includes signal info when a process is killed,
- *    making it more informative than just the signal name.
- * 2. signal - the signal that killed the process (e.g., "SIGTERM")
- * 3. errorCode - fallback to just the numeric exit code
- */
+/** 从 execa 结果中提取人类可读的错误信息。
+
+优先级顺序：
+1. shortMessage - execa 提供的人类可读错误（例如，“命令执行失败，退出码为 1: ...”）。
+   这是首选，因为当进程被终止时，它已包含信号信息，比仅提供信号名称更具信息量。
+2. signal - 终止进程的信号（例如，“SIGTERM”）。
+3. errorCode - 回退到仅使用数字退出码。 */
 function getErrorMessage(
   result: ExecaResultWithError,
   errorCode: number,
@@ -83,9 +80,7 @@ function getErrorMessage(
   return String(errorCode)
 }
 
-/**
- * execFile, but always resolves (never throws)
- */
+/** execFile，但始终返回结果（永不抛出异常）。 */
 export function execFileNoThrowWithCwd(
   file: string,
   args: string[],
@@ -106,7 +101,7 @@ export function execFileNoThrowWithCwd(
   },
 ): Promise<{ stdout: string; stderr: string; code: number; error?: string }> {
   return new Promise(resolve => {
-    // Use execa for cross-platform .bat/.cmd compatibility on Windows
+    // 在 Windows 上使用 execa 以实现跨平台的 .bat/.cmd 兼容性。
     execa(file, args, {
       maxBuffer,
       cancelSignal: abortSignal,
@@ -116,7 +111,7 @@ export function execFileNoThrowWithCwd(
       shell,
       stdin: finalStdin,
       input: finalInput,
-      reject: false, // Don't throw on non-zero exit codes
+      reject: false, // 对于非零退出码，不抛出异常。
     })
       .then(result => {
         if (result.failed) {

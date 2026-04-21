@@ -29,16 +29,12 @@ import { get3PModelCapabilityOverride } from './model/modelSupportOverrides.js'
 import { getAPIProvider } from './model/providers.js'
 import { getInitialSettings } from './settings/settings.js'
 
-/**
- * SDK-provided betas that are allowed for API key users.
- * Only betas in this list can be passed via SDK options.
- */
+/** SDK 提供的、允许 API 密钥用户使用的测试功能列表。
+只有此列表中的测试功能才能通过 SDK 选项传递。 */
 const ALLOWED_SDK_BETAS = [CONTEXT_1M_BETA_HEADER]
 
-/**
- * Filter betas to only include those in the allowlist.
- * Returns allowed and disallowed betas separately.
- */
+/** 过滤测试功能，仅包含允许列表中的那些。
+分别返回允许的和不允许的测试功能。 */
 function partitionBetasByAllowlist(betas: string[]): {
   allowed: string[]
   disallowed: string[]
@@ -55,11 +51,9 @@ function partitionBetasByAllowlist(betas: string[]): {
   return { allowed, disallowed }
 }
 
-/**
- * Filter SDK betas to only include allowed ones.
- * Warns about disallowed betas and subscriber restrictions.
- * Returns undefined if no valid betas remain or if user is a subscriber.
- */
+/** 过滤 SDK 测试功能，仅包含允许的。
+对不允许的测试功能和订阅者限制发出警告。
+如果没有有效的测试功能剩余或用户是订阅者，则返回 undefined。 */
 export function filterAllowedSdkBetas(
   sdkBetas: string[] | undefined,
 ): string[] | undefined {
@@ -68,25 +62,25 @@ export function filterAllowedSdkBetas(
   }
 
   if (isClaudeAISubscriber()) {
-    // biome-ignore lint/suspicious/noConsole: intentional warning
+    // biome-ignore lint/suspicious/noConsole: 故意警告
     console.warn(
-      'Warning: Custom betas are only available for API key users. Ignoring provided betas.',
+      '警告：自定义测试功能仅适用于 API 密钥用户。忽略提供的测试功能。',
     )
     return undefined
   }
 
   const { allowed, disallowed } = partitionBetasByAllowlist(sdkBetas)
   for (const beta of disallowed) {
-    // biome-ignore lint/suspicious/noConsole: intentional warning
+    // biome-ignore lint/suspicious/noConsole: 故意警告
     console.warn(
-      `Warning: Beta header '${beta}' is not allowed. Only the following betas are supported: ${ALLOWED_SDK_BETAS.join(', ')}`,
+      `警告：测试功能头 '${beta}' 不被允许。仅支持以下测试功能：${ALLOWED_SDK_BETAS.join(', ')}`,
     )
   }
   return allowed.length > 0 ? allowed : undefined
 }
 
-// Generally, foundry supports all 1P features;
-// however out of an abundance of caution, we do not enable any which are behind an experiment
+// 通常，Foundry 支持所有
+// 第一方功能；但出于谨慎考虑，我们不会启用任何处于实验阶段的功能。
 
 export function modelSupportsISP(model: string): boolean {
   const supported3P = get3PModelCapabilityOverride(
@@ -98,7 +92,7 @@ export function modelSupportsISP(model: string): boolean {
   }
   const canonical = getCanonicalName(model)
   const provider = getAPIProvider()
-  // Foundry supports interleaved thinking for all models
+  // Foundry 支持所有模型的交错思考功能。
   if (provider === 'foundry') {
     return true
   }
@@ -112,7 +106,7 @@ export function modelSupportsISP(model: string): boolean {
 
 function vertexModelSupportsWebSearch(model: string): boolean {
   const canonical = getCanonicalName(model)
-  // Web search only supported on Claude 4.0+ models on Vertex
+  // 仅在 Vertex 上的 Claude 4.0+ 模型支持网络搜索。
   return (
     canonical.includes('claude-opus-4') ||
     canonical.includes('claude-sonnet-4') ||
@@ -120,7 +114,7 @@ function vertexModelSupportsWebSearch(model: string): boolean {
   )
 }
 
-// Context management is supported on Claude 4+ models
+// 上下文管理功能在 Claude 4+ 模型上受支持。
 export function modelSupportsContextManagement(model: string): boolean {
   const canonical = getCanonicalName(model)
   const provider = getAPIProvider()
@@ -137,11 +131,11 @@ export function modelSupportsContextManagement(model: string): boolean {
   )
 }
 
-// @[MODEL LAUNCH]: Add the new model ID to this list if it supports structured outputs.
+// @[MODEL LAUNCH]: 如果新模型支持结构化输出，请将其 ID 添加到此列表。
 export function modelSupportsStructuredOutputs(model: string): boolean {
   const canonical = getCanonicalName(model)
   const provider = getAPIProvider()
-  // Structured outputs only supported on firstParty and Foundry (not Bedrock/Vertex yet)
+  // 结构化输出仅在第一方和 Foundry 上受支持（Bedrock/Vertex 目前还不支持）。
   if (provider !== 'firstParty' && provider !== 'foundry') {
     return false
   }
@@ -155,20 +149,20 @@ export function modelSupportsStructuredOutputs(model: string): boolean {
   )
 }
 
-// @[MODEL LAUNCH]: Add the new model if it supports auto mode (specifically PI probes) — ask in #proj-claude-code-safety-research.
+// @[MODEL LAUNCH]: 如果新模型支持自动模式（特别是 PI 探针），请添加它 — 请在 #proj-claude-code-safety-research 中询问。
 export function modelSupportsAutoMode(model: string): boolean {
   if (feature('TRANSCRIPT_CLASSIFIER')) {
     const m = getCanonicalName(model)
-    // External: firstParty-only at launch (PI probes not wired for
-    // Bedrock/Vertex/Foundry yet). Checked before allowModels so the GB
-    // override can't enable auto mode on unsupported providers.
+    // 外部：发布时仅限第一方（Bedrock/Vertex/Foun
+    // dry 的 PI 探针尚未连接）。在 allowModels 之前
+    // 检查，以便 GB 覆盖无法在不支持的提供商上启用自动模式。
     if (process.env.USER_TYPE !== 'ant' && getAPIProvider() !== 'firstParty') {
       return false
     }
-    // GrowthBook override: tengu_auto_mode_config.allowModels force-enables
-    // auto mode for listed models, bypassing the denylist/allowlist below.
-    // Exact model IDs (e.g. "claude-strudel-v6-p") match only that model;
-    // canonical names (e.g. "claude-strudel") match the whole family.
+    // GrowthBook 覆盖：tengu_auto_mode_config.al
+    // lowModels 为列出的模型强制启用自动模式，绕过下面的拒绝列表/允许列表
+    // 。确切的模型 ID（例如 "claude-strudel-v6-p"）仅匹配
+    // 该模型；规范名称（例如 "claude-strudel"）匹配整个系列。
     const config = getFeatureValue_CACHED_MAY_BE_STALE<{
       allowModels?: string[]
     }>('tengu_auto_mode_config', {})
@@ -181,23 +175,21 @@ export function modelSupportsAutoMode(model: string): boolean {
       return true
     }
     if (process.env.USER_TYPE === 'ant') {
-      // Denylist: block known-unsupported claude models, allow everything else (ant-internal models etc.)
+      // 拒绝列表：阻止已知不支持的 Claude 模型，允许其他所有模型（ant-internal 模型等）。
       if (m.includes('claude-3-')) return false
-      // claude-*-4 not followed by -[6-9]: blocks bare -4, -4-YYYYMMDD, -4@, -4-0 thru -4-5
+      // claude-*-4 后面不跟 -[6-9]：阻止裸的 -4、-4-YYYYMMDD、-4@、-4-0 到 -4-5。
       if (/claude-(opus|sonnet|haiku)-4(?!-[6-9])/.test(m)) return false
       return true
     }
-    // External allowlist (firstParty already checked above).
+    // 外部允许列表（第一方已在上面检查过）。
     return /^claude-(opus|sonnet)-4-6/.test(m)
   }
   return false
 }
 
-/**
- * Get the correct tool search beta header for the current API provider.
- * - Claude API / Foundry: advanced-tool-use-2025-11-20
- * - Vertex AI / Bedrock: tool-search-tool-2025-10-19
- */
+/** 获取当前 API 提供商的正确工具搜索测试功能头。
+- Claude API / Foundry: advanced-tool-use-2025-11-20
+- Vertex AI / Bedrock: tool-search-tool-2025-10-19 */
 export function getToolSearchBetaHeader(): string {
   const provider = getAPIProvider()
   if (provider === 'vertex' || provider === 'bedrock') {
@@ -206,11 +198,9 @@ export function getToolSearchBetaHeader(): string {
   return TOOL_SEARCH_BETA_HEADER_1P
 }
 
-/**
- * Check if experimental betas should be included.
- * These are betas that are only available on firstParty provider
- * and may not be supported by proxies or other providers.
- */
+/** 检查是否应包含实验性测试功能。
+这些测试功能仅在 firstParty 提供商上可用，
+代理或其他提供商可能不支持。 */
 export function shouldIncludeFirstPartyOnlyBetas(): boolean {
   return (
     (getAPIProvider() === 'firstParty' || getAPIProvider() === 'foundry') &&
@@ -218,11 +208,9 @@ export function shouldIncludeFirstPartyOnlyBetas(): boolean {
   )
 }
 
-/**
- * Global-scope prompt caching is firstParty only. Foundry is excluded because
- * GrowthBook never bucketed Foundry users into the rollout experiment — the
- * treatment data is firstParty-only.
- */
+/** 全局范围的提示缓存仅限第一方。Foundry 被排除在外，因为
+GrowthBook 从未将 Foundry 用户纳入推出实验的分组 — 该
+处理数据仅限第一方。 */
 export function shouldUseGlobalCacheScope(): boolean {
   return (
     getAPIProvider() === 'firstParty' &&
@@ -260,12 +248,12 @@ export const getAllModelBetas = memoize((model: string): string[] => {
     betaHeaders.push(INTERLEAVED_THINKING_BETA_HEADER)
   }
 
-  // Skip the API-side Haiku thinking summarizer — the summary is only used
-  // for ctrl+o display, which interactive users rarely open. The API returns
-  // redacted_thinking blocks instead; AssistantRedactedThinkingMessage already
-  // renders those as a stub. SDK / print-mode keep summaries because callers
-  // may iterate over thinking content. Users can opt back in via settings.json
-  // showThinkingSummaries.
+  // 跳过 API 端的 Haiku 思考摘要器 — 摘要仅用于 ctrl+o
+  // 显示，而交互式用户很少打开。API 返回 redacted_thinking
+  // 块；AssistantRedactedThinkingMessage 已经将它
+  // 们渲染为存根。SDK / 打印模式保留摘要，因为调用方可能会迭代思考内容。用
+  // 户可以通过 settings.json 中的 showThinkingSumma
+  // ries 选择重新启用。
   if (
     includeFirstPartyOnlyBetas &&
     modelSupportsISP(model) &&
@@ -275,7 +263,7 @@ export const getAllModelBetas = memoize((model: string): string[] => {
     betaHeaders.push(REDACT_THINKING_BETA_HEADER)
   }
 
-  // Add context management beta for tool clearing (ant opt-in) or thinking preservation
+  // 为工具清理（ant 选择加入）或思考保留添加上下文管理测试功能。
   const antOptedIntoToolClearing =
     isEnvTruthy(process.env.USE_API_CONTEXT_MANAGEMENT) &&
     process.env.USER_TYPE === 'ant'
@@ -288,16 +276,16 @@ export const getAllModelBetas = memoize((model: string): string[] => {
   ) {
     betaHeaders.push(CONTEXT_MANAGEMENT_BETA_HEADER)
   }
-  // Add strict tool use beta if experiment is enabled.
-  // Gate on includeFirstPartyOnlyBetas: CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS
-  // already strips schema.strict from tool bodies at api.ts's choke point, but
-  // this header was escaping that kill switch. Proxy gateways that look like
-  // firstParty but forward to Vertex reject this header with 400.
-  // github.com/deshaw/anthropic-issues/issues/5
+  // 如果实验已启用，则添加严格工具使用测试功能。以 includ
+  // eFirstPartyOnlyBetas 为门控：CLAUDE_CODE_DISABLE_
+  // EXPERIMENTAL_BETAS 已经在 api.ts 的阻塞点从工具体中剥离了 sc
+  // hema.strict，但这个头逃过了那个紧急停止开关。看起来像第一方但转发到 Vert
+  // ex 的代理网关会以 400 拒绝此头。github.com/deshaw
+  // /anthropic-issues/issues/5
   const strictToolsEnabled =
     checkStatsigFeatureGate_CACHED_MAY_BE_STALE('tengu_tool_pear')
-  // 3P default: false. API rejects strict + token-efficient-tools together
-  // (tool_use.py:139), so these are mutually exclusive — strict wins.
+  // 第三方默认值：false。API 拒绝 strict 和 token-efficient-tool
+  // s 一起使用（tool_use.py:139），因此它们是互斥的 — strict 优先。
   const tokenEfficientToolsEnabled =
     !strictToolsEnabled &&
     getFeatureValue_CACHED_MAY_BE_STALE('tengu_amber_json_tools', false)
@@ -308,10 +296,10 @@ export const getAllModelBetas = memoize((model: string): string[] => {
   ) {
     betaHeaders.push(STRUCTURED_OUTPUTS_BETA_HEADER)
   }
-  // JSON tool_use format (FC v3) — ~4.5% output token reduction vs ANTML.
-  // Sends the v2 header (2026-03-28) added in anthropics/anthropic#337072 to
-  // isolate the CC A/B cohort from ~9.2M/week existing v1 senders. Ant-only
-  // while the restored JsonToolUseOutputParser soaks.
+  // JSON tool_use 格式（FC v3）— 与 ANTML 相比输出 token 减少约 4.
+  // 5%。发送在 anthropics/anthropic#337072 中添加的 v2 头（2026-03
+  // -28），以将 CC A/B 队列与约 920 万/周的现有 v1 发送者隔离。在恢复的 JsonTo
+  // olUseOutputParser 充分测试期间，仅限 Ant 使用。
   if (
     process.env.USER_TYPE === 'ant' &&
     includeFirstPartyOnlyBetas &&
@@ -320,22 +308,22 @@ export const getAllModelBetas = memoize((model: string): string[] => {
     betaHeaders.push(TOKEN_EFFICIENT_TOOLS_BETA_HEADER)
   }
 
-  // Add web search beta for Vertex Claude 4.0+ models only
+  // 仅为 Vertex Claude 4.0+ 模型添加网络搜索测试功能。
   if (provider === 'vertex' && vertexModelSupportsWebSearch(model)) {
     betaHeaders.push(WEB_SEARCH_BETA_HEADER)
   }
-  // Foundry only ships models that already support Web Search
+  // Foundry 仅提供已支持网络搜索的模型。
   if (provider === 'foundry') {
     betaHeaders.push(WEB_SEARCH_BETA_HEADER)
   }
 
-  // Always send the beta header for 1P. The header is a no-op without a scope field.
+  // 始终为第一方发送测试功能头。没有 scope 字段时，该头是无操作的。
   if (includeFirstPartyOnlyBetas) {
     betaHeaders.push(PROMPT_CACHING_SCOPE_BETA_HEADER)
   }
 
-  // If ANTHROPIC_BETAS is set, split it by commas and add to betaHeaders.
-  // This is an explicit user opt-in, so honor it regardless of model.
+  // 如果设置了 ANTHROPIC_BETAS，则按逗号分割并添加到 beta
+  // Headers 中。这是用户的明确选择加入，因此无论模型如何都应遵守。
   if (process.env.ANTHROPIC_BETAS) {
     betaHeaders.push(
       ...process.env.ANTHROPIC_BETAS.split(',')
@@ -361,26 +349,24 @@ export const getBedrockExtraBodyParamsBetas = memoize(
   },
 )
 
-/**
- * Merge SDK-provided betas with auto-detected model betas.
- * SDK betas are read from global state (set via setSdkBetas in main.tsx).
- * The betas are pre-filtered by filterAllowedSdkBetas which handles
- * subscriber checks and allowlist validation with warnings.
- *
- * @param options.isAgenticQuery - When true, ensures the beta headers needed
- *   for agentic queries are present. For non-Haiku models these are already
- *   included by getAllModelBetas(); for Haiku they're excluded since
- *   non-agentic calls (compaction, classifiers, token estimation) don't need them.
- */
+/** 将 SDK 提供的测试功能与自动检测的模型测试功能合并。
+SDK 测试功能从全局状态读取（通过 main.tsx 中的 setSdkBetas 设置）。
+这些测试功能已由 filterAllowedSdkBetas 预过滤，该函数处理
+订阅者检查和允许列表验证并发出警告。
+
+@param options.isAgenticQuery - 为 true 时，确保存在
+  智能体查询所需的测试功能头。对于非 Haiku 模型，这些已由
+  getAllModelBetas() 包含；对于 Haiku 模型，它们被排除，因为
+  非智能体调用（压缩、分类器、token 估算）不需要它们。 */
 export function getMergedBetas(
   model: string,
   options?: { isAgenticQuery?: boolean },
 ): string[] {
   const baseBetas = [...getModelBetas(model)]
 
-  // Agentic queries always need claude-code and cli-internal beta headers.
-  // For non-Haiku models these are already in baseBetas; for Haiku they're
-  // excluded by getAllModelBetas() since non-agentic Haiku calls don't need them.
+  // 智能体查询始终需要 claude-code 和 cli-internal 测试功能头。
+  // 对于非 Haiku 模型，这些已在 baseBetas 中；对于 Haiku 模型，它
+  // 们被 getAllModelBetas() 排除，因为非智能体的 Haiku 调用不需要它们。
   if (options?.isAgenticQuery) {
     if (!baseBetas.includes(CLAUDE_CODE_20250219_BETA_HEADER)) {
       baseBetas.push(CLAUDE_CODE_20250219_BETA_HEADER)
@@ -401,7 +387,7 @@ export function getMergedBetas(
     return baseBetas
   }
 
-  // Merge SDK betas without duplicates (already filtered by filterAllowedSdkBetas)
+  // 合并 SDK 测试功能，避免重复（已由 filterAllowedSdkBetas 过滤）。
   return [...baseBetas, ...sdkBetas.filter(b => !baseBetas.includes(b))]
 }
 

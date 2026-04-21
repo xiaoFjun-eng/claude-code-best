@@ -17,15 +17,15 @@ import { toError } from 'src/utils/errors.js'
 import { truncate } from 'src/utils/format.js'
 import { logError } from 'src/utils/log.js'
 
-// Skill listing gets 1% of the context window (in characters)
+// 技能列表占用上下文窗口的 1%（按字符数计算）
 export const SKILL_BUDGET_CONTEXT_PERCENT = 0.01
 export const CHARS_PER_TOKEN = 4
-export const DEFAULT_CHAR_BUDGET = 8_000 // Fallback: 1% of 200k × 4
+export const DEFAULT_CHAR_BUDGET = 8_000 // 后备方案：200k × 4 的 1%
 
-// Per-entry hard cap. The listing is for discovery only — the Skill tool loads
-// full content on invoke, so verbose whenToUse strings waste turn-1 cache_creation
-// tokens without improving match rate. Applies to all entries, including bundled,
-// since the cap is generous enough to preserve the core use case.
+// 每个条目的硬性上限。此列表仅用于发现——技能工具在调用时会加载
+// 完整内容，因此冗长的 whenToUse 字符串会浪费首轮缓存创
+// 建所需的 token，却无法提升匹配率。此限制适用于所有条目（包
+// 括捆绑技能），因为上限足够宽松，足以保留核心用例。
 export const MAX_LISTING_DESC_CHARS = 250
 
 export function getCharBudget(contextWindowTokens?: number): number {
@@ -50,7 +50,7 @@ function getCommandDescription(cmd: Command): string {
 }
 
 function formatCommandDescription(cmd: Command): string {
-  // Debug: log if userFacingName differs from cmd.name for plugin skills
+  // 调试：如果插件技能的 userFacingName 与 cmd.name 不同，则记录日志
   const displayName = getCommandName(cmd)
   if (
     cmd.name !== displayName &&
@@ -58,7 +58,7 @@ function formatCommandDescription(cmd: Command): string {
     cmd.source === 'plugin'
   ) {
     logForDebugging(
-      `Skill prompt: showing "${cmd.name}" (userFacingName="${displayName}")`,
+      `技能提示：显示“${cmd.name}”（userFacingName=“${displayName}”）`,
     )
   }
 
@@ -75,12 +75,12 @@ export function formatCommandsWithinBudget(
 
   const budget = getCharBudget(contextWindowTokens)
 
-  // Try full descriptions first
+  // 首先尝试完整描述
   const fullEntries = commands.map(cmd => ({
     cmd,
     full: formatCommandDescription(cmd),
   }))
-  // join('\n') produces N-1 newlines for N entries
+  // join('\n') 为 N 个条目生成 N-1 个换行符
   const fullTotal =
     fullEntries.reduce((sum, e) => sum + stringWidth(e.full), 0) +
     (fullEntries.length - 1)
@@ -89,7 +89,7 @@ export function formatCommandsWithinBudget(
     return fullEntries.map(e => e.full).join('\n')
   }
 
-  // Partition into bundled (never truncated) and rest
+  // 划分为捆绑技能（永不截断）和其他技能
   const bundledIndices = new Set<number>()
   const restCommands: Command[] = []
   for (let i = 0; i < commands.length; i++) {
@@ -101,7 +101,7 @@ export function formatCommandsWithinBudget(
     }
   }
 
-  // Compute space used by bundled skills (full descriptions, always preserved)
+  // 计算捆绑技能占用的空间（完整描述，始终保留）
   const bundledChars = fullEntries.reduce(
     (sum, e, i) =>
       bundledIndices.has(i) ? sum + stringWidth(e.full) + 1 : sum,
@@ -109,7 +109,7 @@ export function formatCommandsWithinBudget(
   )
   const remainingBudget = budget - bundledChars
 
-  // Calculate max description length for non-bundled commands
+  // 计算非捆绑命令的最大描述长度
   if (restCommands.length === 0) {
     return fullEntries.map(e => e.full).join('\n')
   }
@@ -121,7 +121,7 @@ export function formatCommandsWithinBudget(
   const maxDescLen = Math.floor(availableForDescs / restCommands.length)
 
   if (maxDescLen < MIN_DESC_LENGTH) {
-    // Extreme case: non-bundled go names-only, bundled keep descriptions
+    // 极端情况：非捆绑技能仅保留名称，捆绑技能保留描述
     if (process.env.USER_TYPE === 'ant') {
       logEvent('tengu_skill_descriptions_truncated', {
         skill_count: commands.length,
@@ -141,7 +141,7 @@ export function formatCommandsWithinBudget(
       .join('\n')
   }
 
-  // Truncate non-bundled descriptions to fit within budget
+  // 截断非捆绑技能的描述以符合预算
   const truncatedCount = count(
     restCommands,
     cmd => stringWidth(getCommandDescription(cmd)) > maxDescLen,
@@ -155,14 +155,14 @@ export function formatCommandsWithinBudget(
         'description_trimmed' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       max_desc_length: maxDescLen,
       truncated_count: truncatedCount,
-      // Count of bundled skills included in this prompt (excludes skills with disableModelInvocation)
+      // 此提示中包含的捆绑技能数量（排除已禁用模型调用的技能）
       bundled_count: bundledIndices.size,
       bundled_chars: bundledChars,
     })
   }
   return commands
     .map((cmd, i) => {
-      // Bundled skills always get full descriptions
+      // 捆绑技能始终获取完整描述
       if (bundledIndices.has(i)) return fullEntries[i]!.full
       const description = getCommandDescription(cmd)
       return `- ${cmd.name}: ${truncate(description, maxDescLen)}`
@@ -171,28 +171,27 @@ export function formatCommandsWithinBudget(
 }
 
 export const getPrompt = memoize(async (_cwd: string): Promise<string> => {
-  return `Execute a skill within the main conversation
+  return `在主对话中执行技能
 
-When users ask you to perform tasks, check if any of the available skills match. Skills provide specialized capabilities and domain knowledge.
+当用户要求你执行任务时，检查是否有任何可用技能匹配。技能提供专业能力和领域知识。
 
-When users reference a "slash command" or "/<something>" (e.g., "/commit", "/review-pr"), they are referring to a skill. Use this tool to invoke it.
+当用户提及“斜杠命令”或“/<某物>”（例如“/commit”、“/review-pr”）时，他们指的是一个技能。使用此工具来调用它。
 
-How to invoke:
-- Use this tool with the skill name and optional arguments
-- Examples:
-  - \`skill: "pdf"\` - invoke the pdf skill
-  - \`skill: "commit", args: "-m 'Fix bug'"\` - invoke with arguments
-  - \`skill: "review-pr", args: "123"\` - invoke with arguments
-  - \`skill: "ms-office-suite:pdf"\` - invoke using fully qualified name
+如何调用：
+- 使用此工具，指定技能名称和可选参数
+- 示例：
+  - \`skill: "pdf"\` - 调用 pdf 技能
+  - \`skill: "commit", args: "-m 'Fix bug'"\` - 带参数调用
+  - \`skill: "review-pr", args: "123"\` - 带参数调用
+  - \`skill: "ms-office-suite:pdf"\` - 使用完全限定名调用
 
-Important:
-- Available skills are listed in system-reminder messages in the conversation
-- When a skill matches the user's request, this is a BLOCKING REQUIREMENT: invoke the relevant Skill tool BEFORE generating any other response about the task
-- NEVER mention a skill without actually calling this tool
-- Do not invoke a skill that is already running
-- Do not use this tool for built-in CLI commands (like /help, /clear, etc.)
-- If you see a <${COMMAND_NAME_TAG}> tag in the current conversation turn, the skill has ALREADY been loaded - follow the instructions directly instead of calling this tool again
-`
+重要事项：
+- 可用技能列表在对话的系统提醒消息中列出
+- 当有技能匹配用户请求时，这是一个阻塞性要求：在生成任何关于该任务的其他响应之前，必须先调用相关的 Skill 工具
+- 切勿提及技能而不实际调用此工具
+- 不要调用已在运行的技能
+- 不要将此工具用于内置 CLI 命令（如 /help、/clear 等）
+- 如果在当前对话轮次中看到 <${COMMAND_NAME_TAG}> 标签，表示技能已经加载——请直接遵循其中的指令，而不要再次调用此工具`
 })
 
 export async function getSkillToolInfo(cwd: string): Promise<{
@@ -207,9 +206,9 @@ export async function getSkillToolInfo(cwd: string): Promise<{
   }
 }
 
-// Returns the commands included in the SkillTool prompt.
-// All commands are always included (descriptions may be truncated to fit budget).
-// Used by analyzeContext to count skill tokens.
+// 返回 SkillTool 提示中包含的命令。所有命
+// 令始终包含在内（描述可能会被截断以符合预算）。由 analyzeCont
+// ext 用于统计技能 token 数量。
 export function getLimitedSkillToolCommands(cwd: string): Promise<Command[]> {
   return getSkillToolCommands(cwd)
 }
@@ -232,7 +231,7 @@ export async function getSkillInfo(cwd: string): Promise<{
   } catch (error) {
     logError(toError(error))
 
-    // Return zeros rather than throwing - let caller decide how to handle
+    // 返回零值而非抛出异常——让调用方决定如何处理
     return {
       totalSkills: 0,
       includedSkills: 0,

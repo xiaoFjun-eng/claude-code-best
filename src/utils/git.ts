@@ -38,7 +38,7 @@ const findGitRootImpl = memoizeWithLRU(
         const gitPath = join(current, '.git')
         statCount++
         const stat = statSync(gitPath)
-        // .git can be a directory (regular repo) or file (worktree/submodule)
+        // .git 可以是一个目录（常规仓库）或文件（工作树/子模块）
         if (stat.isDirectory() || stat.isFile()) {
           logForDiagnosticsNoPII('info', 'find_git_root_completed', {
             duration_ms: Date.now() - startTime,
@@ -48,7 +48,7 @@ const findGitRootImpl = memoizeWithLRU(
           return current.normalize('NFC')
         }
       } catch {
-        // .git doesn't exist at this level, continue up
+        // 当前层级不存在 .git，继续向上查找
       }
       const parent = dirname(current)
       if (parent === current) {
@@ -57,7 +57,7 @@ const findGitRootImpl = memoizeWithLRU(
       current = parent
     }
 
-    // Check root directory as well
+    // 同时检查根目录
     try {
       const gitPath = join(root, '.git')
       statCount++
@@ -71,7 +71,7 @@ const findGitRootImpl = memoizeWithLRU(
         return root.normalize('NFC')
       }
     } catch {
-      // .git doesn't exist at root
+      // 根目录下不存在 .git
     }
 
     logForDiagnosticsNoPII('info', 'find_git_root_completed', {
@@ -85,15 +85,13 @@ const findGitRootImpl = memoizeWithLRU(
   50,
 )
 
-/**
- * Find the git root by walking up the directory tree.
- * Looks for a .git directory or file (worktrees/submodules use a file).
- * Returns the directory containing .git, or null if not found.
- *
- * Memoized per startPath with an LRU cache (max 50 entries) to prevent
- * unbounded growth — gitDiff calls this with dirname(file), so editing many
- * files across different directories would otherwise accumulate entries forever.
- */
+/** 通过向上遍历目录树来查找 git 根目录。
+寻找 .git 目录或文件（工作树/子模块使用文件）。
+返回包含 .git 的目录，如果未找到则返回 null。
+
+每个 startPath 使用 LRU 缓存（最多 50 条）进行记忆化，以防止
+无限增长 —— gitDiff 使用 dirname(file) 调用此函数，因此编辑不同目录中的许多
+文件否则会永久累积条目。 */
 export const findGitRoot = createFindGitRoot()
 
 function createFindGitRoot(): {
@@ -108,23 +106,21 @@ function createFindGitRoot(): {
   return wrapper
 }
 
-/**
- * Resolve a git root to the canonical main repository root.
- * For a regular repo this is a no-op. For a worktree, follows the
- * `.git` file → `gitdir:` → `commondir` chain to find the main repo's
- * working directory.
- *
- * Submodules (`.git` is a file but no `commondir`) fall through to the
- * input root, which is correct since submodules are separate repos.
- *
- * Memoized with a small LRU to avoid repeated file reads on the hot
- * path (permission checks, prompt building).
- */
+/** 将 git 根目录解析为规范的主仓库根目录。
+对于常规仓库，此操作无效果。对于工作树，遵循
+`.git` 文件 → `gitdir:` → `commondir` 链来查找主仓库的
+工作目录。
+
+子模块（`.git` 是文件但没有 `commondir`）会回退到
+输入的根目录，这是正确的，因为子模块是独立的仓库。
+
+使用小型 LRU 进行记忆化，以避免在热路径（权限检查、
+提示构建）上重复读取文件。 */
 const resolveCanonicalRoot = memoizeWithLRU(
   (gitRoot: string): string => {
     try {
-      // In a worktree, .git is a file containing: gitdir: <path>
-      // In a regular repo, .git is a directory (readFileSync throws EISDIR).
+      // 在工作树中，.git 是一个包含以下内容的文件：gitdir: <路径>。
+      // 在常规仓库中，.git 是一个目录（readFileSync 会抛出 EISDIR 错误）。
       const gitContent = readFileSync(join(gitRoot, '.git'), 'utf-8').trim()
       if (!gitContent.startsWith('gitdir:')) {
         return gitRoot
@@ -133,43 +129,46 @@ const resolveCanonicalRoot = memoizeWithLRU(
         gitRoot,
         gitContent.slice('gitdir:'.length).trim(),
       )
-      // commondir points to the shared .git directory (relative to worktree gitdir).
-      // Submodules have no commondir (readFileSync throws ENOENT) → fall through.
+      // commondir 指向共享的 .git 目录（相对于工作树的 gitdir）。子模块没有
+      // commondir（readFileSync 会抛出 ENOENT 错误）→ 回退。
       const commonDir = resolve(
         worktreeGitDir,
         readFileSync(join(worktreeGitDir, 'commondir'), 'utf-8').trim(),
       )
-      // SECURITY: The .git file and commondir are attacker-controlled in a
-      // cloned/downloaded repo. Without validation, a malicious repo can point
-      // commondir at any path the victim has trusted, bypassing the trust
-      // dialog and executing hooks from .claude/settings.json on startup.
+      // 安全警告：在克隆/下载的仓库中，.git 文件和 commond
+      // ir 可由攻击者控制。如果不进行验证，恶意仓库可以将 common
+      // dir 指向受害者信任的任何路径，从而绕过信任对话框并在启动时
+      // 执行来自 .claude/settings.json 的钩子。
       //
-      // Validate the structure matches what `git worktree add` creates:
-      //   1. worktreeGitDir is a direct child of <commonDir>/worktrees/
-      //      → ensures the commondir file we read lives inside the resolved
-      //        common dir, not inside the attacker's repo
-      //   2. <worktreeGitDir>/gitdir points back to <gitRoot>/.git
-      //      → ensures an attacker can't borrow a victim's existing worktree
-      //        entry by guessing its path
-      // Both are required: (1) alone fails if victim has a worktree of the
-      // trusted repo; (2) alone fails because attacker controls worktreeGitDir.
+      // 验证结构是否与 `git worktree add` 创建的结构匹
+      // 配：
+1. worktreeGitDir 是 <commonDi
+      // r>/worktrees/ 的直接子目录 → 确保我们读取的 co
+      // mmondir 文件位于已解析的公共目录内，
+      // 而不是攻击者的仓库内。
+2. <worktreeGitDir
+      // >/gitdir 指回 <gitRoot>/.git → 确保攻击
+      // 者无法通过猜测路径借用受害者
+      // 的现有工作树条目。
+两者都是必需的：如果受害者拥有受信任仓库的工作树，
+      // 仅（1）会失败；仅（2）会失败，因为攻击者控制 worktreeGitDir。
       if (resolve(dirname(worktreeGitDir)) !== join(commonDir, 'worktrees')) {
         return gitRoot
       }
-      // Git writes gitdir with strbuf_realpath() (symlinks resolved), but
-      // gitRoot from findGitRoot() is only lexically resolved. Realpath gitRoot
-      // so legitimate worktrees accessed via a symlinked path (e.g. macOS
-      // /tmp → /private/tmp) aren't rejected. Realpath the directory then join
-      // '.git' — realpathing the .git file itself would follow a symlinked .git
-      // and let an attacker borrow a victim's back-link.
+      // Git 使用 strbuf_realpath()（解析符号链接）写入 gitd
+      // ir，但来自 findGitRoot() 的 gitRoot 仅进行词法解析。对 g
+      // itRoot 进行真实路径解析，以便通过符号链接路径（例如 macOS 的 /
+      // tmp → /private/tmp）访问的合法工作树不会被拒绝。对目录进行真实路
+      // 径解析，然后拼接 '.git' —— 对 .git 文件本身进行真实路径解析会跟随符
+      // 号链接的 .git，从而允许攻击者借用受害者的反向链接。
       const backlink = realpathSync(
         readFileSync(join(worktreeGitDir, 'gitdir'), 'utf-8').trim(),
       )
       if (backlink !== join(realpathSync(gitRoot), '.git')) {
         return gitRoot
       }
-      // Bare-repo worktrees: the common dir isn't inside a working directory.
-      // Use the common dir itself as the stable identity (anthropics/claude-code#27994).
+      // 裸仓库工作树：公共目录不在工作目录内。使用公共目录本身作为稳
+      // 定的标识（anthropics/claude-code#27994）。
       if (basename(commonDir) !== '.git') {
         return commonDir.normalize('NFC')
       }
@@ -182,16 +181,13 @@ const resolveCanonicalRoot = memoizeWithLRU(
   50,
 )
 
-/**
- * Find the canonical git repository root, resolving through worktrees.
- *
- * Unlike findGitRoot, which returns the worktree directory (where the `.git`
- * file lives), this returns the main repository's working directory. This
- * ensures all worktrees of the same repo map to the same project identity.
- *
- * Use this instead of findGitRoot for project-scoped state (auto-memory,
- * project config, agent memory) so worktrees share state with the main repo.
- */
+/** 查找规范的 git 仓库根目录，解析工作树。
+
+与 findGitRoot 不同（它返回工作树目录，即 `.git` 文件所在的位置），此函数返回主仓库的工作目录。这
+确保同一仓库的所有工作树都映射到相同的项目标识。
+
+对于项目范围的状态（自动记忆、
+项目配置、代理记忆），请使用此函数代替 findGitRoot，以便工作树与主仓库共享状态。 */
 export const findCanonicalGitRoot = createFindCanonicalGitRoot()
 
 function createFindCanonicalGitRoot(): {
@@ -210,8 +206,8 @@ function createFindCanonicalGitRoot(): {
 }
 
 export const gitExe = memoize((): string => {
-  // Every time we spawn a process, we have to lookup the path.
-  // Let's instead avoid that lookup so we only do it once.
+  // 每次我们生成一个进程时，都必须查找路径。让
+  // 我们改为避免该查找，这样我们只做一次。
   return whichSync('git') || 'git'
 })
 
@@ -238,7 +234,7 @@ export async function isAtGitRoot(): Promise<boolean> {
   if (!gitRoot) {
     return false
   }
-  // Resolve symlinks for accurate comparison
+  // 解析符号链接以进行精确比较
   try {
     const [resolvedCwd, resolvedGitRoot] = await Promise.all([
       realpath(cwd),
@@ -270,27 +266,25 @@ export const getRemoteUrl = async (): Promise<string | null> => {
   return getCachedRemoteUrl()
 }
 
-/**
- * Normalizes a git remote URL to a canonical form for hashing.
- * Converts SSH and HTTPS URLs to the same format: host/owner/repo (lowercase, no .git)
- *
- * Examples:
- * - git@github.com:owner/repo.git -> github.com/owner/repo
- * - https://github.com/owner/repo.git -> github.com/owner/repo
- * - ssh://git@github.com/owner/repo -> github.com/owner/repo
- * - http://local_proxy@127.0.0.1:16583/git/owner/repo -> github.com/owner/repo
- */
+/** 将 git 远程 URL 规范化为用于哈希的规范形式。
+将 SSH 和 HTTPS URL 转换为相同格式：host/owner/repo（小写，无 .git）
+
+示例：
+- git@github.com:owner/repo.git -> github.com/owner/repo
+- https://github.com/owner/repo.git -> github.com/owner/repo
+- ssh://git@github.com/owner/repo -> github.com/owner/repo
+- http://local_proxy@127.0.0.1:16583/git/owner/repo -> github.com/owner/repo */
 export function normalizeGitRemoteUrl(url: string): string | null {
   const trimmed = url.trim()
   if (!trimmed) return null
 
-  // Handle SSH format: git@host:owner/repo.git
+  // 处理 SSH 格式：git@host:owner/repo.git
   const sshMatch = trimmed.match(/^git@([^:]+):(.+?)(?:\.git)?$/)
   if (sshMatch && sshMatch[1] && sshMatch[2]) {
     return `${sshMatch[1]}/${sshMatch[2]}`.toLowerCase()
   }
 
-  // Handle HTTPS/SSH URL format: https://host/owner/repo.git or ssh://git@host/owner/repo
+  // 处理 HTTPS/SSH URL 格式：https://host/owner/repo.git 或 ssh://git@host/owner/repo
   const urlMatch = trimmed.match(
     /^(?:https?|ssh):\/\/(?:[^@]+@)?([^/]+)\/(.+?)(?:\.git)?$/,
   )
@@ -298,19 +292,21 @@ export function normalizeGitRemoteUrl(url: string): string | null {
     const host = urlMatch[1]
     const path = urlMatch[2]
 
-    // CCR git proxy URLs use format:
-    //   Legacy:  http://...@127.0.0.1:PORT/git/owner/repo       (github.com assumed)
-    //   GHE:     http://...@127.0.0.1:PORT/git/ghe.host/owner/repo (host encoded in path)
-    // Strip the /git/ prefix. If the first segment contains a dot, it's a
-    // hostname (GitHub org names cannot contain dots). Otherwise assume github.com.
+    // CCR git 代理 URL 使用格式：
+    // 旧版：http://...@127.0.0.1:PORT/git/owner/repo
+    // （假定为 github.com）
+GHE：    http://...@127.0.0.1:PORT/git
+    // /ghe.host/owner/repo （主机名编码在路径中）
+移除 /git/ 前缀。
+    // 如果第一个段包含点，则它是主机名（GitHub 组织名不能包含点）。否则假定为 github.com。
     if (isLocalHost(host) && path.startsWith('git/')) {
-      const proxyPath = path.slice(4) // Remove "git/" prefix
+      const proxyPath = path.slice(4) // 移除 "git/" 前缀
       const segments = proxyPath.split('/')
-      // 3+ segments where first contains a dot → host/owner/repo (GHE format)
+      // 3 个或更多段，且第一个段包含点 → host/owner/repo（GHE 格式）
       if (segments.length >= 3 && segments[0]!.includes('.')) {
         return proxyPath.toLowerCase()
       }
-      // 2 segments → owner/repo (legacy format, assume github.com)
+      // 2 个段 → owner/repo（旧版格式，假定为 github.com）
       return `github.com/${proxyPath}`.toLowerCase()
     }
 
@@ -320,12 +316,10 @@ export function normalizeGitRemoteUrl(url: string): string | null {
   return null
 }
 
-/**
- * Returns a SHA256 hash (first 16 chars) of the normalized git remote URL.
- * This provides a globally unique identifier for the repository that:
- * - Is the same regardless of SSH vs HTTPS clone
- * - Does not expose the actual repository name in logs
- */
+/** 返回规范化 git 远程 URL 的 SHA256 哈希（前 16 个字符）。
+这为仓库提供了一个全局唯一标识符，该标识符：
+- 无论克隆方式是 SSH 还是 HTTPS 都相同
+- 不会在日志中暴露实际的仓库名称 */
 export async function getRepoRemoteHash(): Promise<string | null> {
   const remoteUrl = await getRemoteUrl()
   if (!remoteUrl) return null
@@ -377,8 +371,8 @@ export const getChangedFiles = async (): Promise<string[]> => {
   return stdout
     .trim()
     .split('\n')
-    .map(line => line.trim().split(' ', 2)[1]?.trim()) // Remove status prefix (e.g., "M ", "A ", "??")
-    .filter(line => typeof line === 'string') // Remove empty entries
+    .map(line => line.trim().split(' ', 2)[1]?.trim()) // 移除状态前缀（例如 "M "、"A "、"??"）
+    .filter(line => typeof line === 'string') // 移除空条目
 }
 
 export type GitFileStatus = {
@@ -420,22 +414,20 @@ export const getWorktreeCount = async (): Promise<number> => {
   return getWorktreeCountFromFs()
 }
 
-/**
- * Stashes all changes (including untracked files) to return git to a clean porcelain state
- * Important: This function stages untracked files before stashing to prevent data loss
- * @param message - Optional custom message for the stash
- * @returns Promise<boolean> - true if stash was successful, false otherwise
- */
+/** 暂存所有更改（包括未跟踪的文件）以使 git 恢复到干净的 porcelain 状态
+重要提示：此函数在暂存之前会先将未跟踪的文件添加到暂存区，以防止数据丢失
+@param message - 可选的暂存自定义消息
+@returns Promise<boolean> - 如果暂存成功则为 true，否则为 false */
 export const stashToCleanState = async (message?: string): Promise<boolean> => {
   try {
     const stashMessage =
-      message || `Claude Code auto-stash - ${new Date().toISOString()}`
+      message || `Claude Code 自动暂存 - ${new Date().toISOString()}`
 
-    // First, check if we have untracked files
+    // 首先，检查我们是否有未跟踪的文件
     const { untracked } = await getFileStatus()
 
-    // If we have untracked files, add them to the index first
-    // This prevents them from being deleted
+    // 如果有未跟踪的文件，先将它们添加到暂存
+    // 区。这可以防止它们被删除
     if (untracked.length > 0) {
       const { code: addCode } = await execFileNoThrow(
         gitExe(),
@@ -448,7 +440,7 @@ export const stashToCleanState = async (message?: string): Promise<boolean> => {
       }
     }
 
-    // Now stash everything (staged and unstaged changes)
+    // 现在暂存所有内容（已暂存和未暂存的更改）
     const { code } = await execFileNoThrow(
       gitExe(),
       ['stash', 'push', '--message', stashMessage],
@@ -496,7 +488,7 @@ export async function getGitState(): Promise<GitRepoState | null> {
       worktreeCount,
     }
   } catch (_) {
-    // Fail silently - git state is best effort
+    // 静默失败 - git 状态处理是尽力而为的
     return null
   }
 }
@@ -505,62 +497,58 @@ export async function getGithubRepo(): Promise<string | null> {
   const { parseGitRemote } = await import('./detectRepository.js')
   const remoteUrl = await getRemoteUrl()
   if (!remoteUrl) {
-    logForDebugging('Local GitHub repo: unknown')
+    logForDebugging('本地 GitHub 仓库：未知')
     return null
   }
-  // Only return results for github.com — callers (e.g. issue submission)
-  // assume the result is a github.com repository.
+  // 仅返回 github.com 的结果 —— 调用者（例如问题提交
+  // ）假定结果是 github.com 仓库。
   const parsed = parseGitRemote(remoteUrl)
   if (parsed && parsed.host === 'github.com') {
     const result = `${parsed.owner}/${parsed.name}`
-    logForDebugging(`Local GitHub repo: ${result}`)
+    logForDebugging(`本地 GitHub 仓库：${result}`)
     return result
   }
-  logForDebugging('Local GitHub repo: unknown')
+  logForDebugging('本地 GitHub 仓库：未知')
   return null
 }
 
-/**
- * Preserved git state for issue submission.
- * Uses remote base (e.g., origin/main) which is rarely force-pushed,
- * unlike local commits that can be GC'd after force push.
- */
+/** 为问题提交保留的 git 状态。
+使用远程基准（例如 origin/main），它很少被强制推送，
+不像本地提交在强制推送后可能被 GC 清理。 */
 export type PreservedGitState = {
-  /** The SHA of the merge-base with the remote branch */
+  /** 与远程分支的合并基准的 SHA */
   remote_base_sha: string | null
-  /** The remote branch used (e.g., "origin/main") */
+  /** 使用的远程分支（例如 "origin/main"） */
   remote_base: string | null
-  /** Patch from merge-base to current state (includes uncommitted changes) */
+  /** 从合并基准到当前状态的补丁（包括未提交的更改） */
   patch: string
-  /** Untracked files with their contents */
+  /** 未跟踪的文件及其内容 */
   untracked_files: Array<{ path: string; content: string }>
-  /** git format-patch output for committed changes between merge-base and HEAD.
-   *  Used to reconstruct the actual commit chain (author, date, message) in
-   *  replay containers. null when there are no commits between merge-base and HEAD. */
+  /** git format-patch 输出，用于合并基准与 HEAD 之间已提交的更改。
+用于在重放容器中重建实际的提交链（作者、日期、消息）。
+当合并基准与 HEAD 之间没有提交时，为 null。 */
   format_patch: string | null
-  /** The current HEAD SHA (tip of the feature branch) */
+  /** 当前 HEAD 的 SHA（特性分支的尖端） */
   head_sha: string | null
-  /** The current branch name (e.g., "feat/my-feature") */
+  /** 当前分支名称（例如 "feat/my-feature"） */
   branch_name: string | null
 }
 
-// Size limits for untracked file capture
-const MAX_FILE_SIZE_BYTES = 500 * 1024 * 1024 // 500MB per file
-const MAX_TOTAL_SIZE_BYTES = 5 * 1024 * 1024 * 1024 // 5GB total
+// 未跟踪文件捕获的大小限制
+const MAX_FILE_SIZE_BYTES = 500 * 1024 * 1024 // 每个文件 500MB
+const MAX_TOTAL_SIZE_BYTES = 5 * 1024 * 1024 * 1024 // 总计 5GB
 const MAX_FILE_COUNT = 20000
 
-// Initial read buffer for binary detection + content reuse. 64KB covers
-// most source files in a single read; isBinaryContent() internally scans
-// only its first 8KB for the binary heuristic, so the extra bytes are
-// purely for avoiding a second read when the file turns out to be text.
+// 用于二进制检测和内容重用的初始读取缓冲区。64KB 足以
+// 在单次读取中覆盖大多数源文件；isBinaryConten
+// t() 内部仅扫描其前 8KB 用于二进制启发式检测，因
+// 此额外的字节纯粹是为了在文件最终是文本时避免第二次读取。
 const SNIFF_BUFFER_SIZE = 64 * 1024
 
-/**
- * Find the best remote branch to use as a base.
- * Priority: tracking branch > origin/main > origin/staging > origin/master
- */
+/** 查找用作基准的最佳远程分支。
+优先级：跟踪分支 > origin/main > origin/staging > origin/master */
 export async function findRemoteBase(): Promise<string | null> {
-  // First try: get the tracking branch for the current branch
+  // 第一次尝试：获取当前分支的跟踪分支
   const { stdout: trackingBranch, code: trackingCode } = await execFileNoThrow(
     gitExe(),
     ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'],
@@ -571,7 +559,7 @@ export async function findRemoteBase(): Promise<string | null> {
     return trackingBranch.trim()
   }
 
-  // Second try: check for common default branch names on origin
+  // 第二次尝试：检查 origin 上常见的默认分支名称
   const { stdout: remoteRefs, code: remoteCode } = await execFileNoThrow(
     gitExe(),
     ['remote', 'show', 'origin', '--', 'HEAD'],
@@ -579,14 +567,14 @@ export async function findRemoteBase(): Promise<string | null> {
   )
 
   if (remoteCode === 0) {
-    // Parse the default branch from remote show output
+    // 从远程 show 输出中解析默认分支
     const match = remoteRefs.match(/HEAD branch: (\S+)/)
     if (match && match[1]) {
       return `origin/${match[1]}`
     }
   }
 
-  // Third try: check which common branches exist
+  // 第三次尝试：检查哪些常见分支存在
   const candidates = ['origin/main', 'origin/staging', 'origin/master']
   for (const candidate of candidates) {
     const { code } = await execFileNoThrow(
@@ -602,17 +590,13 @@ export async function findRemoteBase(): Promise<string | null> {
   return null
 }
 
-/**
- * Check if we're in a shallow clone by looking for <gitDir>/shallow.
- */
+/** 通过查找 <gitDir>/shallow 来检查我们是否在浅克隆中。 */
 function isShallowClone(): Promise<boolean> {
   return isShallowCloneFs()
 }
 
-/**
- * Capture untracked files (git diff doesn't include them).
- * Respects size limits and skips binary files.
- */
+/** 捕获未跟踪的文件（git diff 不包含它们）。
+遵守大小限制并跳过二进制文件。 */
 async function captureUntrackedFiles(): Promise<
   Array<{ path: string; content: string }>
 > {
@@ -632,15 +616,15 @@ async function captureUntrackedFiles(): Promise<
   let totalSize = 0
 
   for (const filePath of files) {
-    // Check file count limit
+    // 检查文件数量限制
     if (result.length >= MAX_FILE_COUNT) {
       logForDebugging(
-        `Untracked file capture: reached max file count (${MAX_FILE_COUNT})`,
+        `未跟踪文件捕获：已达到最大文件数 (${MAX_FILE_COUNT})`,
       )
       break
     }
 
-    // Skip binary files by extension - zero I/O
+    // 通过扩展名跳过二进制文件 - 零 I/O
     if (hasBinaryExtension(filePath)) {
       continue
     }
@@ -649,33 +633,33 @@ async function captureUntrackedFiles(): Promise<
       const stats = await stat(filePath)
       const fileSize = stats.size
 
-      // Skip files exceeding per-file limit
+      // 跳过超过单文件限制的文件
       if (fileSize > MAX_FILE_SIZE_BYTES) {
         logForDebugging(
-          `Untracked file capture: skipping ${filePath} (exceeds ${MAX_FILE_SIZE_BYTES} bytes)`,
+          `未跟踪文件捕获：跳过 ${filePath}（超过 ${MAX_FILE_SIZE_BYTES} 字节）`,
         )
         continue
       }
 
-      // Check total size limit
+      // 检查总大小限制
       if (totalSize + fileSize > MAX_TOTAL_SIZE_BYTES) {
         logForDebugging(
-          `Untracked file capture: reached total size limit (${MAX_TOTAL_SIZE_BYTES} bytes)`,
+          `未跟踪文件捕获：已达到总大小限制 (${MAX_TOTAL_SIZE_BYTES} 字节）`,
         )
         break
       }
 
-      // Empty file - no need to open
+      // 空文件 - 无需打开
       if (fileSize === 0) {
         result.push({ path: filePath, content: '' })
         continue
       }
 
-      // Binary sniff on up to SNIFF_BUFFER_SIZE bytes. Caps binary-file reads
-      // at SNIFF_BUFFER_SIZE even though MAX_FILE_SIZE_BYTES allows up to 500MB.
-      // If the file fits in the sniff buffer we reuse it as the content; for
-      // larger text files we fall back to readFile with encoding so the runtime
-      // decodes to a string without materializing a full-size Buffer in JS.
+      // 对最多 SNIFF_BUFFER_SIZE 字节进行二进制嗅探。即使 MA
+      // X_FILE_SIZE_BYTES 允许高达 500MB，也将二进制文件读取限
+      // 制在 SNIFF_BUFFER_SIZE。如果文件适合嗅探缓冲区，我们将
+      // 其重用为内容；对于较大的文本文件，我们回退到使用编码的 readFile，以
+      // 便运行时解码为字符串，而无需在 JS 中实例化完整大小的 Buffer。
       const sniffSize = Math.min(SNIFF_BUFFER_SIZE, fileSize)
       const fd = await open(filePath, 'r')
       try {
@@ -689,12 +673,12 @@ async function captureUntrackedFiles(): Promise<
 
         let content: string
         if (fileSize <= sniffSize) {
-          // Sniff already covers the whole file
+          // 嗅探已覆盖整个文件
           content = sniff.toString('utf-8')
         } else {
-          // readFile with encoding decodes to string directly, avoiding a
-          // full-size Buffer living alongside the decoded string. The extra
-          // open/close is cheaper than doubling peak memory for large files.
+          // 使用编码的 readFile 直接解码为字符串，避
+          // 免了完整大小的 Buffer 与解码后的字符串并存
+          // 。额外的打开/关闭操作比为大文件加倍峰值内存更便宜。
           content = await readFile(filePath, 'utf-8')
         }
 
@@ -704,23 +688,21 @@ async function captureUntrackedFiles(): Promise<
         await fd.close()
       }
     } catch (err) {
-      // Skip files we can't read
-      logForDebugging(`Failed to read untracked file ${filePath}: ${err}`)
+      // 跳过我们无法读取的文件
+      logForDebugging(`读取未跟踪文件 ${filePath} 失败：${err}`)
     }
   }
 
   return result
 }
 
-/**
- * Preserve git state for issue submission.
- * Uses remote base for more stable replay capability.
- *
- * Edge cases handled:
- * - Detached HEAD: falls back to merge-base with default branch directly
- * - No remote: returns null for remote fields, uses HEAD-only mode
- * - Shallow clone: falls back to HEAD-only mode
- */
+/** 为问题提交保留 git 状态。
+使用远程基准以获得更稳定的重放能力。
+
+处理的边缘情况：
+- 分离的 HEAD：直接回退到与默认分支的合并基准
+- 无远程：远程字段返回 null，使用仅 HEAD 模式
+- 浅克隆：回退到仅 HEAD 模式 */
 export async function preserveGitStateForIssue(): Promise<PreservedGitState | null> {
   try {
     const isGit = await getIsGit()
@@ -728,9 +710,9 @@ export async function preserveGitStateForIssue(): Promise<PreservedGitState | nu
       return null
     }
 
-    // Check for shallow clone - fall back to simpler mode
+    // 检查是否为浅克隆 - 回退到更简单的模式
     if (await isShallowClone()) {
-      logForDebugging('Shallow clone detected, using HEAD-only mode for issue')
+      logForDebugging('检测到浅克隆，对问题使用仅 HEAD 模式')
       const [{ stdout: patch }, untrackedFiles] = await Promise.all([
         execFileNoThrow(gitExe(), ['diff', 'HEAD']),
         captureUntrackedFiles(),
@@ -746,12 +728,12 @@ export async function preserveGitStateForIssue(): Promise<PreservedGitState | nu
       }
     }
 
-    // Find the best remote base
+    // 查找最佳远程基准
     const remoteBase = await findRemoteBase()
 
     if (!remoteBase) {
-      // No remote found - use HEAD-only mode
-      logForDebugging('No remote found, using HEAD-only mode for issue')
+      // 未找到远程 - 使用仅 HEAD 模式
+      logForDebugging('未找到远程，对问题使用仅 HEAD 模式')
       const [{ stdout: patch }, untrackedFiles] = await Promise.all([
         execFileNoThrow(gitExe(), ['diff', 'HEAD']),
         captureUntrackedFiles(),
@@ -767,7 +749,7 @@ export async function preserveGitStateForIssue(): Promise<PreservedGitState | nu
       }
     }
 
-    // Get the merge-base with remote
+    // 获取与远程的合并基准
     const { stdout: mergeBase, code: mergeBaseCode } = await execFileNoThrow(
       gitExe(),
       ['merge-base', 'HEAD', remoteBase],
@@ -775,8 +757,8 @@ export async function preserveGitStateForIssue(): Promise<PreservedGitState | nu
     )
 
     if (mergeBaseCode !== 0 || !mergeBase.trim()) {
-      // Merge-base failed - fall back to HEAD-only
-      logForDebugging('Merge-base failed, using HEAD-only mode for issue')
+      // 合并基准失败 - 回退到仅 HEAD 模式
+      logForDebugging('合并基准失败，对问题使用仅 HEAD 模式')
       const [{ stdout: patch }, untrackedFiles] = await Promise.all([
         execFileNoThrow(gitExe(), ['diff', 'HEAD']),
         captureUntrackedFiles(),
@@ -794,8 +776,8 @@ export async function preserveGitStateForIssue(): Promise<PreservedGitState | nu
 
     const remoteBaseSha = mergeBase.trim()
 
-    // All 5 commands below depend only on remoteBaseSha — run them in parallel.
-    // ~5×90ms serial → ~90ms parallel on Bun native (used by /issue and /share).
+    // 下面的所有 5 个命令仅依赖于 remoteBaseSha —— 并行运行它们。在 Bun nati
+    // ve（由 /issue 和 /share 使用）上，从约 5×90ms 串行 → 约 90ms 并行。
     const [
       { stdout: patch },
       untrackedFiles,
@@ -803,22 +785,22 @@ export async function preserveGitStateForIssue(): Promise<PreservedGitState | nu
       { stdout: headSha },
       { stdout: branchName },
     ] = await Promise.all([
-      // Patch from merge-base to current state (including staged changes)
+      // 从合并基准到当前状态的补丁（包括已暂存的更改）
       execFileNoThrow(gitExe(), ['diff', remoteBaseSha]),
-      // Untracked files captured separately
+      // 未跟踪的文件单独捕获
       captureUntrackedFiles(),
-      // format-patch for committed changes between merge-base and HEAD.
-      // Preserves the actual commit chain (author, date, message) so replay
-      // containers can reconstruct the branch with real commits instead of a
-      // squashed diff. Uses --stdout to emit all patches as a single text stream.
+      // 用于合并基准与 HEAD 之间已提交更改的 form
+      // at-patch。保留实际的提交链（作者、日期、消息）
+      // ，以便重放容器可以重建具有真实提交的分支，而不是压缩的差
+      // 异。使用 --stdout 将所有补丁作为单个文本流输出。
       execFileNoThrow(gitExe(), [
         'format-patch',
         `${remoteBaseSha}..HEAD`,
         '--stdout',
       ]),
-      // HEAD SHA for replay
+      // 用于回放的 HEAD SHA
       execFileNoThrow(gitExe(), ['rev-parse', 'HEAD']),
-      // Branch name for replay
+      // 用于回放的分支名称
       execFileNoThrow(gitExe(), ['rev-parse', '--abbrev-ref', 'HEAD']),
     ])
 
@@ -852,27 +834,23 @@ function isLocalHost(host: string): boolean {
   )
 }
 
-/**
- * Checks if the current working directory appears to be a bare git repository
- * or has been manipulated to look like one (sandbox escape attack vector).
- *
- * SECURITY: Git's is_git_directory() function (setup.c:417-455) checks for:
- * 1. HEAD file - Must be a valid ref
- * 2. objects/ directory - Must exist and be accessible
- * 3. refs/ directory - Must exist and be accessible
- *
- * If all three exist in the current directory (not in a .git subdirectory),
- * Git treats the current directory as a bare repository and will execute
- * hooks/pre-commit and other hook scripts from the cwd.
- *
- * Attack scenario:
- * 1. Attacker creates HEAD, objects/, refs/, and hooks/pre-commit in cwd
- * 2. Attacker deletes or corrupts .git/HEAD to invalidate the normal git directory
- * 3. When user runs 'git status', Git treats cwd as the git dir and runs the hook
- *
- * @returns true if the cwd looks like a bare/exploited git directory
- */
-/* eslint-disable custom-rules/no-sync-fs -- sync permission-eval check */
+/** 检查当前工作目录是否看起来像一个裸 Git 仓库，或者被篡改以伪装成一个裸仓库（沙箱逃逸攻击向量）。
+
+安全说明：Git 的 is_git_directory() 函数（setup.c:417-455）会检查：
+1. HEAD 文件 - 必须是一个有效的引用
+2. objects/ 目录 - 必须存在且可访问
+3. refs/ 目录 - 必须存在且可访问
+
+如果这三者都存在于当前目录（而非 .git 子目录中），
+Git 会将当前目录视为一个裸仓库，并从当前工作目录执行 hooks/pre-commit 等钩子脚本。
+
+攻击场景：
+1. 攻击者在当前工作目录创建 HEAD、objects/、refs/ 和 hooks/pre-commit
+2. 攻击者删除或破坏 .git/HEAD，使正常的 Git 目录失效
+3. 当用户运行 'git status' 时，Git 将当前工作目录视为 Git 目录并运行钩子
+
+@returns 如果当前工作目录看起来像一个裸/被利用的 Git 目录，则返回 true */
+/* eslint-disable custom-rules/no-sync-fs -- 同步权限评估检查 */
 export function isCurrentDirectoryBareGitRepo(): boolean {
   const fs = getFsImplementation()
   const cwd = getCwd()
@@ -881,45 +859,45 @@ export function isCurrentDirectoryBareGitRepo(): boolean {
   try {
     const stats = fs.statSync(gitPath)
     if (stats.isFile()) {
-      // worktree/submodule — Git follows the gitdir reference
+      // worktree/submodule — Git 会跟随 gitdir 引用
       return false
     }
     if (stats.isDirectory()) {
       const gitHeadPath = join(gitPath, 'HEAD')
       try {
-        // SECURITY: check isFile(). An attacker creating .git/HEAD as a
-        // DIRECTORY would pass a bare statSync but Git's setup_git_directory
-        // rejects it (not a valid HEAD) and falls back to cwd discovery.
+        // 安全说明：检查 isFile()。攻击者如果将 .git/HEAD 创建为一
+        // 个目录，会通过裸的 statSync 检查，但 Git 的 setup_git_di
+        // rectory 会拒绝它（不是有效的 HEAD）并回退到当前工作目录发现机制。
         if (fs.statSync(gitHeadPath).isFile()) {
-          // normal repo — .git/HEAD valid, Git won't fall back to cwd
+          // 正常仓库 — .git/HEAD 有效，Git 不会回退到当前工作目录
           return false
         }
-        // .git/HEAD exists but is not a regular file — fall through
+        // .git/HEAD 存在但不是常规文件 — 继续检查
       } catch {
-        // .git exists but no HEAD — fall through to bare-repo check
+        // .git 存在但没有 HEAD — 继续执行裸仓库检查
       }
     }
   } catch {
-    // no .git — fall through to bare-repo indicator check
+    // 没有 .git — 继续执行裸仓库指示器检查
   }
 
-  // No valid .git/HEAD found. Check if cwd has bare git repo indicators.
-  // Be cautious — flag if ANY of these exist without a valid .git reference.
-  // Per-indicator try/catch so an error on one doesn't mask another.
+  // 未找到有效的 .git/HEAD。检查当前工作目录是否有裸 Git 仓库的
+  // 指示器。请谨慎 — 如果存在任何这些指示器但没有有效的 .git 引用，则标记
+  // 。对每个指示器使用 try/catch，以便一个错误不会掩盖另一个。
   try {
     if (fs.statSync(join(cwd, 'HEAD')).isFile()) return true
   } catch {
-    // no HEAD
+    // 没有 HEAD
   }
   try {
     if (fs.statSync(join(cwd, 'objects')).isDirectory()) return true
   } catch {
-    // no objects/
+    // 没有 objects/
   }
   try {
     if (fs.statSync(join(cwd, 'refs')).isDirectory()) return true
   } catch {
-    // no refs/
+    // 没有 refs/
   }
   return false
 }

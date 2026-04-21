@@ -8,16 +8,16 @@ import { registerBundledSkill } from '../bundledSkills.js'
 export function registerCronListSkill(): void {
   registerBundledSkill({
     name: 'cron-list',
-    description: 'List all scheduled cron jobs in this session',
+    description: '列出此会话中所有已计划的定时任务',
     whenToUse:
-      'When the user wants to see their scheduled/recurring tasks, check active cron jobs, or review what is currently looping.',
+      '当用户想要查看其计划/重复任务、检查活动的定时任务或查看当前正在循环执行的任务时。',
     userInvocable: true,
     isEnabled: isKairosCronEnabled,
     async getPromptForCommand() {
       return [
         {
           type: 'text',
-          text: `Call ${CRON_LIST_TOOL_NAME} to list all scheduled cron jobs. Display the results in a table with columns: ID, Schedule, Prompt, Recurring, Durable. If no jobs exist, say "No scheduled tasks."`,
+          text: `调用 ${CRON_LIST_TOOL_NAME} 以列出所有已计划的定时任务。将结果显示在包含以下列的表格中：ID、计划时间、提示、是否重复、是否持久。如果不存在任务，则显示“没有计划任务。”`,
         },
       ]
     },
@@ -27,9 +27,9 @@ export function registerCronListSkill(): void {
 export function registerCronDeleteSkill(): void {
   registerBundledSkill({
     name: 'cron-delete',
-    description: 'Cancel a scheduled cron job by ID',
+    description: '根据 ID 取消一个已计划的定时任务',
     whenToUse:
-      'When the user wants to cancel, stop, or remove a scheduled/recurring task or cron job.',
+      '当用户想要取消、停止或移除一个计划/重复任务或定时任务时。',
     argumentHint: '<job-id>',
     userInvocable: true,
     isEnabled: isKairosCronEnabled,
@@ -39,14 +39,16 @@ export function registerCronDeleteSkill(): void {
         return [
           {
             type: 'text',
-            text: `Usage: /cron-delete <job-id>\n\nProvide the job ID to cancel. Use /cron-list to see active jobs and their IDs.`,
+            text: `用法：/cron-delete <任务ID>
+
+提供要取消的任务 ID。使用 /cron-list 查看活动任务及其 ID。`,
           },
         ]
       }
       return [
         {
           type: 'text',
-          text: `Call ${CRON_DELETE_TOOL_NAME} with id "${id}" to cancel that scheduled job. Confirm the result to the user.`,
+          text: `使用 id "${id}" 调用 ${CRON_DELETE_TOOL_NAME} 以取消该计划任务。向用户确认结果。`,
         },
       ]
     },

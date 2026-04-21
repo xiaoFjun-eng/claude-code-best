@@ -17,18 +17,18 @@ import { DESCRIPTION, getPrompt } from './prompt.js'
 
 const inputSchema = lazySchema(() =>
   z.strictObject({
-    subject: z.string().describe('A brief title for the task'),
-    description: z.string().describe('What needs to be done'),
+    subject: z.string().describe('任务的简短标题'),
+    description: z.string().describe('需要完成的工作'),
     activeForm: z
       .string()
       .optional()
       .describe(
-        'Present continuous form shown in spinner when in_progress (e.g., "Running tests")',
+        '进行中时在加载指示器中显示的现在进行时形式（例如，“正在运行测试”）',
       ),
     metadata: z
       .record(z.string(), z.unknown())
       .optional()
-      .describe('Arbitrary metadata to attach to the task'),
+      .describe('附加到任务的任意元数据'),
   }),
 )
 type InputSchema = ReturnType<typeof inputSchema>
@@ -47,7 +47,7 @@ export type Output = z.infer<OutputSchema>
 
 export const TaskCreateTool = buildTool({
   name: TASK_CREATE_TOOL_NAME,
-  searchHint: 'create a task in the task list',
+  searchHint: '在任务列表中创建任务',
   maxResultSizeChars: 100_000,
   async description() {
     return DESCRIPTION
@@ -112,7 +112,7 @@ export const TaskCreateTool = buildTool({
       throw new Error(blockingErrors.join('\n'))
     }
 
-    // Auto-expand task list when creating tasks
+    // 创建任务时自动展开任务列表
     context.setAppState(prev => {
       if (prev.expandedView === 'tasks') return prev
       return { ...prev, expandedView: 'tasks' as const }
@@ -132,7 +132,7 @@ export const TaskCreateTool = buildTool({
     return {
       tool_use_id: toolUseID,
       type: 'tool_result',
-      content: `Task #${task.id} created successfully: ${task.subject}`,
+      content: `任务 #${task.id} 创建成功：${task.subject}`,
     }
   },
 } satisfies ToolDef<InputSchema, Output>)

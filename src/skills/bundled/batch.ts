@@ -9,101 +9,100 @@ import { registerBundledSkill } from '../bundledSkills.js'
 const MIN_AGENTS = 5
 const MAX_AGENTS = 30
 
-const WORKER_INSTRUCTIONS = `After you finish implementing the change:
-1. **Simplify** — Invoke the \`${SKILL_TOOL_NAME}\` tool with \`skill: "simplify"\` to review and clean up your changes.
-2. **Run unit tests** — Run the project's test suite (check for package.json scripts, Makefile targets, or common commands like \`npm test\`, \`bun test\`, \`pytest\`, \`go test\`). If tests fail, fix them.
-3. **Test end-to-end** — Follow the e2e test recipe from the coordinator's prompt (below). If the recipe says to skip e2e for this unit, skip it.
-4. **Commit and push** — Commit all changes with a clear message, push the branch, and create a PR with \`gh pr create\`. Use a descriptive title. If \`gh\` is not available or the push fails, note it in your final message.
-5. **Report** — End with a single line: \`PR: <url>\` so the coordinator can track it. If no PR was created, end with \`PR: none — <reason>\`.`
+const WORKER_INSTRUCTIONS = `完成变更实现后：
+1. **简化** — 使用 \`skill: "simplify"\` 调用 \`${SKILL_TOOL_NAME}\` 工具，以审查并清理你的更改。
+2. **运行单元测试** — 运行项目的测试套件（检查 package.json 脚本、Makefile 目标或常见命令如 \`npm test\`、\`bun test\`、\`pytest\`、\`go test\`）。如果测试失败，请修复它们。
+3. **端到端测试** — 按照协调员提示（下方）中的端到端测试步骤进行。如果步骤说明此单元可跳过端到端测试，则跳过。
+4. **提交并推送** — 使用清晰的提交信息提交所有更改，推送分支，并使用 \`gh pr create\` 创建 PR。使用描述性的标题。如果 \`gh\` 不可用或推送失败，请在最终消息中注明。
+5. **报告** — 最后以单行形式结束：\`PR: <url>\`，以便协调员跟踪。如果未创建 PR，则以 \`PR: none — <原因>\` 结束。`
 
 function buildPrompt(instruction: string): string {
-  return `# Batch: Parallel Work Orchestration
+  return `# 批处理：并行工作编排
 
-You are orchestrating a large, parallelizable change across this codebase.
+你正在编排一个跨越此代码库的大型、可并行化的变更。
 
-## User Instruction
+## 用户指令
 
 ${instruction}
 
-## Phase 1: Research and Plan (Plan Mode)
+## 第一阶段：研究与规划（计划模式）
 
-Call the \`${ENTER_PLAN_MODE_TOOL_NAME}\` tool now to enter plan mode, then:
+现在调用 \`${ENTER_PLAN_MODE_TOOL_NAME}\` 工具进入计划模式，然后：
 
-1. **Understand the scope.** Launch one or more subagents (in the foreground — you need their results) to deeply research what this instruction touches. Find all the files, patterns, and call sites that need to change. Understand the existing conventions so the migration is consistent.
+1. **理解范围。** 启动一个或多个子代理（在前台运行 — 你需要它们的结果）来深入研究此指令涉及的内容。找出所有需要更改的文件、模式和调用点。理解现有的约定，以便迁移保持一致。
 
-2. **Decompose into independent units.** Break the work into ${MIN_AGENTS}–${MAX_AGENTS} self-contained units. Each unit must:
-   - Be independently implementable in an isolated git worktree (no shared state with sibling units)
-   - Be mergeable on its own without depending on another unit's PR landing first
-   - Be roughly uniform in size (split large units, merge trivial ones)
+2. **分解为独立单元。** 将工作分解为 ${MIN_AGENTS}–${MAX_AGENTS} 个自包含的单元。每个单元必须：
+   - 能够在隔离的 git worktree 中独立实现（与兄弟单元无共享状态）
+   - 能够独立合并，无需依赖另一个单元的 PR 先落地
+   - 大小大致均匀（拆分大单元，合并琐碎单元）
 
-   Scale the count to the actual work: few files → closer to ${MIN_AGENTS}; hundreds of files → closer to ${MAX_AGENTS}. Prefer per-directory or per-module slicing over arbitrary file lists.
+   根据实际工作量调整数量：文件少 → 接近 ${MIN_AGENTS}；文件多 → 接近 ${MAX_AGENTS}。优先按目录或模块切片，而非任意的文件列表。
 
-3. **Determine the e2e test recipe.** Figure out how a worker can verify its change actually works end-to-end — not just that unit tests pass. Look for:
-   - A \`claude-in-chrome\` skill or browser-automation tool (for UI changes: click through the affected flow, screenshot the result)
-   - A \`tmux\` or CLI-verifier skill (for CLI changes: launch the app interactively, exercise the changed behavior)
-   - A dev-server + curl pattern (for API changes: start the server, hit the affected endpoints)
-   - An existing e2e/integration test suite the worker can run
+3. **确定端到端测试步骤。** 想出一个方法，让工作者可以验证其变更确实能端到端工作 — 不仅仅是单元测试通过。寻找：
+   - \`claude-in-chrome\` 技能或浏览器自动化工具（用于 UI 变更：点击受影响的流程，截图结果）
+   - \`tmux\` 或 CLI 验证器技能（用于 CLI 变更：交互式启动应用，执行更改后的行为）
+   - 开发服务器 + curl 模式（用于 API 变更：启动服务器，访问受影响的端点）
+   - 工作者可以运行的现有端到端/集成测试套件
 
-   If you cannot find a concrete e2e path, use the \`${ASK_USER_QUESTION_TOOL_NAME}\` tool to ask the user how to verify this change end-to-end. Offer 2–3 specific options based on what you found (e.g., "Screenshot via chrome extension", "Run \`bun run dev\` and curl the endpoint", "No e2e — unit tests are sufficient"). Do not skip this — the workers cannot ask the user themselves.
+   如果找不到具体的端到端路径，使用 \`${ASK_USER_QUESTION_TOOL_NAME}\` 工具询问用户如何端到端验证此变更。根据你的发现提供 2–3 个具体选项（例如，“通过 Chrome 扩展截图”、“运行 \`bun run dev\` 并 curl 端点”、“无需端到端 — 单元测试已足够”）。不要跳过此步骤 — 工作者无法自行询问用户。
 
-   Write the recipe as a short, concrete set of steps that a worker can execute autonomously. Include any setup (start a dev server, build first) and the exact command/interaction to verify.
+   将步骤写成一个简短、具体的指令集，供工作者自主执行。包括任何设置（启动开发服务器、先构建）以及用于验证的确切命令/交互。
 
-4. **Write the plan.** In your plan file, include:
-   - A summary of what you found during research
-   - A numbered list of work units — for each: a short title, the list of files/directories it covers, and a one-line description of the change
-   - The e2e test recipe (or "skip e2e because …" if the user chose that)
-   - The exact worker instructions you will give each agent (the shared template)
+4. **编写计划。** 在你的计划文件中，包括：
+   - 研究期间发现的总结
+   - 工作单元的编号列表 — 对于每个单元：简短标题、涵盖的文件/目录列表以及变更的一行描述
+   - 端到端测试步骤（如果用户选择跳过，则为“跳过端到端，因为…”）
+   - 你将给每个代理的确切工作者指令（共享模板）
 
-5. Call \`${EXIT_PLAN_MODE_TOOL_NAME}\` to present the plan for approval.
+5. 调用 \`${EXIT_PLAN_MODE_TOOL_NAME}\` 来提交计划以供批准。
 
-## Phase 2: Spawn Workers (After Plan Approval)
+## 第二阶段：生成工作者（计划批准后）
 
-Once the plan is approved, spawn one background agent per work unit using the \`${AGENT_TOOL_NAME}\` tool. **All agents must use \`isolation: "worktree"\` and \`run_in_background: true\`.** Launch them all in a single message block so they run in parallel.
+一旦计划获得批准，使用 \`${AGENT_TOOL_NAME}\` 工具为每个工作单元生成一个后台代理。**所有代理必须使用 \`isolation: "worktree"\` 和 \`run_in_background: true\`。** 在一个消息块中启动所有代理，以便它们并行运行。
 
-For each agent, the prompt must be fully self-contained. Include:
-- The overall goal (the user's instruction)
-- This unit's specific task (title, file list, change description — copied verbatim from your plan)
-- Any codebase conventions you discovered that the worker needs to follow
-- The e2e test recipe from your plan (or "skip e2e because …")
-- The worker instructions below, copied verbatim:
+对于每个代理，提示必须完全自包含。包括：
+- 总体目标（用户的指令）
+- 此单元的具体任务（标题、文件列表、变更描述 — 从你的计划中逐字复制）
+- 你发现的、工作者需要遵循的任何代码库约定
+- 你计划中的端到端测试步骤（或“跳过端到端，因为…”）
+- 下方的工作者指令，逐字复制：
 
 \`\`\`
 ${WORKER_INSTRUCTIONS}
 \`\`\`
 
-Use \`subagent_type: "general-purpose"\` unless a more specific agent type fits.
+除非有更具体的代理类型适用，否则使用 \`subagent_type: "general-purpose"\`。
 
-## Phase 3: Track Progress
+## 第三阶段：跟踪进度
 
-After launching all workers, render an initial status table:
+启动所有工作者后，渲染初始状态表：
 
-| # | Unit | Status | PR |
+| # | 单元 | 状态 | PR |
 |---|------|--------|----|
-| 1 | <title> | running | — |
-| 2 | <title> | running | — |
+| 1 | <标题> | 运行中 | — |
+| 2 | <标题> | 运行中 | — |
 
-As background-agent completion notifications arrive, parse the \`PR: <url>\` line from each agent's result and re-render the table with updated status (\`done\` / \`failed\`) and PR links. Keep a brief failure note for any agent that did not produce a PR.
+当后台代理完成通知到达时，从每个代理的结果中解析 \`PR: <url>\` 行，并使用更新后的状态（\`完成\` / \`失败\`）和 PR 链接重新渲染表格。对于任何未生成 PR 的代理，保留简短的失败说明。
 
-When all agents have reported, render the final table and a one-line summary (e.g., "22/24 units landed as PRs").
-`
+当所有代理都报告后，渲染最终表格和一行摘要（例如，“24 个单元中有 22 个已落地为 PR”）。`
 }
 
-const NOT_A_GIT_REPO_MESSAGE = `This is not a git repository. The \`/batch\` command requires a git repo because it spawns agents in isolated git worktrees and creates PRs from each. Initialize a repo first, or run this from inside an existing one.`
+const NOT_A_GIT_REPO_MESSAGE = `这不是一个 git 仓库。\`/batch\` 命令需要一个 git 仓库，因为它会在隔离的 git worktree 中生成代理，并从每个代理创建 PR。请先初始化一个仓库，或在现有仓库内运行此命令。`
 
-const MISSING_INSTRUCTION_MESSAGE = `Provide an instruction describing the batch change you want to make.
+const MISSING_INSTRUCTION_MESSAGE = `请提供一条指令，描述你想要进行的批处理变更。
 
-Examples:
-  /batch migrate from react to vue
-  /batch replace all uses of lodash with native equivalents
-  /batch add type annotations to all untyped function parameters`
+示例：
+  /batch 从 react 迁移到 vue
+  /batch 将所有 lodash 的使用替换为原生等效项
+  /batch 为所有无类型的函数参数添加类型注解`
 
 export function registerBatchSkill(): void {
   registerBundledSkill({
     name: 'batch',
     description:
-      'Research and plan a large-scale change, then execute it in parallel across 5–30 isolated worktree agents that each open a PR.',
+      '研究并规划一个大规模变更，然后在 5–30 个隔离的 worktree 代理中并行执行，每个代理都会打开一个 PR。',
     whenToUse:
-      'Use when the user wants to make a sweeping, mechanical change across many files (migrations, refactors, bulk renames) that can be decomposed into independent parallel units.',
+      '当用户想要进行一个跨越许多文件的、可分解为独立并行单元的、大规模的、机械式的变更（迁移、重构、批量重命名）时使用。',
     argumentHint: '<instruction>',
     userInvocable: true,
     disableModelInvocation: true,

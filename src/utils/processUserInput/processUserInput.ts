@@ -189,9 +189,7 @@ export async function processUserInput({
         messages: [
           // 待办：将此设为附件消息
           createSystemMessage(
-            `${blockingMessage}
-
-原始提示：${input}`,
+            `${blockingMessage}\n\n原始提示：${input}`,
             'warning',
           ),
         ],

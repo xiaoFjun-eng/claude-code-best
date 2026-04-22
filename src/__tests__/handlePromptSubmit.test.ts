@@ -92,7 +92,7 @@ describe('handlePromptSubmit', () => {
     })
   })
 
-  test('preserves bridgeOrigin when a remote slash command is queued during external loading', async () => {
+  test('在外部加载过程中，当远程斜杠命令被排队时，会保存“bridgeOrigin”值。', async () => {
     const params = createBaseParams()
     const abortController = createAbortController()
 

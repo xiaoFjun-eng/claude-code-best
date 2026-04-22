@@ -870,17 +870,17 @@ export function PluginSettings({
         <Text> /plugin marketplace update - 更新插件市场</Text>
         <Text>
           {' '}
-          /plugin marketplace update <name> - 更新指定插件市场</Text>
+          /plugin marketplace update &lt;name&gt; - 更新指定插件市场</Text>
         <Text> /plugin marketplace remove - 移除一个插件市场</Text>
         <Text>
           {' '}
-          /plugin marketplace remove <name> - 移除指定插件市场</Text>
+          /plugin marketplace remove &lt;name&gt; - 移除指定插件市场</Text>
         <Text> /plugin marketplace list - 列出所有插件市场</Text>
         <Text> </Text>
         <Text dimColor>Validation:</Text>
         <Text>
           {' '}
-          /plugin validate <path> - 验证清单文件或目录</Text>
+          /plugin validate &lt;path&gt; - 验证清单文件或目录</Text>
         <Text> </Text>
         <Text dimColor>Other:</Text>
         <Text> /plugin - 主插件菜单</Text>

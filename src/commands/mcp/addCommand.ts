@@ -179,8 +179,7 @@ export function registerMcpAddCommand(mcp: Command): void {
           }
 
           process.stdout.write(
-            `已将 SSE MCP 服务器 ${name} 及其 URL：${actualCommand} 添加到 ${scope} 配置
-`,
+            `已将 SSE MCP 服务器 ${name} 及其 URL：${actualCommand} 添加到 ${scope} 配置\n`,
           )
           if (headers) {
             process.stdout.write(
@@ -226,8 +225,7 @@ export function registerMcpAddCommand(mcp: Command): void {
           }
 
           process.stdout.write(
-            `已将 HTTP MCP 服务器 ${name} 及其 URL：${actualCommand} 添加到 ${scope} 配置
-`,
+            `已将 HTTP MCP 服务器 ${name} 及其 URL：${actualCommand} 添加到 ${scope} 配置\n`,
           )
           if (headers) {
             process.stdout.write(
@@ -242,25 +240,20 @@ export function registerMcpAddCommand(mcp: Command): void {
             options.xaa
           ) {
             process.stderr.write(
-              `警告：--client-id、--client-secret、--callback-port 和 --xaa 仅支持 HTTP/SSE 传输方式，对于 stdio 将被忽略。
-`,
+              `警告：--client-id、--client-secret、--callback-port 和 --xaa 仅支持 HTTP/SSE 传输方式，对于 stdio 将被忽略。\n`,
             )
           }
 
           // 如果看起来像 URL 但未显式指定传输方式，则发出警告
           if (!transportExplicit && looksLikeUrl) {
             process.stderr.write(
-              `
-警告：命令 "${actualCommand}" 看起来像 URL，但由于未指定 --transport，将被解释为 stdio 服务器。
-`,
+              `\n警告：命令 "${actualCommand}" 看起来像 URL，但由于未指定 --transport，将被解释为 stdio 服务器。\n`,
             )
             process.stderr.write(
-              `如果这是 HTTP 服务器，请使用：claude mcp add --transport http ${name} ${actualCommand}
-`,
+              `如果这是 HTTP 服务器，请使用：claude mcp add --transport http ${name} ${actualCommand}\n`,
             )
             process.stderr.write(
-              `如果这是 SSE 服务器，请使用：claude mcp add --transport sse ${name} ${actualCommand}
-`,
+              `如果这是 SSE 服务器，请使用：claude mcp add --transport sse ${name} ${actualCommand}\n`,
             )
           }
 
@@ -272,8 +265,7 @@ export function registerMcpAddCommand(mcp: Command): void {
           )
 
           process.stdout.write(
-            `已将 stdio MCP 服务器 ${name} 及其命令：${actualCommand} ${actualArgs.join(' ')} 添加到 ${scope} 配置
-`,
+            `已将 stdio MCP 服务器 ${name} 及其命令：${actualCommand} ${actualArgs.join(' ')} 添加到 ${scope} 配置\n`,
           )
         }
         cliOk(`文件已修改：${describeMcpConfigFilePath(scope)}`)

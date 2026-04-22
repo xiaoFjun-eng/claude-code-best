@@ -245,7 +245,7 @@ export async function handlePromptSubmit(
           cmd.aliases?.includes(commandName) ||
           getCommandName(cmd) === commandName),
     )
-
+    //只执行远程发过来的命令
     if (
       immediateCommand &&
       immediateCommand.type === 'local-jsx' &&
@@ -310,7 +310,7 @@ export async function handlePromptSubmit(
       return
     }
   }
-
+  //命令开始排队
   if (queryGuard.isActive || isExternalLoading) {
     // 仅允许提示符和 bash 模式命令入队
     if (mode !== 'prompt' && mode !== 'bash') {

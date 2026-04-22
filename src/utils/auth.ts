@@ -77,16 +77,13 @@ import { sleep } from './sleep.js'
 import { jsonParse } from './slowOperations.js'
 import { clearToolSchemaCache } from './toolSchemaCache.js'
 
-/** Default TTL for API key helper cache in milliseconds (5 minutes) */
+/** API 密钥辅助程序缓存的默认 TTL（毫秒）（5 分钟） */
 const DEFAULT_API_KEY_HELPER_TTL = 5 * 60 * 1000
 
 /**
- * CCR and Claude Desktop spawn the CLI with OAuth and should never fall back
- * to the user's ~/.claude/settings.json API-key config (apiKeyHelper,
- * env.ANTHROPIC_API_KEY, env.ANTHROPIC_AUTH_TOKEN). Those settings exist for
- * the user's terminal CLI, not managed sessions. Without this guard, a user
- * who runs `claude` in their terminal with an API key sees every CCD session
- * also use that key — and fail if it's stale/wrong-org.
+ * CCR 和 Claude Desktop 使用 OAuth 生成 CLI，绝不应回退到用户的 ~/.claude/settings.json API 密钥配置
+ * （apiKeyHelper、env.ANTHROPIC_API_KEY、env.ANTHROPIC_AUTH_TOKEN）。这些设置是为用户的终端 CLI 而存在的，而不是托管会话。
+ * 如果没有此防护，在终端中使用 API 密钥运行 `claude` 的用户会看到每个 CCD 会话也使用该密钥 —— 如果密钥过期/组织错误则会失败。
  */
 function isManagedOAuthContext(): boolean {
   return (
@@ -95,19 +92,16 @@ function isManagedOAuthContext(): boolean {
   )
 }
 
-/** Whether we are supporting direct 1P auth. */
-// this code is closely related to getAuthTokenSource
+/** 我们是否支持直接的 1P 认证。 */
+// 此代码与 getAuthTokenSource 密切相关
 export function isAnthropicAuthEnabled(): boolean {
-  // --bare: API-key-only, never OAuth.
+  // --bare：仅 API 密钥，绝不 OAuth。
   if (isBareMode()) return false
 
-  // `claude ssh` remote: ANTHROPIC_UNIX_SOCKET tunnels API calls through a
-  // local auth-injecting proxy. The launcher sets CLAUDE_CODE_OAUTH_TOKEN as a
-  // placeholder iff the local side is a subscriber (so the remote includes the
-  // oauth-2025 beta header to match what the proxy will inject). The remote's
-  // ~/.claude settings (apiKeyHelper, settings.env.ANTHROPIC_API_KEY) MUST NOT
-  // flip this — they'd cause a header mismatch with the proxy and a bogus
-  // "invalid x-api-key" from the API. See src/ssh/sshAuthProxy.ts.
+  // `claude ssh` 远程：ANTHROPIC_UNIX_SOCKET 通过本地认证注入代理隧道传输 API 调用。
+  // 启动器设置 CLAUDE_CODE_OAUTH_TOKEN 作为占位符，前提是本地端是订阅者（以便远程包含 oauth-2025 beta 头部以匹配代理将注入的内容）。
+  // 远程的 ~/.claude 设置（apiKeyHelper、settings.env.ANTHROPIC_API_KEY）绝不能翻转此标志 —— 它们会导致与代理的头部不匹配以及来自 API 的虚假“invalid x-api-key”。
+  // 参见 src/ssh/sshAuthProxy.ts。
   if (process.env.ANTHROPIC_UNIX_SOCKET) {
     return !!process.env.CLAUDE_CODE_OAUTH_TOKEN
   }
@@ -127,20 +121,20 @@ export function isAnthropicAuthEnabled(): boolean {
     apiKeyHelper ||
     process.env.CLAUDE_CODE_API_KEY_FILE_DESCRIPTOR
 
-  // Check if API key is from an external source (not managed by /login)
+  // 检查 API 密钥是否来自外部源（不由 /login 管理）
   const { source: apiKeySource } = getAnthropicApiKeyWithSource({
     skipRetrievingKeyFromApiKeyHelper: true,
   })
   const hasExternalApiKey =
     apiKeySource === 'ANTHROPIC_API_KEY' || apiKeySource === 'apiKeyHelper'
 
-  // Disable Anthropic auth if:
-  // 1. Using 3rd party services (Bedrock/Vertex/Foundry)
-  // 2. User has an external API key (regardless of proxy configuration)
-  // 3. User has an external auth token (regardless of proxy configuration)
-  // this may cause issues if users have complex proxy / gateway "client-side creds" auth scenarios,
-  // e.g. if they want to set X-Api-Key to a gateway key but use Anthropic OAuth for the Authorization
-  // if we get reports of that, we should probably add an env var to force OAuth enablement
+  // 在以下情况下禁用 Anthropic 认证：
+  // 1. 使用第三方服务（Bedrock/Vertex/Foundry）
+  // 2. 用户有外部 API 密钥（无论代理配置如何）
+  // 3. 用户有外部认证令牌（无论代理配置如何）
+  // 如果用户有复杂的代理/网关“客户端凭据”认证场景，这可能会引起问题，
+  // 例如他们希望将 X-Api-Key 设置为网关密钥但使用 Anthropic OAuth 进行 Authorization
+  // 如果我们收到相关报告，可能应该添加一个环境变量来强制启用 OAuth
   const shouldDisableAuth =
     is3P ||
     (hasExternalAuthToken && !isManagedOAuthContext()) ||
@@ -149,12 +143,11 @@ export function isAnthropicAuthEnabled(): boolean {
   return !shouldDisableAuth
 }
 
-/** Where the auth token is being sourced from, if any. */
-// this code is closely related to isAnthropicAuthEnabled
+/** 认证令牌的来源（如果有）。 */
+// 此代码与 isAnthropicAuthEnabled 密切相关
 export function getAuthTokenSource() {
-  // --bare: API-key-only. apiKeyHelper (from --settings) is the only
-  // bearer-token-shaped source allowed. OAuth env vars, FD tokens, and
-  // keychain are ignored.
+  // --bare：仅 API 密钥。apiKeyHelper（来自 --settings）是允许的唯一承载令牌形式的源。
+  // OAuth 环境变量、FD 令牌和钥匙串都被忽略。
   if (isBareMode()) {
     if (getConfiguredApiKeyHelper()) {
       return { source: 'apiKeyHelper' as const, hasToken: true }
@@ -170,15 +163,12 @@ export function getAuthTokenSource() {
     return { source: 'CLAUDE_CODE_OAUTH_TOKEN' as const, hasToken: true }
   }
 
-  // Check for OAuth token from file descriptor (or its CCR disk fallback)
+  // 检查来自文件描述符的 OAuth 令牌（或其 CCR 磁盘回退）
   const oauthTokenFromFd = getOAuthTokenFromFileDescriptor()
   if (oauthTokenFromFd) {
-    // getOAuthTokenFromFileDescriptor has a disk fallback for CCR subprocesses
-    // that can't inherit the pipe FD. Distinguish by env var presence so the
-    // org-mismatch message doesn't tell the user to unset a variable that
-    // doesn't exist. Call sites fall through correctly — the new source is
-    // !== 'none' (cli/handlers/auth.ts → oauth_token) and not in the
-    // isEnvVarToken set (auth.ts:1844 → generic re-login message).
+    // getOAuthTokenFromFileDescriptor 有一个针对无法继承管道 FD 的 CCR 子进程的磁盘回退。
+    // 通过环境变量存在性来区分，以便组织不匹配消息不会告诉用户取消设置一个不存在的变量。
+    // 调用点正确回退 —— 新源 !== 'none'（cli/handlers/auth.ts → oauth_token）且不在 isEnvVarToken 集合中（auth.ts:1844 → 通用重新登录消息）。
     if (process.env.CLAUDE_CODE_OAUTH_TOKEN_FILE_DESCRIPTOR) {
       return {
         source: 'CLAUDE_CODE_OAUTH_TOKEN_FILE_DESCRIPTOR' as const,
@@ -191,8 +181,8 @@ export function getAuthTokenSource() {
     }
   }
 
-  // Check if apiKeyHelper is configured without executing it
-  // This prevents security issues where arbitrary code could execute before trust is established
+  // 检查是否配置了 apiKeyHelper 而不执行它
+  // 这可以防止在信任建立之前任意代码执行的安全问题
   const apiKeyHelper = getConfiguredApiKeyHelper()
   if (apiKeyHelper && !isManagedOAuthContext()) {
     return { source: 'apiKeyHelper' as const, hasToken: true }
@@ -230,9 +220,8 @@ export function getAnthropicApiKeyWithSource(
   key: null | string
   source: ApiKeySource
 } {
-  // --bare: hermetic auth. Only ANTHROPIC_API_KEY env or apiKeyHelper from
-  // the --settings flag. Never touches keychain, config file, or approval
-  // lists. 3P (Bedrock/Vertex/Foundry) uses provider creds, not this path.
+  // --bare：封闭式认证。仅 ANTHROPIC_API_KEY 环境变量或来自 --settings 标志的 apiKeyHelper。
+  // 从不接触钥匙串、配置文件或批准列表。3P（Bedrock/Vertex/Foundry）使用提供者凭据，不走此路径。
   if (isBareMode()) {
     if (process.env.ANTHROPIC_API_KEY) {
       return { key: process.env.ANTHROPIC_API_KEY, source: 'ANTHROPIC_API_KEY' }
@@ -248,14 +237,14 @@ export function getAnthropicApiKeyWithSource(
     return { key: null, source: 'none' }
   }
 
-  // On homespace, don't use ANTHROPIC_API_KEY (use Console key instead)
+  // 在 homespace 上，不要使用 ANTHROPIC_API_KEY（改用 Console 密钥）
   // https://anthropic.slack.com/archives/C08428WSLKV/p1747331773214779
   const apiKeyEnv = isRunningOnHomespace()
     ? undefined
     : process.env.ANTHROPIC_API_KEY
 
-  // Always check for direct environment variable when the user ran claude --print.
-  // This is useful for CI, etc.
+  // 当用户运行 claude --print 时，始终检查直接环境变量。
+  // 这对于 CI 等场景很有用。
   if (preferThirdPartyAuthentication() && apiKeyEnv) {
     return {
       key: apiKeyEnv,
@@ -264,7 +253,7 @@ export function getAnthropicApiKeyWithSource(
   }
 
   if (isEnvTruthy(process.env.CI) || process.env.NODE_ENV === 'test') {
-    // Check for API key from file descriptor first
+    // 首先检查来自文件描述符的 API 密钥
     const apiKeyFromFd = getApiKeyFromFileDescriptor()
     if (apiKeyFromFd) {
       return {
@@ -279,7 +268,7 @@ export function getAnthropicApiKeyWithSource(
       !process.env.CLAUDE_CODE_OAUTH_TOKEN_FILE_DESCRIPTOR
     ) {
       throw new Error(
-        'ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN env var is required',
+        '需要设置 ANTHROPIC_API_KEY 或 CLAUDE_CODE_OAUTH_TOKEN 环境变量',
       )
     }
 
@@ -290,13 +279,13 @@ export function getAnthropicApiKeyWithSource(
       }
     }
 
-    // OAuth token is present but this function returns API keys only
+    // OAuth 令牌存在，但此函数仅返回 API 密钥
     return {
       key: null,
       source: 'none',
     }
   }
-  // Check for ANTHROPIC_API_KEY before checking the apiKeyHelper or /login-managed key
+  // 在检查 apiKeyHelper 或 /login 管理的密钥之前检查 ANTHROPIC_API_KEY
   if (
     apiKeyEnv &&
     getGlobalConfig().customApiKeyResponses?.approved?.includes(
@@ -309,7 +298,7 @@ export function getAnthropicApiKeyWithSource(
     }
   }
 
-  // Check for API key from file descriptor
+  // 检查来自文件描述符的 API 密钥
   const apiKeyFromFd = getApiKeyFromFileDescriptor()
   if (apiKeyFromFd) {
     return {
@@ -318,7 +307,7 @@ export function getAnthropicApiKeyWithSource(
     }
   }
 
-  // Check for apiKeyHelper — use sync cache, never block
+  // 检查 apiKeyHelper — 使用同步缓存，绝不阻塞
   const apiKeyHelperCommand = getConfiguredApiKeyHelper()
   if (apiKeyHelperCommand) {
     if (opts.skipRetrievingKeyFromApiKeyHelper) {
@@ -327,10 +316,8 @@ export function getAnthropicApiKeyWithSource(
         source: 'apiKeyHelper',
       }
     }
-    // Cache may be cold (helper hasn't finished yet). Return null with
-    // source='apiKeyHelper' rather than falling through to keychain —
-    // apiKeyHelper must win. Callers needing a real key must await
-    // getApiKeyFromApiKeyHelper() first (client.ts, useApiKeyVerification do).
+    // 缓存可能是冷的（辅助程序尚未完成）。返回 null 且 source='apiKeyHelper' 而不是回退到钥匙串 —
+    // apiKeyHelper 必须胜出。需要真实密钥的调用方必须首先 await getApiKeyFromApiKeyHelper()（client.ts、useApiKeyVerification 会这样做）。
     return {
       key: getApiKeyFromApiKeyHelperCached(),
       source: 'apiKeyHelper',
@@ -349,9 +336,8 @@ export function getAnthropicApiKeyWithSource(
 }
 
 /**
- * Get the configured apiKeyHelper from settings.
- * In bare mode, only the --settings flag source is consulted — apiKeyHelper
- * from ~/.claude/settings.json or project settings is ignored.
+ * 从设置中获取配置的 apiKeyHelper。
+ * 在 bare 模式下，仅考虑 --settings 标志源 —— 来自 ~/.claude/settings.json 或项目设置的 apiKeyHelper 被忽略。
  */
 export function getConfiguredApiKeyHelper(): string | undefined {
   if (isBareMode()) {
@@ -362,7 +348,7 @@ export function getConfiguredApiKeyHelper(): string | undefined {
 }
 
 /**
- * Check if the configured apiKeyHelper comes from project settings (projectSettings or localSettings)
+ * 检查配置的 apiKeyHelper 是否来自项目设置（projectSettings 或 localSettings）
  */
 function isApiKeyHelperFromProjectOrLocalSettings(): boolean {
   const apiKeyHelper = getConfiguredApiKeyHelper()
@@ -379,7 +365,7 @@ function isApiKeyHelperFromProjectOrLocalSettings(): boolean {
 }
 
 /**
- * Get the configured awsAuthRefresh from settings
+ * 从设置中获取配置的 awsAuthRefresh
  */
 function getConfiguredAwsAuthRefresh(): string | undefined {
   const mergedSettings = getSettings_DEPRECATED() || {}
@@ -387,7 +373,7 @@ function getConfiguredAwsAuthRefresh(): string | undefined {
 }
 
 /**
- * Check if the configured awsAuthRefresh comes from project settings
+ * 检查配置的 awsAuthRefresh 是否来自项目设置
  */
 export function isAwsAuthRefreshFromProjectSettings(): boolean {
   const awsAuthRefresh = getConfiguredAwsAuthRefresh()
@@ -404,7 +390,7 @@ export function isAwsAuthRefreshFromProjectSettings(): boolean {
 }
 
 /**
- * Get the configured awsCredentialExport from settings
+ * 从设置中获取配置的 awsCredentialExport
  */
 function getConfiguredAwsCredentialExport(): string | undefined {
   const mergedSettings = getSettings_DEPRECATED() || {}
@@ -412,7 +398,7 @@ function getConfiguredAwsCredentialExport(): string | undefined {
 }
 
 /**
- * Check if the configured awsCredentialExport comes from project settings
+ * 检查配置的 awsCredentialExport 是否来自项目设置
  */
 export function isAwsCredentialExportFromProjectSettings(): boolean {
   const awsCredentialExport = getConfiguredAwsCredentialExport()
@@ -429,9 +415,9 @@ export function isAwsCredentialExportFromProjectSettings(): boolean {
 }
 
 /**
- * Calculate TTL in milliseconds for the API key helper cache
- * Uses CLAUDE_CODE_API_KEY_HELPER_TTL_MS env var if set and valid,
- * otherwise defaults to 5 minutes
+ * 计算 API 密钥辅助程序缓存的 TTL（毫秒）
+ * 如果设置了 CLAUDE_CODE_API_KEY_HELPER_TTL_MS 环境变量且有效，则使用它，
+ * 否则默认为 5 分钟
  */
 export function calculateApiKeyHelperTTL(): number {
   const envTtl = process.env.CLAUDE_CODE_API_KEY_HELPER_TTL_MS
@@ -442,7 +428,7 @@ export function calculateApiKeyHelperTTL(): number {
       return parsed
     }
     logForDebugging(
-      `Found CLAUDE_CODE_API_KEY_HELPER_TTL_MS env var, but it was not a valid number. Got ${envTtl}`,
+      `找到了 CLAUDE_CODE_API_KEY_HELPER_TTL_MS 环境变量，但它不是有效的数字。得到 ${envTtl}`,
       { level: 'error' },
     )
   }
@@ -450,14 +436,12 @@ export function calculateApiKeyHelperTTL(): number {
   return DEFAULT_API_KEY_HELPER_TTL
 }
 
-// Async API key helper with sync cache for non-blocking reads.
-// Epoch bumps on clearApiKeyHelperCache() — orphaned executions check their
-// captured epoch before touching module state so a settings-change or 401-retry
-// mid-flight can't clobber the newer cache/inflight.
+// 异步 API 密钥辅助程序，带有用于非阻塞读取的同步缓存。
+// 在 clearApiKeyHelperCache() 上增加纪元 —— 孤立的执行检查它们捕获的纪元，然后再接触模块状态，以便设置更改或 401 重试进行中不会破坏更新的缓存/进行中的请求。
 let _apiKeyHelperCache: { value: string; timestamp: number } | null = null
 let _apiKeyHelperInflight: {
   promise: Promise<string | null>
-  // Only set on cold launches (user is waiting); null for SWR background refreshes.
+  // 仅在冷启动时设置（用户正在等待）；对于 SWR 后台刷新为 null。
   startedAt: number | null
 } | null = null
 let _apiKeyHelperEpoch = 0
@@ -476,8 +460,8 @@ export async function getApiKeyFromApiKeyHelper(
     if (Date.now() - _apiKeyHelperCache.timestamp < ttl) {
       return _apiKeyHelperCache.value
     }
-    // Stale — return stale value now, refresh in the background.
-    // `??=` banned here by eslint no-nullish-assign-object-call (bun bug).
+    // 过期 —— 现在返回过期的值，在后台刷新。
+    // `??=` 被 eslint no-nullish-assign-object-call 禁止（bun bug）。
     if (!_apiKeyHelperInflight) {
       _apiKeyHelperInflight = {
         promise: _runAndCache(
@@ -490,7 +474,7 @@ export async function getApiKeyFromApiKeyHelper(
     }
     return _apiKeyHelperCache.value
   }
-  // Cold cache — deduplicate concurrent calls
+  // 冷缓存 —— 去重并发调用
   if (_apiKeyHelperInflight) return _apiKeyHelperInflight.promise
   _apiKeyHelperInflight = {
     promise: _runAndCache(isNonInteractiveSession, true, _apiKeyHelperEpoch),
@@ -514,19 +498,17 @@ async function _runAndCache(
   } catch (e) {
     if (epoch !== _apiKeyHelperEpoch) return ' '
     const detail = e instanceof Error ? e.message : String(e)
-    // biome-ignore lint/suspicious/noConsole: user-configured script failed; must be visible without --debug
-    console.error(chalk.red(`apiKeyHelper failed: ${detail}`))
-    logForDebugging(`Error getting API key from apiKeyHelper: ${detail}`, {
+    // biome-ignore lint/suspicious/noConsole: 用户配置的脚本失败；必须在不使用 --debug 的情况下可见
+    console.error(chalk.red(`apiKeyHelper 失败: ${detail}`))
+    logForDebugging(`从 apiKeyHelper 获取 API 密钥时出错: ${detail}`, {
       level: 'error',
     })
-    // SWR path: a transient failure shouldn't replace a working key with
-    // the ' ' sentinel — keep serving the stale value and bump timestamp
-    // so we don't hammer-retry every call.
+    // SWR 路径：瞬时故障不应替换工作中的密钥为 ' ' 哨兵 —— 继续提供过期值并更新时间戳，以免每次调用都重试。
     if (!isCold && _apiKeyHelperCache && _apiKeyHelperCache.value !== ' ') {
       _apiKeyHelperCache = { ..._apiKeyHelperCache, timestamp: Date.now() }
       return _apiKeyHelperCache.value
     }
-    // Cold cache or prior error — cache ' ' so callers don't fall back to OAuth
+    // 冷缓存或先前的错误 —— 缓存 ' ' 以便调用方不回退到 OAuth
     _apiKeyHelperCache = { value: ' ', timestamp: Date.now() }
     return ' '
   } finally {
@@ -548,9 +530,9 @@ async function _executeApiKeyHelper(
     const hasTrust = checkHasTrustDialogAccepted()
     if (!hasTrust && !isNonInteractiveSession) {
       const error = new Error(
-        `Security: apiKeyHelper executed before workspace trust is confirmed. If you see this message, post in ${MACRO.FEEDBACK_CHANNEL}.`,
+        `安全：在工作区信任确认之前执行了 apiKeyHelper。如果您看到此消息，请在 ${MACRO.FEEDBACK_CHANNEL} 中发帖。`,
       )
-      logAntError('apiKeyHelper invoked before trust check', error)
+      logAntError('在信任检查之前调用了 apiKeyHelper', error)
       logEvent('tengu_apiKeyHelper_missing_trust11', {})
       return null
     }
@@ -562,22 +544,22 @@ async function _executeApiKeyHelper(
     reject: false,
   })
   if (result.failed) {
-    // reject:false — execa resolves on exit≠0/timeout, stderr is on result
-    const why = result.timedOut ? 'timed out' : `exited ${result.exitCode}`
+    // reject:false — execa 在退出码≠0/超时时解析，stderr 在 result 上
+    const why = result.timedOut ? '超时' : `退出码 ${result.exitCode}`
     const stderr = result.stderr?.trim()
     throw new Error(stderr ? `${why}: ${stderr}` : why)
   }
   const stdout = result.stdout?.trim()
   if (!stdout) {
-    throw new Error('did not return a value')
+    throw new Error('未返回值')
   }
   return stdout
 }
 
 /**
- * Sync cache reader — returns the last fetched apiKeyHelper value without executing.
- * Returns stale values to match SWR semantics of the async reader.
- * Returns null only if the async fetch hasn't completed yet.
+ * 同步缓存读取器 —— 返回最后一次获取的 apiKeyHelper 值而不执行。
+ * 返回过期值以匹配异步读取器的 SWR 语义。
+ * 仅在异步获取尚未完成时返回 null。
  */
 export function getApiKeyFromApiKeyHelperCached(): string | null {
   return _apiKeyHelperCache?.value ?? null
@@ -592,8 +574,7 @@ export function clearApiKeyHelperCache(): void {
 export function prefetchApiKeyFromApiKeyHelperIfSafe(
   isNonInteractiveSession: boolean,
 ): void {
-  // Skip if trust not yet accepted — the inner _executeApiKeyHelper check
-  // would catch this too, but would fire a false-positive analytics event.
+  // 如果信任尚未接受则跳过 —— 内部的 _executeApiKeyHelper 检查也会捕获，但会触发误报的分析事件。
   if (
     isApiKeyHelperFromProjectOrLocalSettings() &&
     !checkHasTrustDialogAccepted()
@@ -603,54 +584,54 @@ export function prefetchApiKeyFromApiKeyHelperIfSafe(
   void getApiKeyFromApiKeyHelper(isNonInteractiveSession)
 }
 
-/** Default STS credentials are one hour. We manually manage invalidation, so not too worried about this being accurate. */
+/** 默认 STS 凭证为一小时。我们手动管理失效，因此不太担心准确性。 */
 const DEFAULT_AWS_STS_TTL = 60 * 60 * 1000
 
 /**
- * Run awsAuthRefresh to perform interactive authentication (e.g., aws sso login)
- * Streams output in real-time for user visibility
+ * 运行 awsAuthRefresh 以执行交互式认证（例如 aws sso login）
+ * 实时流式输出以便用户可见
  */
 async function runAwsAuthRefresh(): Promise<boolean> {
   const awsAuthRefresh = getConfiguredAwsAuthRefresh()
 
   if (!awsAuthRefresh) {
-    return false // Not configured, treat as success
+    return false // 未配置，视为成功
   }
 
-  // SECURITY: Check if awsAuthRefresh is from project settings
+  // 安全：检查 awsAuthRefresh 是否来自项目设置
   if (isAwsAuthRefreshFromProjectSettings()) {
-    // Check if trust has been established for this project
+    // 检查是否已为此项目建立信任
     const hasTrust = checkHasTrustDialogAccepted()
     if (!hasTrust && !getIsNonInteractiveSession()) {
       const error = new Error(
-        `Security: awsAuthRefresh executed before workspace trust is confirmed. If you see this message, post in ${MACRO.FEEDBACK_CHANNEL}.`,
+        `安全：在工作区信任确认之前执行了 awsAuthRefresh。如果您看到此消息，请在 ${MACRO.FEEDBACK_CHANNEL} 中发帖。`,
       )
-      logAntError('awsAuthRefresh invoked before trust check', error)
+      logAntError('在信任检查之前调用了 awsAuthRefresh', error)
       logEvent('tengu_awsAuthRefresh_missing_trust', {})
       return false
     }
   }
 
   try {
-    logForDebugging('Fetching AWS caller identity for AWS auth refresh command')
+    logForDebugging('正在获取 AWS 调用方身份以进行 AWS 认证刷新命令')
     await checkStsCallerIdentity()
     logForDebugging(
-      'Fetched AWS caller identity, skipping AWS auth refresh command',
+      '已获取 AWS 调用方身份，跳过 AWS 认证刷新命令',
     )
     return false
   } catch {
-    // only actually do the refresh if caller-identity calls
+    // 仅在调用方身份调用失败时才实际执行刷新
     return refreshAwsAuth(awsAuthRefresh)
   }
 }
 
-// Timeout for AWS auth refresh command (3 minutes).
-// Long enough for browser-based SSO flows, short enough to prevent indefinite hangs.
+// AWS 认证刷新命令的超时时间（3 分钟）。
+// 足够长以容纳基于浏览器的 SSO 流程，足够短以防止无限期挂起。
 const AWS_AUTH_REFRESH_TIMEOUT_MS = 3 * 60 * 1000
 
 export function refreshAwsAuth(awsAuthRefresh: string): Promise<boolean> {
-  logForDebugging('Running AWS auth refresh command')
-  // Start tracking authentication status
+  logForDebugging('正在运行 AWS 认证刷新命令')
+  // 开始跟踪认证状态
   const authStatusManager = AwsAuthStatusManager.getInstance()
   authStatusManager.startAuthentication()
 
@@ -661,9 +642,9 @@ export function refreshAwsAuth(awsAuthRefresh: string): Promise<boolean> {
     refreshProc.stdout!.on('data', data => {
       const output = data.toString().trim()
       if (output) {
-        // Add output to status manager for UI display
+        // 将输出添加到状态管理器以用于 UI 显示
         authStatusManager.addOutput(output)
-        // Also log for debugging
+        // 同时也记录调试信息
         logForDebugging(output, { level: 'debug' })
       }
     })
@@ -678,19 +659,19 @@ export function refreshAwsAuth(awsAuthRefresh: string): Promise<boolean> {
 
     refreshProc.on('close', (code, signal) => {
       if (code === 0) {
-        logForDebugging('AWS auth refresh completed successfully')
+        logForDebugging('AWS 认证刷新成功完成')
         authStatusManager.endAuthentication(true)
         void resolve(true)
       } else {
         const timedOut = signal === 'SIGTERM'
         const message = timedOut
           ? chalk.red(
-              'AWS auth refresh timed out after 3 minutes. Run your auth command manually in a separate terminal.',
+              'AWS 认证刷新在 3 分钟后超时。请在单独的终端中手动运行您的认证命令。',
             )
           : chalk.red(
-              'Error running awsAuthRefresh (in settings or ~/.claude.json):',
+              '运行 awsAuthRefresh（在设置或 ~/.claude.json 中）时出错：',
             )
-        // biome-ignore lint/suspicious/noConsole:: intentional console output
+        // biome-ignore lint/suspicious/noConsole:: 有意的控制台输出
         console.error(message)
         authStatusManager.endAuthentication(false)
         void resolve(false)
@@ -700,8 +681,8 @@ export function refreshAwsAuth(awsAuthRefresh: string): Promise<boolean> {
 }
 
 /**
- * Run awsCredentialExport to get credentials and set environment variables
- * Expects JSON output containing AWS credentials
+ * 运行 awsCredentialExport 以获取凭证并设置环境变量
+ * 期望输出包含 AWS 凭证的 JSON
  */
 async function getAwsCredsFromCredentialExport(): Promise<{
   accessKeyId: string
@@ -714,15 +695,15 @@ async function getAwsCredsFromCredentialExport(): Promise<{
     return null
   }
 
-  // SECURITY: Check if awsCredentialExport is from project settings
+  // 安全：检查 awsCredentialExport 是否来自项目设置
   if (isAwsCredentialExportFromProjectSettings()) {
-    // Check if trust has been established for this project
+    // 检查是否已为此项目建立信任
     const hasTrust = checkHasTrustDialogAccepted()
     if (!hasTrust && !getIsNonInteractiveSession()) {
       const error = new Error(
-        `Security: awsCredentialExport executed before workspace trust is confirmed. If you see this message, post in ${MACRO.FEEDBACK_CHANNEL}.`,
+        `安全：在工作区信任确认之前执行了 awsCredentialExport。如果您看到此消息，请在 ${MACRO.FEEDBACK_CHANNEL} 中发帖。`,
       )
-      logAntError('awsCredentialExport invoked before trust check', error)
+      logAntError('在信任检查之前调用了 awsCredentialExport', error)
       logEvent('tengu_awsCredentialExport_missing_trust', {})
       return null
     }
@@ -730,35 +711,35 @@ async function getAwsCredsFromCredentialExport(): Promise<{
 
   try {
     logForDebugging(
-      'Fetching AWS caller identity for credential export command',
+      '正在获取 AWS 调用方身份以进行凭证导出命令',
     )
     await checkStsCallerIdentity()
     logForDebugging(
-      'Fetched AWS caller identity, skipping AWS credential export command',
+      '已获取 AWS 调用方身份，跳过 AWS 凭证导出命令',
     )
     return null
   } catch {
-    // only actually do the export if caller-identity calls
+    // 仅在调用方身份调用失败时才实际执行导出
     try {
-      logForDebugging('Running AWS credential export command')
+      logForDebugging('正在运行 AWS 凭证导出命令')
       const result = await execa(awsCredentialExport, {
         shell: true,
         reject: false,
       })
       if (result.exitCode !== 0 || !result.stdout) {
-        throw new Error('awsCredentialExport did not return a valid value')
+        throw new Error('awsCredentialExport 未返回有效值')
       }
 
-      // Parse the JSON output from aws sts commands
+      // 解析来自 aws sts 命令的 JSON 输出
       const awsOutput = jsonParse(result.stdout.trim())
 
       if (!isValidAwsStsOutput(awsOutput)) {
         throw new Error(
-          'awsCredentialExport did not return valid AWS STS output structure',
+          'awsCredentialExport 未返回有效的 AWS STS 输出结构',
         )
       }
 
-      logForDebugging('AWS credentials retrieved from awsCredentialExport')
+      logForDebugging('已从 awsCredentialExport 检索到 AWS 凭证')
       return {
         accessKeyId: awsOutput.Credentials.AccessKeyId,
         secretAccessKey: awsOutput.Credentials.SecretAccessKey,
@@ -766,13 +747,13 @@ async function getAwsCredsFromCredentialExport(): Promise<{
       }
     } catch (e) {
       const message = chalk.red(
-        'Error getting AWS credentials from awsCredentialExport (in settings or ~/.claude.json):',
+        '从 awsCredentialExport（在设置或 ~/.claude.json 中）获取 AWS 凭证时出错：',
       )
       if (e instanceof Error) {
-        // biome-ignore lint/suspicious/noConsole:: intentional console output
+        // biome-ignore lint/suspicious/noConsole:: 有意的控制台输出
         console.error(message, e.message)
       } else {
-        // biome-ignore lint/suspicious/noConsole:: intentional console output
+        // biome-ignore lint/suspicious/noConsole:: 有意的控制台输出
         console.error(message, e)
       }
       return null
@@ -781,9 +762,9 @@ async function getAwsCredsFromCredentialExport(): Promise<{
 }
 
 /**
- * Refresh AWS authentication and get credentials with cache clearing
- * This combines runAwsAuthRefresh, getAwsCredsFromCredentialExport, and clearAwsIniCache
- * to ensure fresh credentials are always used
+ * 刷新 AWS 认证并获取凭证，同时清除缓存
+ * 这结合了 runAwsAuthRefresh、getAwsCredsFromCredentialExport 和 clearAwsIniCache
+ * 以确保始终使用新鲜凭证
  */
 export const refreshAndGetAwsCredentials = memoizeWithTTLAsync(
   async (): Promise<{
@@ -791,13 +772,13 @@ export const refreshAndGetAwsCredentials = memoizeWithTTLAsync(
     secretAccessKey: string
     sessionToken: string
   } | null> => {
-    // First run auth refresh if needed
+    // 首先运行认证刷新（如果需要）
     const refreshed = await runAwsAuthRefresh()
 
-    // Get credentials from export
+    // 从导出获取凭证
     const credentials = await getAwsCredsFromCredentialExport()
 
-    // Clear AWS INI cache to ensure fresh credentials are used
+    // 清除 AWS INI 缓存以确保使用新鲜凭证
     if (refreshed || credentials) {
       await clearAwsIniCache()
     }
@@ -812,7 +793,7 @@ export function clearAwsCredentialsCache(): void {
 }
 
 /**
- * Get the configured gcpAuthRefresh from settings
+ * 从设置中获取配置的 gcpAuthRefresh
  */
 function getConfiguredGcpAuthRefresh(): string | undefined {
   const mergedSettings = getSettings_DEPRECATED() || {}
@@ -820,7 +801,7 @@ function getConfiguredGcpAuthRefresh(): string | undefined {
 }
 
 /**
- * Check if the configured gcpAuthRefresh comes from project settings
+ * 检查配置的 gcpAuthRefresh 是否来自项目设置
  */
 export function isGcpAuthRefreshFromProjectSettings(): boolean {
   const gcpAuthRefresh = getConfiguredGcpAuthRefresh()
@@ -836,18 +817,16 @@ export function isGcpAuthRefreshFromProjectSettings(): boolean {
   )
 }
 
-/** Short timeout for the GCP credentials probe. Without this, when no local
- *  credential source exists (no ADC file, no env var), google-auth-library falls
- *  through to the GCE metadata server which hangs ~12s outside GCP. */
+/** GCP 凭证探测的短超时。如果没有本地凭证源（没有 ADC 文件，没有环境变量），google-auth-library 会回退到 GCE 元数据服务器，在 GCP 外部会挂起约 12 秒。 */
 const GCP_CREDENTIALS_CHECK_TIMEOUT_MS = 5_000
 
 /**
- * Check if GCP credentials are currently valid by attempting to get an access token.
- * This uses the same authentication chain that the Vertex SDK uses.
+ * 通过尝试获取访问令牌来检查 GCP 凭证当前是否有效。
+ * 这使用与 Vertex SDK 相同的认证链。
  */
 export async function checkGcpCredentialsValid(): Promise<boolean> {
   try {
-    // Dynamically import to avoid loading google-auth-library unnecessarily
+    // 动态导入以避免不必要地加载 google-auth-library
     const { GoogleAuth } = await import('google-auth-library')
     const auth = new GoogleAuth({
       scopes: ['https://www.googleapis.com/auth/cloud-platform'],
@@ -857,7 +836,7 @@ export async function checkGcpCredentialsValid(): Promise<boolean> {
       await client.getAccessToken()
     })()
     const timeout = sleep(GCP_CREDENTIALS_CHECK_TIMEOUT_MS).then(() => {
-      throw new GcpCredentialsTimeoutError('GCP credentials check timed out')
+      throw new GcpCredentialsTimeoutError('GCP 凭证检查超时')
     })
     await Promise.race([probe, timeout])
     return true
@@ -866,59 +845,59 @@ export async function checkGcpCredentialsValid(): Promise<boolean> {
   }
 }
 
-/** Default GCP credential TTL - 1 hour to match typical ADC token lifetime */
+/** 默认 GCP 凭证 TTL - 1 小时以匹配典型的 ADC 令牌生命周期 */
 const DEFAULT_GCP_CREDENTIAL_TTL = 60 * 60 * 1000
 
 /**
- * Run gcpAuthRefresh to perform interactive authentication (e.g., gcloud auth application-default login)
- * Streams output in real-time for user visibility
+ * 运行 gcpAuthRefresh 以执行交互式认证（例如 gcloud auth application-default login）
+ * 实时流式输出以便用户可见
  */
 async function runGcpAuthRefresh(): Promise<boolean> {
   const gcpAuthRefresh = getConfiguredGcpAuthRefresh()
 
   if (!gcpAuthRefresh) {
-    return false // Not configured, treat as success
+    return false // 未配置，视为成功
   }
 
-  // SECURITY: Check if gcpAuthRefresh is from project settings
+  // 安全：检查 gcpAuthRefresh 是否来自项目设置
   if (isGcpAuthRefreshFromProjectSettings()) {
-    // Check if trust has been established for this project
-    // Pass true to indicate this is a dangerous feature that requires trust
+    // 检查是否已为此项目建立信任
+    // 传递 true 以指示这是一个需要信任的危险功能
     const hasTrust = checkHasTrustDialogAccepted()
     if (!hasTrust && !getIsNonInteractiveSession()) {
       const error = new Error(
-        `Security: gcpAuthRefresh executed before workspace trust is confirmed. If you see this message, post in ${MACRO.FEEDBACK_CHANNEL}.`,
+        `安全：在工作区信任确认之前执行了 gcpAuthRefresh。如果您看到此消息，请在 ${MACRO.FEEDBACK_CHANNEL} 中发帖。`,
       )
-      logAntError('gcpAuthRefresh invoked before trust check', error)
+      logAntError('在信任检查之前调用了 gcpAuthRefresh', error)
       logEvent('tengu_gcpAuthRefresh_missing_trust', {})
       return false
     }
   }
 
   try {
-    logForDebugging('Checking GCP credentials validity for auth refresh')
+    logForDebugging('正在检查 GCP 凭证有效性以进行认证刷新')
     const isValid = await checkGcpCredentialsValid()
     if (isValid) {
       logForDebugging(
-        'GCP credentials are valid, skipping auth refresh command',
+        'GCP 凭证有效，跳过认证刷新命令',
       )
       return false
     }
   } catch {
-    // Credentials check failed, proceed with refresh
+    // 凭证检查失败，继续刷新
   }
 
   return refreshGcpAuth(gcpAuthRefresh)
 }
 
-// Timeout for GCP auth refresh command (3 minutes).
-// Long enough for browser-based auth flows, short enough to prevent indefinite hangs.
+// GCP 认证刷新命令的超时时间（3 分钟）。
+// 足够长以容纳基于浏览器的认证流程，足够短以防止无限期挂起。
 const GCP_AUTH_REFRESH_TIMEOUT_MS = 3 * 60 * 1000
 
 export function refreshGcpAuth(gcpAuthRefresh: string): Promise<boolean> {
-  logForDebugging('Running GCP auth refresh command')
-  // Start tracking authentication status. AwsAuthStatusManager is cloud-provider-agnostic
-  // despite the name — print.ts emits its updates as generic SDK 'auth_status' messages.
+  logForDebugging('正在运行 GCP 认证刷新命令')
+  // 开始跟踪认证状态。尽管名称如此，AwsAuthStatusManager 是与云提供商无关的
+  // — print.ts 将其更新作为通用的 SDK 'auth_status' 消息发出。
   const authStatusManager = AwsAuthStatusManager.getInstance()
   authStatusManager.startAuthentication()
 
@@ -929,9 +908,9 @@ export function refreshGcpAuth(gcpAuthRefresh: string): Promise<boolean> {
     refreshProc.stdout!.on('data', data => {
       const output = data.toString().trim()
       if (output) {
-        // Add output to status manager for UI display
+        // 将输出添加到状态管理器以用于 UI 显示
         authStatusManager.addOutput(output)
-        // Also log for debugging
+        // 同时也记录调试信息
         logForDebugging(output, { level: 'debug' })
       }
     })
@@ -946,19 +925,19 @@ export function refreshGcpAuth(gcpAuthRefresh: string): Promise<boolean> {
 
     refreshProc.on('close', (code, signal) => {
       if (code === 0) {
-        logForDebugging('GCP auth refresh completed successfully')
+        logForDebugging('GCP 认证刷新成功完成')
         authStatusManager.endAuthentication(true)
         void resolve(true)
       } else {
         const timedOut = signal === 'SIGTERM'
         const message = timedOut
           ? chalk.red(
-              'GCP auth refresh timed out after 3 minutes. Run your auth command manually in a separate terminal.',
+              'GCP 认证刷新在 3 分钟后超时。请在单独的终端中手动运行您的认证命令。',
             )
           : chalk.red(
-              'Error running gcpAuthRefresh (in settings or ~/.claude.json):',
+              '运行 gcpAuthRefresh（在设置或 ~/.claude.json 中）时出错：',
             )
-        // biome-ignore lint/suspicious/noConsole:: intentional console output
+        // biome-ignore lint/suspicious/noConsole:: 有意的控制台输出
         console.error(message)
         authStatusManager.endAuthentication(false)
         void resolve(false)
@@ -968,13 +947,13 @@ export function refreshGcpAuth(gcpAuthRefresh: string): Promise<boolean> {
 }
 
 /**
- * Refresh GCP authentication if needed.
- * This function checks if credentials are valid and runs the refresh command if not.
- * Memoized with TTL to avoid excessive refresh attempts.
+ * 如果需要，刷新 GCP 认证。
+ * 此函数检查凭证是否有效，如果无效则运行刷新命令。
+ * 使用 TTL 进行记忆化以避免过多的刷新尝试。
  */
 export const refreshGcpCredentialsIfNeeded = memoizeWithTTLAsync(
   async (): Promise<boolean> => {
-    // Run auth refresh if needed
+    // 如果需要则运行认证刷新
     const refreshed = await runGcpAuthRefresh()
     return refreshed
   },
@@ -986,43 +965,43 @@ export function clearGcpCredentialsCache(): void {
 }
 
 /**
- * Prefetches GCP credentials only if workspace trust has already been established.
- * This allows us to start the potentially slow GCP commands early for trusted workspaces
- * while maintaining security for untrusted ones.
+ * 仅当工作区信任已经建立时才预取 GCP 凭证。
+ * 这允许我们为受信任的工作区提前启动可能较慢的 GCP 命令，
+ * 同时为不受信任的工作区保持安全性。
  *
- * Returns void to prevent misuse - use refreshGcpCredentialsIfNeeded() to actually refresh.
+ * 返回 void 以防止误用 - 实际刷新请使用 refreshGcpCredentialsIfNeeded()。
  */
 export function prefetchGcpCredentialsIfSafe(): void {
-  // Check if gcpAuthRefresh is configured
+  // 检查是否配置了 gcpAuthRefresh
   const gcpAuthRefresh = getConfiguredGcpAuthRefresh()
 
   if (!gcpAuthRefresh) {
     return
   }
 
-  // Check if gcpAuthRefresh is from project settings
+  // 检查 gcpAuthRefresh 是否来自项目设置
   if (isGcpAuthRefreshFromProjectSettings()) {
-    // Only prefetch if trust has already been established
+    // 仅在信任已经建立时预取
     const hasTrust = checkHasTrustDialogAccepted()
     if (!hasTrust && !getIsNonInteractiveSession()) {
-      // Don't prefetch - wait for trust to be established first
+      // 不预取 - 等待信任建立
       return
     }
   }
 
-  // Safe to prefetch - either not from project settings or trust already established
+  // 安全预取 - 要么不是来自项目设置，要么信任已建立
   void refreshGcpCredentialsIfNeeded()
 }
 
 /**
- * Prefetches AWS credentials only if workspace trust has already been established.
- * This allows us to start the potentially slow AWS commands early for trusted workspaces
- * while maintaining security for untrusted ones.
+ * 仅当工作区信任已经建立时才预取 AWS 凭证。
+ * 这允许我们为受信任的工作区提前启动可能较慢的 AWS 命令，
+ * 同时为不受信任的工作区保持安全性。
  *
- * Returns void to prevent misuse - use refreshAndGetAwsCredentials() to actually retrieve credentials.
+ * 返回 void 以防止误用 - 实际检索凭证请使用 refreshAndGetAwsCredentials()。
  */
 export function prefetchAwsCredentialsAndBedRockInfoIfSafe(): void {
-  // Check if either AWS command is configured
+  // 检查是否配置了任一 AWS 命令
   const awsAuthRefresh = getConfiguredAwsAuthRefresh()
   const awsCredentialExport = getConfiguredAwsCredentialExport()
 
@@ -1030,39 +1009,38 @@ export function prefetchAwsCredentialsAndBedRockInfoIfSafe(): void {
     return
   }
 
-  // Check if either command is from project settings
+  // 检查任一命令是否来自项目设置
   if (
     isAwsAuthRefreshFromProjectSettings() ||
     isAwsCredentialExportFromProjectSettings()
   ) {
-    // Only prefetch if trust has already been established
+    // 仅在信任已经建立时预取
     const hasTrust = checkHasTrustDialogAccepted()
     if (!hasTrust && !getIsNonInteractiveSession()) {
-      // Don't prefetch - wait for trust to be established first
+      // 不预取 - 等待信任建立
       return
     }
   }
 
-  // Safe to prefetch - either not from project settings or trust already established
+  // 安全预取 - 要么不是来自项目设置，要么信任已建立
   void refreshAndGetAwsCredentials()
   getModelStrings()
 }
 
-/** @private Use {@link getAnthropicApiKey} or {@link getAnthropicApiKeyWithSource} */
+/** @private 使用 {@link getAnthropicApiKey} 或 {@link getAnthropicApiKeyWithSource} */
 export const getApiKeyFromConfigOrMacOSKeychain = memoize(
   (): { key: string; source: ApiKeySource } | null => {
     if (isBareMode()) return null
-    // TODO: migrate to SecureStorage
+    // TODO：迁移到 SecureStorage
     if (process.platform === 'darwin') {
-      // keychainPrefetch.ts fires this read at main.tsx top-level in parallel
-      // with module imports. If it completed, use that instead of spawning a
-      // sync `security` subprocess here (~33ms).
+      // keychainPrefetch.ts 在 main.tsx 顶层与模块导入并行触发此读取。
+      // 如果它已完成，则使用它而不是在此处生成同步 `security` 子进程（约 33ms）。
       const prefetch = getLegacyApiKeyPrefetchResult()
       if (prefetch) {
         if (prefetch.stdout) {
           return { key: prefetch.stdout, source: '/login managed key' }
         }
-        // Prefetch completed with no key — fall through to config, not keychain.
+        // 预取完成但没有密钥 —— 回退到配置，而不是钥匙串。
       } else {
         const storageServiceName = getMacOsKeychainStorageServiceName()
         try {
@@ -1088,32 +1066,32 @@ export const getApiKeyFromConfigOrMacOSKeychain = memoize(
 )
 
 function isValidApiKey(apiKey: string): boolean {
-  // Only allow alphanumeric characters, dashes, and underscores
+  // 仅允许字母数字字符、短划线和下划线
   return /^[a-zA-Z0-9-_]+$/.test(apiKey)
 }
 
 export async function saveApiKey(apiKey: string): Promise<void> {
   if (!isValidApiKey(apiKey)) {
     throw new Error(
-      'Invalid API key format. API key must contain only alphanumeric characters, dashes, and underscores.',
+      '无效的 API 密钥格式。API 密钥只能包含字母数字字符、短划线和下划线。',
     )
   }
 
-  // Store as primary API key
+  // 存储为主 API 密钥
   await maybeRemoveApiKeyFromMacOSKeychain()
   let savedToKeychain = false
   if (process.platform === 'darwin') {
     try {
-      // TODO: migrate to SecureStorage
+      // TODO：迁移到 SecureStorage
       const storageServiceName = getMacOsKeychainStorageServiceName()
       const username = getUsername()
 
-      // Convert to hexadecimal to avoid any escaping issues
+      // 转换为十六进制以避免任何转义问题
       const hexValue = Buffer.from(apiKey, 'utf-8').toString('hex')
 
-      // Use security's interactive mode (-i) with -X (hexadecimal) option
-      // This ensures credentials never appear in process command-line arguments
-      // Process monitors only see "security -i", not the password
+      // 使用 security 的交互模式（-i）配合 -X（十六进制）选项
+      // 这确保凭据永远不会出现在进程命令行参数中
+      // 进程监视器只看到 "security -i"，而不是密码
       const command = `add-generic-password -U -a "${username}" -s "${storageServiceName}" -X "${hexValue}"\n`
 
       await execa('security', ['-i'], {
@@ -1138,12 +1116,12 @@ export async function saveApiKey(apiKey: string): Promise<void> {
 
   const normalizedKey = normalizeApiKeyForConfig(apiKey)
 
-  // Save config with all updates
+  // 保存包含所有更新的配置
   saveGlobalConfig(current => {
     const approved = current.customApiKeyResponses?.approved ?? []
     return {
       ...current,
-      // Only save to config if keychain save failed or not on darwin
+      // 仅在钥匙串保存失败或不在 darwin 上时保存到配置
       primaryApiKey: savedToKeychain ? current.primaryApiKey : apiKey,
       customApiKeyResponses: {
         ...current.customApiKeyResponses,
@@ -1155,7 +1133,7 @@ export async function saveApiKey(apiKey: string): Promise<void> {
     }
   })
 
-  // Clear memo cache
+  // 清除备忘录缓存
   getApiKeyFromConfigOrMacOSKeychain.cache.clear?.()
   clearLegacyApiKeyPrefetch()
 }
@@ -1171,14 +1149,13 @@ export function isCustomApiKeyApproved(apiKey: string): boolean {
 export async function removeApiKey(): Promise<void> {
   await maybeRemoveApiKeyFromMacOSKeychain()
 
-  // Also remove from config instead of returning early, for older clients
-  // that set keys before we supported keychain.
+  // 同时从配置中移除，用于在我们支持钥匙串之前设置密钥的旧客户端
   saveGlobalConfig(current => ({
     ...current,
     primaryApiKey: undefined,
   }))
 
-  // Clear memo cache
+  // 清除备忘录缓存
   getApiKeyFromConfigOrMacOSKeychain.cache.clear?.()
   clearLegacyApiKeyPrefetch()
 }
@@ -1191,7 +1168,7 @@ async function maybeRemoveApiKeyFromMacOSKeychain(): Promise<void> {
   }
 }
 
-// Function to store OAuth tokens in secure storage
+// 在安全存储中存储 OAuth 令牌的函数
 export function saveOAuthTokensIfNeeded(tokens: OAuthTokens): {
   success: boolean
   warning?: string
@@ -1201,7 +1178,7 @@ export function saveOAuthTokensIfNeeded(tokens: OAuthTokens): {
     return { success: true }
   }
 
-  // Skip saving inference-only tokens (they come from env vars)
+  // 跳过保存仅推理令牌（它们来自环境变量）
   if (!tokens.refreshToken || !tokens.expiresAt) {
     logEvent('tengu_oauth_tokens_inference_only', {})
     return { success: true }
@@ -1220,9 +1197,8 @@ export function saveOAuthTokensIfNeeded(tokens: OAuthTokens): {
       refreshToken: tokens.refreshToken,
       expiresAt: tokens.expiresAt,
       scopes: tokens.scopes,
-      // Profile fetch in refreshOAuthToken swallows errors and returns null on
-      // transient failures (network, 5xx, rate limit). Don't clobber a valid
-      // stored subscription with null — fall back to the existing value.
+      // 在 refreshOAuthToken 中获取配置文件会吞掉错误并在瞬时故障（网络、5xx、速率限制）时返回 null。
+      // 不要用 null 覆盖有效的存储订阅类型 —— 回退到现有值。
       subscriptionType:
         tokens.subscriptionType ?? existingOauth?.subscriptionType ?? null,
       rateLimitTier:
@@ -1249,17 +1225,17 @@ export function saveOAuthTokensIfNeeded(tokens: OAuthTokens): {
         error,
       ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
     })
-    return { success: false, warning: 'Failed to save OAuth tokens' }
+    return { success: false, warning: '保存 OAuth 令牌失败' }
   }
 }
 
 export const getClaudeAIOAuthTokens = memoize((): OAuthTokens | null => {
-  // --bare: API-key-only. No OAuth env tokens, no keychain, no credentials file.
+  // --bare：仅 API 密钥。没有 OAuth 环境令牌、钥匙串或凭证文件。
   if (isBareMode()) return null
 
-  // Check for force-set OAuth token from environment variable
+  // 检查环境变量中强制设置的 OAuth 令牌
   if (process.env.CLAUDE_CODE_OAUTH_TOKEN) {
-    // Return an inference-only token (unknown refresh and expiry)
+    // 返回一个仅推理令牌（刷新和过期时间未知）
     return {
       accessToken: process.env.CLAUDE_CODE_OAUTH_TOKEN,
       refreshToken: null,
@@ -1270,10 +1246,10 @@ export const getClaudeAIOAuthTokens = memoize((): OAuthTokens | null => {
     }
   }
 
-  // Check for OAuth token from file descriptor
+  // 检查来自文件描述符的 OAuth 令牌
   const oauthTokenFromFd = getOAuthTokenFromFileDescriptor()
   if (oauthTokenFromFd) {
-    // Return an inference-only token (unknown refresh and expiry)
+    // 返回一个仅推理令牌（刷新和过期时间未知）
     return {
       accessToken: oauthTokenFromFd,
       refreshToken: null,
@@ -1301,10 +1277,8 @@ export const getClaudeAIOAuthTokens = memoize((): OAuthTokens | null => {
 })
 
 /**
- * Clears all OAuth token caches. Call this on 401 errors to ensure
- * the next token read comes from secure storage, not stale in-memory caches.
- * This handles the case where the local expiration check disagrees with the
- * server (e.g., due to clock corrections after token was issued).
+ * 清除所有 OAuth 令牌缓存。在 401 错误时调用此函数，以确保下一次令牌读取来自安全存储，而不是过时的内存缓存。
+ * 这处理了本地过期检查与服务器不一致的情况（例如，由于令牌颁发后的时钟校正）。
  */
 export function clearOAuthTokenCache(): void {
   getClaudeAIOAuthTokens.cache?.clear?.()
@@ -1313,11 +1287,8 @@ export function clearOAuthTokenCache(): void {
 
 let lastCredentialsMtimeMs = 0
 
-// Cross-process staleness: another CC instance may write fresh tokens to
-// disk (refresh or /login), but this process's memoize caches forever.
-// Without this, terminal 1's /login fixes terminal 1; terminal 2's /login
-// then revokes terminal 1 server-side, and terminal 1's memoize never
-// re-reads — infinite /login regress (CC-1096, GH#24317).
+// 跨进程过时：另一个 CC 实例可能将新令牌写入磁盘（刷新或 /login），但此进程的备忘录缓存永远存在。
+// 如果没有这个，终端 1 的 /login 修复了终端 1；终端 2 的 /login 然后撤销了终端 1 的服务端，而终端 1 的备忘录永不重新读取 —— 无限的 /login 回归（CC-1096, GH#24317）。
 async function invalidateOAuthCacheIfDiskChanged(): Promise<void> {
   try {
     const { mtimeMs } = await stat(
@@ -1328,35 +1299,28 @@ async function invalidateOAuthCacheIfDiskChanged(): Promise<void> {
       clearOAuthTokenCache()
     }
   } catch {
-    // ENOENT — macOS keychain path (file deleted on migration). Clear only
-    // the memoize so it delegates to the keychain cache's 30s TTL instead
-    // of caching forever on top. `security find-generic-password` is
-    // ~15ms; bounded to once per 30s by the keychain cache.
+    // ENOENT — macOS 钥匙串路径（迁移时文件被删除）。仅清除备忘录，以便它委托给钥匙串缓存的 30 秒 TTL，而不是在其之上永久缓存。
+    // `security find-generic-password` 约 15ms；受钥匙串缓存限制，每 30 秒一次。
     getClaudeAIOAuthTokens.cache?.clear?.()
   }
 }
 
-// In-flight dedup: when N claude.ai proxy connectors hit 401 with the same
-// token simultaneously (common at startup — #20930), only one should clear
-// caches and re-read the keychain. Without this, each call's clearOAuthTokenCache()
-// nukes readInFlight in macOsKeychainStorage and triggers a fresh spawn —
-// sync spawns stacked to 800ms+ of blocked render frames.
+// 进行中去重：当 N 个 claude.ai 代理连接器同时使用相同的令牌遇到 401 时（在启动时很常见 — #20930），
+// 只有一个应清除缓存并重新读取钥匙串。没有这个，每个调用的 clearOAuthTokenCache() 会销毁 macOsKeychainStorage 中的 readInFlight 并触发新的派生 —
+// 同步派生堆积到 800ms+ 的阻塞渲染帧。
 const pending401Handlers = new Map<string, Promise<boolean>>()
 
 /**
- * Handle a 401 "OAuth token has expired" error from the API.
+ * 处理来自 API 的 401“OAuth 令牌已过期”错误。
  *
- * This function forces a token refresh when the server says the token is expired,
- * even if our local expiration check disagrees (which can happen due to clock
- * issues when the token was issued).
+ * 此函数在服务器表示令牌已过期时强制刷新令牌，
+ * 即使我们的本地过期检查不同意（这可能由于令牌颁发时的时钟问题而发生）。
  *
- * Safety: We compare the failed token with what's in keychain. If another tab
- * already refreshed (different token in keychain), we use that instead of
- * refreshing again. Concurrent calls with the same failedAccessToken are
- * deduplicated to a single keychain read.
+ * 安全性：我们将失败的令牌与钥匙串中的令牌进行比较。如果另一个标签页已经刷新（钥匙串中的不同令牌），我们将使用它而不是再次刷新。
+ * 具有相同 failedAccessToken 的并发调用被去重为单次钥匙串读取。
  *
- * @param failedAccessToken - The access token that was rejected with 401
- * @returns true if we now have a valid token, false otherwise
+ * @param failedAccessToken - 被 401 拒绝的访问令牌
+ * @returns 如果我们现在有有效令牌则返回 true，否则返回 false
  */
 export function handleOAuth401Error(
   failedAccessToken: string,
@@ -1374,7 +1338,7 @@ export function handleOAuth401Error(
 async function handleOAuth401ErrorImpl(
   failedAccessToken: string,
 ): Promise<boolean> {
-  // Clear caches and re-read from keychain (async — sync read blocks ~100ms/call)
+  // 清除缓存并从钥匙串重新读取（异步 — 同步读取每次调用阻塞约 100ms）
   clearOAuthTokenCache()
   const currentTokens = await getClaudeAIOAuthTokensAsync()
 
@@ -1382,25 +1346,24 @@ async function handleOAuth401ErrorImpl(
     return false
   }
 
-  // If keychain has a different token, another tab already refreshed - use it
+  // 如果钥匙串中有不同的令牌，另一个标签页已经刷新了 —— 使用它
   if (currentTokens.accessToken !== failedAccessToken) {
     logEvent('tengu_oauth_401_recovered_from_keychain', {})
     return true
   }
 
-  // Same token that failed - force refresh, bypassing local expiration check
+  // 相同的令牌失败了 —— 强制刷新，绕过本地过期检查
   return checkAndRefreshOAuthTokenIfNeeded(0, true)
 }
 
 /**
- * Reads OAuth tokens asynchronously, avoiding blocking keychain reads.
- * Delegates to the sync memoized version for env var / file descriptor tokens
- * (which don't hit the keychain), and only uses async for storage reads.
+ * 异步读取 OAuth 令牌，避免阻塞钥匙串读取。
+ * 对于环境变量/文件描述符令牌（不访问钥匙串）委托给同步记忆化版本，仅对存储读取使用异步。
  */
 export async function getClaudeAIOAuthTokensAsync(): Promise<OAuthTokens | null> {
   if (isBareMode()) return null
 
-  // Env var and FD tokens are sync and don't hit the keychain
+  // 环境变量和 FD 令牌是同步的，不访问钥匙串
   if (
     process.env.CLAUDE_CODE_OAUTH_TOKEN ||
     getOAuthTokenFromFileDescriptor()
@@ -1422,14 +1385,14 @@ export async function getClaudeAIOAuthTokensAsync(): Promise<OAuthTokens | null>
   }
 }
 
-// In-flight promise for deduplicating concurrent calls
+// 用于去重并发调用的进行中 Promise
 let pendingRefreshCheck: Promise<boolean> | null = null
 
 export function checkAndRefreshOAuthTokenIfNeeded(
   retryCount = 0,
   force = false,
 ): Promise<boolean> {
-  // Deduplicate concurrent non-retry, non-force calls
+  // 去重并发非重试、非强制调用
   if (retryCount === 0 && !force) {
     if (pendingRefreshCheck) {
       return pendingRefreshCheck
@@ -1453,8 +1416,8 @@ async function checkAndRefreshOAuthTokenIfNeededImpl(
 
   await invalidateOAuthCacheIfDiskChanged()
 
-  // First check if token is expired with cached value
-  // Skip this check if force=true (server already told us token is bad)
+  // 首先使用缓存值检查令牌是否过期
+  // 如果 force=true，则跳过此检查（服务器已经告诉我们令牌有问题）
   const tokens = getClaudeAIOAuthTokens()
   if (!force) {
     if (!tokens?.refreshToken || !isOAuthTokenExpired(tokens.expiresAt)) {
@@ -1470,8 +1433,8 @@ async function checkAndRefreshOAuthTokenIfNeededImpl(
     return false
   }
 
-  // Re-read tokens async to check if they're still expired
-  // Another process might have refreshed them
+  // 异步重新读取令牌以检查它们是否仍然过期
+  // 另一个进程可能已经刷新了它们
   getClaudeAIOAuthTokens.cache?.clear?.()
   clearKeychainCache()
   const freshTokens = await getClaudeAIOAuthTokensAsync()
@@ -1482,7 +1445,7 @@ async function checkAndRefreshOAuthTokenIfNeededImpl(
     return false
   }
 
-  // Tokens are still expired, try to acquire lock and refresh
+  // 令牌仍然过期，尝试获取锁并刷新
   const claudeDir = getClaudeConfigHomeDir()
   await mkdir(claudeDir, { recursive: true })
 
@@ -1493,12 +1456,12 @@ async function checkAndRefreshOAuthTokenIfNeededImpl(
     logEvent('tengu_oauth_token_refresh_lock_acquired', {})
   } catch (err) {
     if ((err as { code?: string }).code === 'ELOCKED') {
-      // Another process has the lock, let's retry if we haven't exceeded max retries
+      // 另一个进程持有锁，如果我们尚未超过最大重试次数，则重试
       if (retryCount < MAX_RETRIES) {
         logEvent('tengu_oauth_token_refresh_lock_retry', {
           retryCount: retryCount + 1,
         })
-        // Wait a bit before retrying
+        // 重试前等待一会儿
         await sleep(1000 + Math.random() * 1000)
         return checkAndRefreshOAuthTokenIfNeededImpl(retryCount + 1, force)
       }
@@ -1516,7 +1479,7 @@ async function checkAndRefreshOAuthTokenIfNeededImpl(
     return false
   }
   try {
-    // Check one more time after acquiring lock
+    // 获取锁后再检查一次
     getClaudeAIOAuthTokens.cache?.clear?.()
     clearKeychainCache()
     const lockedTokens = await getClaudeAIOAuthTokensAsync()
@@ -1530,16 +1493,15 @@ async function checkAndRefreshOAuthTokenIfNeededImpl(
 
     logEvent('tengu_oauth_token_refresh_starting', {})
     const refreshedTokens = await refreshOAuthToken(lockedTokens.refreshToken, {
-      // For Claude.ai subscribers, omit scopes so the default
-      // CLAUDE_AI_OAUTH_SCOPES applies — this allows scope expansion
-      // (e.g. adding user:file_upload) on refresh without re-login.
+      // 对于 Claude.ai 订阅者，省略 scopes 以便应用默认的 CLAUDE_AI_OAUTH_SCOPES
+      // 这允许在无需重新登录的情况下通过刷新进行范围扩展（例如添加 user:file_upload）
       scopes: shouldUseClaudeAIAuth(lockedTokens.scopes)
         ? undefined
         : lockedTokens.scopes,
     })
     saveOAuthTokensIfNeeded(refreshedTokens)
 
-    // Clear the cache after refreshing token
+    // 刷新令牌后清除缓存
     getClaudeAIOAuthTokens.cache?.clear?.()
     clearKeychainCache()
     return true
@@ -1571,12 +1533,10 @@ export function isClaudeAISubscriber(): boolean {
 }
 
 /**
- * Check if the current OAuth token has the user:profile scope.
+ * 检查当前 OAuth 令牌是否具有 user:profile 范围。
  *
- * Real /login tokens always include this scope. Env-var and file-descriptor
- * tokens (service keys) hardcode scopes to ['user:inference'] only. Use this
- * to gate calls to profile-scoped endpoints so service key sessions don't
- * generate 403 storms against /api/oauth/profile, bootstrap, etc.
+ * 真正的 /login 令牌始终包含此范围。环境变量和文件描述符令牌（服务密钥）将范围硬编码为仅 ['user:inference']。
+ * 使用此函数来门控对配置文件作用域端点的调用，以便服务密钥会话不会对 /api/oauth/profile、bootstrap 等产生 403 风暴。
  */
 export function hasProfileScope(): boolean {
   return (
@@ -1585,13 +1545,13 @@ export function hasProfileScope(): boolean {
 }
 
 export function is1PApiCustomer(): boolean {
-  // 1P API customers are users who are NOT:
-  // 1. Claude.ai subscribers (Max, Pro, Enterprise, Team)
-  // 2. Vertex AI users
-  // 3. AWS Bedrock users
-  // 4. Foundry users
+  // 1P API 客户是那些不是：
+  // 1. Claude.ai 订阅者（Max、Pro、Enterprise、Team）
+  // 2. Vertex AI 用户
+  // 3. AWS Bedrock 用户
+  // 4. Foundry 用户
 
-  // Exclude Vertex, Bedrock, and Foundry customers
+  // 排除 Vertex、Bedrock 和 Foundry 客户
   if (
     isEnvTruthy(process.env.CLAUDE_CODE_USE_BEDROCK) ||
     isEnvTruthy(process.env.CLAUDE_CODE_USE_VERTEX) ||
@@ -1600,37 +1560,37 @@ export function is1PApiCustomer(): boolean {
     return false
   }
 
-  // Exclude Claude.ai subscribers
+  // 排除 Claude.ai 订阅者
   if (isClaudeAISubscriber()) {
     return false
   }
 
-  // Everyone else is an API customer (OAuth API customers, direct API key users, etc.)
+  // 其他所有人都是 API 客户（OAuth API 客户、直接 API 密钥用户等）
   return true
 }
 
 /**
- * Gets OAuth account information when Anthropic auth is enabled.
- * Returns undefined when using external API keys or third-party services.
+ * 当 Anthropic 认证启用时，获取 OAuth 账户信息。
+ * 当使用外部 API 密钥或第三方服务时，返回 undefined。
  */
 export function getOauthAccountInfo(): AccountInfo | undefined {
   return isAnthropicAuthEnabled() ? getGlobalConfig().oauthAccount : undefined
 }
 
 /**
- * Checks if overage/extra usage provisioning is allowed for this organization.
- * This mirrors the logic in apps/claude-ai `useIsOverageProvisioningAllowed` hook as closely as possible.
+ * 检查是否允许该组织进行超额/额外使用配置。
+ * 此逻辑尽可能贴近 apps/claude-ai 中的 `useIsOverageProvisioningAllowed` 钩子。
  */
 export function isOverageProvisioningAllowed(): boolean {
   const accountInfo = getOauthAccountInfo()
   const billingType = accountInfo?.billingType
 
-  // Must be a Claude subscriber with a supported subscription type
+  // 必须是具有支持订阅类型的 Claude 订阅者
   if (!isClaudeAISubscriber() || !billingType) {
     return false
   }
 
-  // only allow Stripe and mobile billing types to purchase extra usage
+  // 仅允许 Stripe 和移动计费类型购买额外使用量
   if (
     billingType !== 'stripe_subscription' &&
     billingType !== 'stripe_subscription_contracted' &&
@@ -1643,8 +1603,7 @@ export function isOverageProvisioningAllowed(): boolean {
   return true
 }
 
-// Returns whether the user has Opus access at all, regardless of whether they
-// are a subscriber or PayG.
+// 返回用户是否有权访问 Opus，无论他们是订阅者还是按需付费用户。
 export function hasOpusAccess(): boolean {
   const subscriptionType = getSubscriptionType()
 
@@ -1653,15 +1612,14 @@ export function hasOpusAccess(): boolean {
     subscriptionType === 'enterprise' ||
     subscriptionType === 'team' ||
     subscriptionType === 'pro' ||
-    // subscriptionType === null covers both API users and the case where
-    // subscribers do not have subscription type populated. For those
-    // subscribers, when in doubt, we should not limit their access to Opus.
+    // subscriptionType === null 涵盖 API 用户以及订阅者未填充订阅类型的情况。
+    // 对于这些订阅者，当有疑问时，我们不应限制他们对 Opus 的访问。
     subscriptionType === null
   )
 }
 
 export function getSubscriptionType(): SubscriptionType | null {
-  // Check for mock subscription type first (ANT-only testing)
+  // 首先检查模拟订阅类型（仅限 Ant 内部测试）
   if (shouldUseMockSubscription()) {
     return getMockSubscriptionType()
   }
@@ -1729,7 +1687,7 @@ export function getSubscriptionName(): string {
   }
 }
 
-/** Check if using third-party services (Bedrock or Vertex or Foundry) */
+/** 检查是否使用第三方服务（Bedrock 或 Vertex 或 Foundry） */
 export function isUsing3PServices(): boolean {
   return !!(
     isEnvTruthy(process.env.CLAUDE_CODE_USE_BEDROCK) ||
@@ -1739,7 +1697,7 @@ export function isUsing3PServices(): boolean {
 }
 
 /**
- * Get the configured otelHeadersHelper from settings
+ * 从设置中获取配置的 otelHeadersHelper
  */
 function getConfiguredOtelHeadersHelper(): string | undefined {
   const mergedSettings = getSettings_DEPRECATED() || {}
@@ -1747,7 +1705,7 @@ function getConfiguredOtelHeadersHelper(): string | undefined {
 }
 
 /**
- * Check if the configured otelHeadersHelper comes from project settings (projectSettings or localSettings)
+ * 检查配置的 otelHeadersHelper 是否来自项目设置（projectSettings 或 localSettings）
  */
 export function isOtelHeadersHelperFromProjectOrLocalSettings(): boolean {
   const otelHeadersHelper = getConfiguredOtelHeadersHelper()
@@ -1763,10 +1721,10 @@ export function isOtelHeadersHelperFromProjectOrLocalSettings(): boolean {
   )
 }
 
-// Cache for debouncing otelHeadersHelper calls
+// 用于防抖 otelHeadersHelper 调用的缓存
 let cachedOtelHeaders: Record<string, string> | null = null
 let cachedOtelHeadersTimestamp = 0
-const DEFAULT_OTEL_HEADERS_DEBOUNCE_MS = 29 * 60 * 1000 // 29 minutes
+const DEFAULT_OTEL_HEADERS_DEBOUNCE_MS = 29 * 60 * 1000 // 29 分钟
 
 export function getOtelHeadersFromHelper(): Record<string, string> {
   const otelHeadersHelper = getConfiguredOtelHeadersHelper()
@@ -1775,7 +1733,7 @@ export function getOtelHeadersFromHelper(): Record<string, string> {
     return {}
   }
 
-  // Return cached headers if still valid (debounce)
+  // 如果缓存仍然有效，返回缓存的头部（防抖）
   const debounceMs = parseInt(
     process.env.CLAUDE_CODE_OTEL_HEADERS_HELPER_DEBOUNCE_MS ||
       DEFAULT_OTEL_HEADERS_DEBOUNCE_MS.toString(),
@@ -1788,7 +1746,7 @@ export function getOtelHeadersFromHelper(): Record<string, string> {
   }
 
   if (isOtelHeadersHelperFromProjectOrLocalSettings()) {
-    // Check if trust has been established for this project
+    // 检查是否已为此项目建立信任
     const hasTrust = checkHasTrustDialogAccepted()
     if (!hasTrust) {
       return {}
@@ -1797,12 +1755,12 @@ export function getOtelHeadersFromHelper(): Record<string, string> {
 
   try {
     const result = execSyncWithDefaults_DEPRECATED(otelHeadersHelper, {
-      timeout: 30000, // 30 seconds - allows for auth service latency
+      timeout: 30000, // 30 秒 - 允许认证服务的延迟
     })
       ?.toString()
       .trim()
     if (!result) {
-      throw new Error('otelHeadersHelper did not return a valid value')
+      throw new Error('otelHeadersHelper 未返回有效值')
     }
 
     const headers = jsonParse(result)
@@ -1812,20 +1770,20 @@ export function getOtelHeadersFromHelper(): Record<string, string> {
       Array.isArray(headers)
     ) {
       throw new Error(
-        'otelHeadersHelper must return a JSON object with string key-value pairs',
+        'otelHeadersHelper 必须返回一个带有字符串键值对的 JSON 对象',
       )
     }
 
-    // Validate all values are strings
+    // 验证所有值都是字符串
     for (const [key, value] of Object.entries(headers)) {
       if (typeof value !== 'string') {
         throw new Error(
-          `otelHeadersHelper returned non-string value for key "${key}": ${typeof value}`,
+          `otelHeadersHelper 为键 "${key}" 返回了非字符串值: ${typeof value}`,
         )
       }
     }
 
-    // Cache the result
+    // 缓存结果
     cachedOtelHeaders = headers as Record<string, string>
     cachedOtelHeadersTimestamp = Date.now()
 
@@ -1833,7 +1791,7 @@ export function getOtelHeadersFromHelper(): Record<string, string> {
   } catch (error) {
     logError(
       new Error(
-        `Error getting OpenTelemetry headers from otelHeadersHelper (in settings): ${errorMessage(error)}`,
+        `从 otelHeadersHelper（在设置中）获取 OpenTelemetry 头部时出错: ${errorMessage(error)}`,
       ),
     )
     throw error
@@ -1863,7 +1821,7 @@ export type UserAccountInfo = {
 
 export function getAccountInformation() {
   const apiProvider = getAPIProvider()
-  // Only provide account info for first-party Anthropic API
+  // 仅为第一方 Anthropic API 提供账户信息
   if (apiProvider !== 'firstParty') {
     return undefined
   }
@@ -1884,12 +1842,12 @@ export function getAccountInformation() {
     accountInfo.apiKeySource = apiKeySource
   }
 
-  // We don't know the organization if we're relying on an external API key or auth token
+  // 如果我们依赖外部 API 密钥或认证令牌，则不知道组织
   if (
     authTokenSource === 'claude.ai' ||
     apiKeySource === '/login managed key'
   ) {
-    // Get organization name from OAuth account info
+    // 从 OAuth 账户信息获取组织名称
     const orgName = getOauthAccountInfo()?.organizationName
     if (orgName) {
       accountInfo.organization = orgName
@@ -1907,24 +1865,21 @@ export function getAccountInformation() {
 }
 
 /**
- * Result of org validation — either success or a descriptive error.
+ * 组织验证结果 —— 要么成功，要么是描述性错误。
  */
 export type OrgValidationResult =
   | { valid: true }
   | { valid: false; message: string }
 
 /**
- * Validate that the active OAuth token belongs to the organization required
- * by `forceLoginOrgUUID` in managed settings. Returns a result object
- * rather than throwing so callers can choose how to surface the error.
+ * 验证活动 OAuth 令牌是否属于托管设置中 `forceLoginOrgUUID` 所需的组织。
+ * 返回结果对象而不是抛出异常，以便调用方可以选择如何呈现错误。
  *
- * Fails closed: if `forceLoginOrgUUID` is set and we cannot determine the
- * token's org (network error, missing profile data), validation fails.
+ * 失败时关闭：如果设置了 `forceLoginOrgUUID` 且无法确定令牌的组织（网络错误、缺少配置文件数据），验证失败。
  */
 export async function validateForceLoginOrg(): Promise<OrgValidationResult> {
-  // `claude ssh` remote: real auth lives on the local machine and is injected
-  // by the proxy. The placeholder token can't be validated against the profile
-  // endpoint. The local side already ran this check before establishing the session.
+  // `claude ssh` 远程：真实认证存在于本地机器并由代理注入。
+  // 占位符令牌无法针对配置文件端点进行验证。本地端在建立会话之前已经运行了此检查。
   if (process.env.ANTHROPIC_UNIX_SOCKET) {
     return { valid: true }
   }
@@ -1939,8 +1894,8 @@ export async function validateForceLoginOrg(): Promise<OrgValidationResult> {
     return { valid: true }
   }
 
-  // Ensure the access token is fresh before hitting the profile endpoint.
-  // No-op for env-var tokens (refreshToken is null).
+  // 确保访问令牌在访问配置文件端点之前是新鲜的。
+  // 对于环境变量令牌（refreshToken 为 null）无操作。
   await checkAndRefreshOAuthTokenIfNeeded()
 
   const tokens = getClaudeAIOAuthTokens()
@@ -1948,9 +1903,8 @@ export async function validateForceLoginOrg(): Promise<OrgValidationResult> {
     return { valid: true }
   }
 
-  // Always fetch the authoritative org UUID from the profile endpoint.
-  // Even keychain-sourced tokens verify server-side: the cached org UUID
-  // in ~/.claude.json is user-writable and cannot be trusted.
+  // 始终从配置文件端点获取权威的组织 UUID。
+  // 即使来自钥匙串的令牌也需要验证服务端：~/.claude.json 中缓存的 org UUID 是用户可写的，不能信任。
   const { source } = getAuthTokenSource()
   const isEnvVarToken =
     source === 'CLAUDE_CODE_OAUTH_TOKEN' ||
@@ -1958,15 +1912,15 @@ export async function validateForceLoginOrg(): Promise<OrgValidationResult> {
 
   const profile = await getOauthProfileFromOauthToken(tokens.accessToken)
   if (!profile) {
-    // Fail closed — we can't verify the org
+    // 失败时关闭 —— 我们无法验证组织
     return {
       valid: false,
       message:
-        `Unable to verify organization for the current authentication token.\n` +
-        `This machine requires organization ${requiredOrgUuid} but the profile could not be fetched.\n` +
-        `This may be a network error, or the token may lack the user:profile scope required for\n` +
-        `verification (tokens from 'claude setup-token' do not include this scope).\n` +
-        `Try again, or obtain a full-scope token via 'claude auth login'.`,
+        `无法验证当前认证令牌的组织。\n` +
+        `此机器需要组织 ${requiredOrgUuid}，但无法获取配置文件。\n` +
+        `这可能是网络错误，或者令牌缺少验证所需的 user:profile 范围\n` +
+        `（来自 'claude setup-token' 的令牌不包含此范围）。\n` +
+        `请重试，或通过 'claude auth login' 获取全范围令牌。`,
     }
   }
 
@@ -1983,20 +1937,20 @@ export async function validateForceLoginOrg(): Promise<OrgValidationResult> {
     return {
       valid: false,
       message:
-        `The ${envVarName} environment variable provides a token for a\n` +
-        `different organization than required by this machine's managed settings.\n\n` +
-        `Required organization: ${requiredOrgUuid}\n` +
-        `Token organization:   ${tokenOrgUuid}\n\n` +
-        `Remove the environment variable or obtain a token for the correct organization.`,
+        `环境变量 ${envVarName} 提供的令牌属于\n` +
+        `与此机器托管设置要求的组织不同的组织。\n\n` +
+        `所需组织: ${requiredOrgUuid}\n` +
+        `令牌所属组织:   ${tokenOrgUuid}\n\n` +
+        `请移除环境变量或为正确的组织获取令牌。`,
     }
   }
 
   return {
     valid: false,
     message:
-      `Your authentication token belongs to organization ${tokenOrgUuid},\n` +
-      `but this machine requires organization ${requiredOrgUuid}.\n\n` +
-      `Please log in with the correct organization: claude auth login`,
+      `您的认证令牌属于组织 ${tokenOrgUuid}，\n` +
+      `但此机器需要组织 ${requiredOrgUuid}。\n\n` +
+      `请使用正确的组织登录: claude auth login`,
   }
 }
 

@@ -52,20 +52,20 @@ export type MaxVersionConfig = {
 }
 
 /**
- * Checks if the current version meets the minimum required version from Statsig config
- * Terminates the process with an error message if the version is too old
+ * 检查当前版本是否满足 Statsig 配置中的最低版本要求
+ * 如果版本过旧则终止进程并显示错误信息
  *
- * NOTE ON SHA-BASED VERSIONING:
- * We use SemVer-compliant versioning with build metadata format (X.X.X+SHA) for continuous deployment.
- * According to SemVer specs, build metadata (the +SHA part) is ignored when comparing versions.
+ * 关于基于 SHA 的版本控制说明：
+ * 我们使用符合 SemVer 规范的版本控制，并带有构建元数据格式（X.X.X+SHA）以实现持续部署。
+ * 根据 SemVer 规范，比较版本时会忽略构建元数据（+SHA 部分）。
  *
- * Versioning approach:
- * 1. For version requirements/compatibility (assertMinVersion), we use semver comparison that ignores build metadata
- * 2. For updates ('claude update'), we use exact string comparison to detect any change, including SHA
- *    - This ensures users always get the latest build, even when only the SHA changes
- *    - The UI clearly shows both versions including build metadata
+ * 版本管理方法：
+ * 1. 对于版本要求/兼容性（assertMinVersion），使用忽略构建元数据的 semver 比较
+ * 2. 对于更新（'claude update'），使用精确字符串比较来检测任何更改，包括 SHA
+ *    - 这确保用户始终获得最新构建，即使仅 SHA 发生变化
+ *    - UI 清晰显示包含构建元数据的两个版本
  *
- * This approach keeps version comparison logic simple while maintaining traceability via the SHA.
+ * 此方法保持版本比较逻辑简单，同时通过 SHA 保持可追溯性。
  */
 export async function assertMinVersion(): Promise<void> {
   if (process.env.NODE_ENV === 'test') {
@@ -81,15 +81,15 @@ export async function assertMinVersion(): Promise<void> {
       versionConfig.minVersion &&
       lt(MACRO.VERSION, versionConfig.minVersion)
     ) {
-      // biome-ignore lint/suspicious/noConsole:: intentional console output
+      // biome-ignore lint/suspicious/noConsole:: 有意的控制台输出
       console.error(`
-It looks like your version of Claude Code (${MACRO.VERSION}) needs an update.
-A newer version (${versionConfig.minVersion} or higher) is required to continue.
+您的 Claude Code 版本（${MACRO.VERSION}）似乎需要更新。
+需要更新到更高版本（${versionConfig.minVersion} 或更高）才能继续。
 
-To update, please run:
+请运行以下命令进行更新：
     claude update
 
-This will ensure you have access to the latest features and improvements.
+这将确保您能够访问最新的功能和改进。
 `)
       gracefulShutdownSync(1)
     }
@@ -99,11 +99,11 @@ This will ensure you have access to the latest features and improvements.
 }
 
 /**
- * Returns the maximum allowed version for the current user type.
- * For ants, returns the `ant` field (dev version format).
- * For external users, returns the `external` field (clean semver).
- * This is used as a server-side kill switch to pause auto-updates during incidents.
- * Returns undefined if no cap is configured.
+ * 返回当前用户类型允许的最高版本。
+ * 对于 ants，返回 `ant` 字段（开发版本格式）。
+ * 对于外部用户，返回 `external` 字段（干净的 semver）。
+ * 这用作服务端终止开关，在事故期间暂停自动更新。
+ * 如果未配置上限，则返回 undefined。
  */
 export async function getMaxVersion(): Promise<string | undefined> {
   const config = await getMaxVersionConfig()
@@ -114,8 +114,8 @@ export async function getMaxVersion(): Promise<string | undefined> {
 }
 
 /**
- * Returns the server-driven message explaining the known issue, if configured.
- * Shown in the warning banner when the current version exceeds the max allowed version.
+ * 返回服务端驱动的消息，解释已知问题（如果已配置）。
+ * 当当前版本超过允许的最高版本时，在警告横幅中显示。
  */
 export async function getMaxVersionMessage(): Promise<string | undefined> {
   const config = await getMaxVersionConfig()
@@ -138,9 +138,8 @@ async function getMaxVersionConfig(): Promise<MaxVersionConfig> {
 }
 
 /**
- * Checks if a target version should be skipped due to user's minimumVersion setting.
- * This is used when switching to stable channel - the user can choose to stay on their
- * current version until stable catches up, preventing downgrades.
+ * 检查目标版本是否应因用户的 minimumVersion 设置而被跳过。
+ * 当切换到稳定通道时使用 —— 用户可以选择停留在当前版本直到稳定版追上，从而防止降级。
  */
 export function shouldSkipVersion(targetVersion: string): boolean {
   const settings = getInitialSettings()
@@ -148,48 +147,47 @@ export function shouldSkipVersion(targetVersion: string): boolean {
   if (!minimumVersion) {
     return false
   }
-  // Skip if target version is less than minimum
+  // 如果目标版本小于最低版本则跳过
   const shouldSkip = !gte(targetVersion, minimumVersion)
   if (shouldSkip) {
     logForDebugging(
-      `Skipping update to ${targetVersion} - below minimumVersion ${minimumVersion}`,
+      `跳过更新到 ${targetVersion} —— 低于 minimumVersion ${minimumVersion}`,
     )
   }
   return shouldSkip
 }
 
-// Lock file for auto-updater to prevent concurrent updates
-const LOCK_TIMEOUT_MS = 5 * 60 * 1000 // 5 minute timeout for locks
+// 自动更新器的锁文件，防止并发更新
+const LOCK_TIMEOUT_MS = 5 * 60 * 1000 // 锁超时 5 分钟
 
 /**
- * Get the path to the lock file
- * This is a function to ensure it's evaluated at runtime after test setup
+ * 获取锁文件的路径
+ * 这是一个函数，以确保在测试设置后于运行时评估
  */
 export function getLockFilePath(): string {
   return join(getClaudeConfigHomeDir(), '.update.lock')
 }
 
 /**
- * Attempts to acquire a lock for auto-updater
- * @returns true if lock was acquired, false if another process holds the lock
+ * 尝试获取自动更新器的锁
+ * @returns 如果获取到锁则返回 true，如果另一个进程持有锁则返回 false
  */
 async function acquireLock(): Promise<boolean> {
   const fs = getFsImplementation()
   const lockPath = getLockFilePath()
 
-  // Check for existing lock: 1 stat() on the happy path (fresh lock or ENOENT),
-  // 2 on stale-lock recovery (re-verify staleness immediately before unlink).
+  // 检查现有锁：在快乐路径（新锁或 ENOENT）上 1 次 stat()，
+  // 在过时锁恢复时 2 次（在 unlink 前立即重新验证过时状态）。
   try {
     const stats = await fs.stat(lockPath)
     const age = Date.now() - stats.mtimeMs
     if (age < LOCK_TIMEOUT_MS) {
       return false
     }
-    // Lock is stale, remove it before taking over. Re-verify staleness
-    // immediately before unlinking to close a TOCTOU race: if two processes
-    // both observe the stale lock, A unlinks + writes a fresh lock, then B
-    // would unlink A's fresh lock and both believe they hold it. A fresh
-    // lock has a recent mtime, so re-checking staleness makes B back off.
+    // 锁已过时，在接管前移除它。在 unlink 前立即重新验证过时状态，
+    // 以关闭 TOCTOU 竞争：如果两个进程都观察到过时锁，A 解除链接 + 写入新锁，
+    // 然后 B 会解除链接 A 的新锁，并且两者都认为自己持有锁。
+    // 新锁具有较新的 mtime，因此重新检查过时状态会使 B 退避。
     try {
       const recheck = await fs.stat(lockPath)
       if (Date.now() - recheck.mtimeMs < LOCK_TIMEOUT_MS) {
@@ -207,12 +205,11 @@ async function acquireLock(): Promise<boolean> {
       logError(err as Error)
       return false
     }
-    // ENOENT: no lock file, proceed to create one
+    // ENOENT：没有锁文件，继续创建
   }
 
-  // Create lock file atomically with O_EXCL (flag: 'wx'). If another process
-  // wins the race and creates it first, we get EEXIST and back off.
-  // Lazy-mkdir the config dir on ENOENT.
+  // 使用 O_EXCL（flag: 'wx'）原子创建锁文件。如果另一个进程赢得竞争并先创建它，我们会得到 EEXIST 并退避。
+  // 在 ENOENT 时延迟创建配置目录。
   try {
     await writeFile(lockPath, `${process.pid}`, {
       encoding: 'utf8',
@@ -226,9 +223,8 @@ async function acquireLock(): Promise<boolean> {
     }
     if (code === 'ENOENT') {
       try {
-        // fs.mkdir from getFsImplementation() is always recursive:true and
-        // swallows EEXIST internally, so a dir-creation race cannot reach the
-        // catch below — only writeFile's EEXIST (true lock contention) can.
+        // getFsImplementation() 的 fs.mkdir 总是 recursive:true 并在内部吞掉 EEXIST，
+        // 因此目录创建竞争不会到达下面的 catch —— 只有 writeFile 的 EEXIST（真正的锁竞争）可以。
         await fs.mkdir(getClaudeConfigHomeDir())
         await writeFile(lockPath, `${process.pid}`, {
           encoding: 'utf8',
@@ -249,7 +245,7 @@ async function acquireLock(): Promise<boolean> {
 }
 
 /**
- * Releases the update lock if it's held by this process
+ * 如果锁由当前进程持有，则释放更新锁
  */
 async function releaseLock(): Promise<void> {
   const fs = getFsImplementation()
@@ -268,7 +264,7 @@ async function releaseLock(): Promise<void> {
 }
 
 async function getInstallationPrefix(): Promise<string | null> {
-  // Run from home directory to avoid reading project-level .npmrc/.bunfig.toml
+  // 从主目录运行以避免读取项目级的 .npmrc/.bunfig.toml
   const isBun = env.isRunningWithBun()
   let prefixResult = null
   if (isBun) {
@@ -283,7 +279,7 @@ async function getInstallationPrefix(): Promise<string | null> {
     )
   }
   if (prefixResult.code !== 0) {
-    logError(new Error(`Failed to check ${isBun ? 'bun' : 'npm'} permissions`))
+    logError(new Error(`检查 ${isBun ? 'bun' : 'npm'} 权限失败`))
     return null
   }
   return prefixResult.stdout.trim()
@@ -304,9 +300,7 @@ export async function checkGlobalInstallPermissions(): Promise<{
       return { hasPermissions: true, npmPrefix: prefix }
     } catch {
       logError(
-        new AutoUpdaterError(
-          'Insufficient permissions for global npm install.',
-        ),
+        new AutoUpdaterError('全局 npm 安装权限不足。'),
       )
       return { hasPermissions: false, npmPrefix: prefix }
     }
@@ -321,19 +315,19 @@ export async function getLatestVersion(
 ): Promise<string | null> {
   const npmTag = channel === 'stable' ? 'stable' : 'latest'
 
-  // Run from home directory to avoid reading project-level .npmrc
-  // which could be maliciously crafted to redirect to an attacker's registry
+  // 从主目录运行以避免读取项目级的 .npmrc
+  // 项目级 .npmrc 可能被恶意构造以重定向到攻击者的注册表
   const result = await execFileNoThrowWithCwd(
     'npm',
     ['view', `${MACRO.PACKAGE_URL}@${npmTag}`, 'version', '--prefer-online'],
     { abortSignal: AbortSignal.timeout(5000), cwd: homedir() },
   )
   if (result.code !== 0) {
-    logForDebugging(`npm view failed with code ${result.code}`)
+    logForDebugging(`npm view 失败，代码 ${result.code}`)
     if (result.stderr) {
       logForDebugging(`npm stderr: ${result.stderr.trim()}`)
     } else {
-      logForDebugging('npm stderr: (empty)')
+      logForDebugging('npm stderr: (空)')
     }
     if (result.stdout) {
       logForDebugging(`npm stdout: ${result.stdout.trim()}`)
@@ -349,11 +343,11 @@ export type NpmDistTags = {
 }
 
 /**
- * Get npm dist-tags (latest and stable versions) from the registry.
- * This is used by the doctor command to show users what versions are available.
+ * 从注册表获取 npm dist-tags（latest 和 stable 版本）。
+ * 由 doctor 命令使用，向用户显示可用的版本。
  */
 export async function getNpmDistTags(): Promise<NpmDistTags> {
-  // Run from home directory to avoid reading project-level .npmrc
+  // 从主目录运行以避免读取项目级的 .npmrc
   const result = await execFileNoThrowWithCwd(
     'npm',
     ['view', MACRO.PACKAGE_URL, 'dist-tags', '--json', '--prefer-online'],
@@ -361,7 +355,7 @@ export async function getNpmDistTags(): Promise<NpmDistTags> {
   )
 
   if (result.code !== 0) {
-    logForDebugging(`npm view dist-tags failed with code ${result.code}`)
+    logForDebugging(`npm view dist-tags 失败，代码 ${result.code}`)
     return { latest: null, stable: null }
   }
 
@@ -372,14 +366,14 @@ export async function getNpmDistTags(): Promise<NpmDistTags> {
       stable: typeof parsed.stable === 'string' ? parsed.stable : null,
     }
   } catch (error) {
-    logForDebugging(`Failed to parse dist-tags: ${error}`)
+    logForDebugging(`解析 dist-tags 失败: ${error}`)
     return { latest: null, stable: null }
   }
 }
 
 /**
- * Get the latest version from GCS bucket for a given release channel.
- * This is used by installations that don't have npm (e.g. package manager installs).
+ * 从 GCS 存储桶获取给定发布通道的最新版本。
+ * 用于没有 npm 的安装（例如包管理器安装）。
  */
 export async function getLatestVersionFromGcs(
   channel: ReleaseChannel,
@@ -391,14 +385,14 @@ export async function getLatestVersionFromGcs(
     })
     return response.data.trim()
   } catch (error) {
-    logForDebugging(`Failed to fetch ${channel} from GCS: ${error}`)
+    logForDebugging(`从 GCS 获取 ${channel} 失败: ${error}`)
     return null
   }
 }
 
 /**
- * Get available versions from GCS bucket (for native installations).
- * Fetches both latest and stable channel pointers.
+ * 从 GCS 存储桶获取可用版本（用于原生安装）。
+ * 同时获取 latest 和 stable 通道指针。
  */
 export async function getGcsDistTags(): Promise<NpmDistTags> {
   const [latest, stable] = await Promise.all([
@@ -410,33 +404,33 @@ export async function getGcsDistTags(): Promise<NpmDistTags> {
 }
 
 /**
- * Get version history from npm registry (ant-only feature)
- * Returns versions sorted newest-first, limited to the specified count
+ * 从 npm 注册表获取版本历史（仅限 ant 内部功能）
+ * 返回按最新排序的版本，限制为指定数量
  *
- * Uses NATIVE_PACKAGE_URL when available because:
- * 1. Native installation is the primary installation method for ant users
- * 2. Not all JS package versions have corresponding native packages
- * 3. This prevents rollback from listing versions that don't have native binaries
+ * 在可用时使用 NATIVE_PACKAGE_URL，因为：
+ * 1. 原生安装是 ant 用户的主要安装方法
+ * 2. 并非所有 JS 包版本都有对应的原生包
+ * 3. 这可以防止回滚列出没有原生二进制文件的版本
  */
 export async function getVersionHistory(limit: number): Promise<string[]> {
   if (process.env.USER_TYPE !== 'ant') {
     return []
   }
 
-  // Use native package URL when available to ensure we only show versions
-  // that have native binaries (not all JS package versions have native builds)
+  // 在可用时使用原生包 URL，以确保我们只显示具有原生二进制文件的版本
+  // （并非所有 JS 包版本都有原生构建）
   const packageUrl = MACRO.NATIVE_PACKAGE_URL ?? MACRO.PACKAGE_URL
 
-  // Run from home directory to avoid reading project-level .npmrc
+  // 从主目录运行以避免读取项目级的 .npmrc
   const result = await execFileNoThrowWithCwd(
     'npm',
     ['view', packageUrl, 'versions', '--json', '--prefer-online'],
-    // Longer timeout for version list
+    // 版本列表的超时时间更长
     { abortSignal: AbortSignal.timeout(30000), cwd: homedir() },
   )
 
   if (result.code !== 0) {
-    logForDebugging(`npm view versions failed with code ${result.code}`)
+    logForDebugging(`npm view versions 失败，代码 ${result.code}`)
     if (result.stderr) {
       logForDebugging(`npm stderr: ${result.stderr.trim()}`)
     }
@@ -445,10 +439,10 @@ export async function getVersionHistory(limit: number): Promise<string[]> {
 
   try {
     const versions = jsonParse(result.stdout.trim()) as string[]
-    // Take last N versions, then reverse to get newest first
+    // 取最后 N 个版本，然后反转以获得最新优先
     return versions.slice(-limit).reverse()
   } catch (error) {
-    logForDebugging(`Failed to parse version history: ${error}`)
+    logForDebugging(`解析版本历史失败: ${error}`)
     return []
   }
 }
@@ -458,9 +452,9 @@ export async function installGlobalPackage(
 ): Promise<InstallStatus> {
   if (!(await acquireLock())) {
     logError(
-      new AutoUpdaterError('Another process is currently installing an update'),
+      new AutoUpdaterError('另一个进程当前正在安装更新'),
     )
-    // Log the lock contention
+    // 记录锁竞争
     logEvent('tengu_auto_updater_lock_contention', {
       pid: process.pid,
       currentVersion:
@@ -471,24 +465,24 @@ export async function installGlobalPackage(
 
   try {
     await removeClaudeAliasesFromShellConfigs()
-    // Check if we're using npm from Windows path in WSL
+    // 检查是否在 WSL 中使用来自 Windows 路径的 npm
     if (!env.isRunningWithBun() && env.isNpmFromWindowsPath()) {
-      logError(new Error('Windows NPM detected in WSL environment'))
+      logError(new Error('在 WSL 环境中检测到 Windows NPM'))
       logEvent('tengu_auto_updater_windows_npm_in_wsl', {
         currentVersion:
           MACRO.VERSION as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       })
-      // biome-ignore lint/suspicious/noConsole:: intentional console output
+      // biome-ignore lint/suspicious/noConsole:: 有意的控制台输出
       console.error(`
-Error: Windows NPM detected in WSL
+错误：在 WSL 中检测到 Windows NPM
 
-You're running Claude Code in WSL but using the Windows NPM installation from /mnt/c/.
-This configuration is not supported for updates.
+您在 WSL 中运行 Claude Code，但使用的是来自 /mnt/c/ 的 Windows NPM 安装。
+此配置不支持更新。
 
-To fix this issue:
-  1. Install Node.js within your Linux distribution: e.g. sudo apt install nodejs npm
-  2. Make sure Linux NPM is in your PATH before the Windows version
-  3. Try updating again with 'claude update'
+要解决此问题：
+  1. 在您的 Linux 发行版中安装 Node.js：例如 sudo apt install nodejs npm
+  2. 确保 Linux NPM 在 PATH 中位于 Windows 版本之前
+  3. 使用 'claude update' 再次尝试更新
 `)
       return 'install_failed'
     }
@@ -498,13 +492,13 @@ To fix this issue:
       return 'no_permissions'
     }
 
-    // Use specific version if provided, otherwise use latest
+    // 如果提供了特定版本则使用，否则使用最新版本
     const packageSpec = specificVersion
       ? `${MACRO.PACKAGE_URL}@${specificVersion}`
       : MACRO.PACKAGE_URL
 
-    // Run from home directory to avoid reading project-level .npmrc/.bunfig.toml
-    // which could be maliciously crafted to redirect to an attacker's registry
+    // 从主目录运行以避免读取项目级的 .npmrc/.bunfig.toml
+    // 项目级配置可能被恶意构造以重定向到攻击者的注册表
     const packageManager = env.isRunningWithBun() ? 'bun' : 'npm'
     const installResult = await execFileNoThrowWithCwd(
       packageManager,
@@ -513,13 +507,13 @@ To fix this issue:
     )
     if (installResult.code !== 0) {
       const error = new AutoUpdaterError(
-        `Failed to install new version of claude: ${installResult.stdout} ${installResult.stderr}`,
+        `安装新版本 claude 失败: ${installResult.stdout} ${installResult.stderr}`,
       )
       logError(error)
       return 'install_failed'
     }
 
-    // Set installMethod to 'global' to track npm global installations
+    // 设置 installMethod 为 'global' 以跟踪 npm 全局安装
     saveGlobalConfig(current => ({
       ...current,
       installMethod: 'global',
@@ -527,19 +521,19 @@ To fix this issue:
 
     return 'success'
   } finally {
-    // Ensure we always release the lock
+    // 确保始终释放锁
     await releaseLock()
   }
 }
 
 /**
- * Remove claude aliases from shell configuration files
- * This helps clean up old installation methods when switching to native or npm global
+ * 从 shell 配置文件中移除 claude 别名
+ * 这有助于在切换到原生或 npm 全局安装时清理旧的安装方法
  */
 async function removeClaudeAliasesFromShellConfigs(): Promise<void> {
   const configMap = getShellConfigPaths()
 
-  // Process each shell config file
+  // 处理每个 shell 配置文件
   for (const [, configFile] of Object.entries(configMap)) {
     try {
       const lines = await readFileLines(configFile)
@@ -549,11 +543,11 @@ async function removeClaudeAliasesFromShellConfigs(): Promise<void> {
 
       if (hadAlias) {
         await writeFileLines(configFile, filtered)
-        logForDebugging(`Removed claude alias from ${configFile}`)
+        logForDebugging(`已从 ${configFile} 移除 claude 别名`)
       }
     } catch (error) {
-      // Don't fail the whole operation if one file can't be processed
-      logForDebugging(`Failed to remove alias from ${configFile}: ${error}`, {
+      // 不要因为一个文件处理失败而使整个操作失败
+      logForDebugging(`从 ${configFile} 移除别名失败: ${error}`, {
         level: 'error',
       })
     }

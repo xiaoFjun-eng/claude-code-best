@@ -14,29 +14,29 @@ import {
 
 const inputSchema = lazySchema(() =>
   z.strictObject({
-    query: z.string().min(2).describe('The search query to use'),
+    query: z.string().min(2).describe('要使用的搜索查询'),
     allowed_domains: z
       .array(z.string())
       .optional()
-      .describe('Only include search results from these domains'),
+      .describe('仅包含来自这些域名的搜索结果'),
     blocked_domains: z
       .array(z.string())
       .optional()
-      .describe('Never include search results from these domains'),
+      .describe('绝不包含来自这些域名的搜索结果'),
   }),
 )
 type InputSchema = ReturnType<typeof inputSchema>
 
 const searchResultSchema = lazySchema(() => {
   const searchHitSchema = z.object({
-    title: z.string().describe('The title of the search result'),
-    url: z.string().describe('The URL of the search result'),
-    snippet: z.string().optional().describe('A short description of the search result'),
+    title: z.string().describe('搜索结果的标题'),
+    url: z.string().describe('搜索结果的 URL'),
+    snippet: z.string().optional().describe('搜索结果的简短描述'),
   })
 
   return z.object({
-    tool_use_id: z.string().describe('ID of the tool use'),
-    content: z.array(searchHitSchema).describe('Array of search hits'),
+    tool_use_id: z.string().describe('工具使用的 ID'),
+    content: z.array(searchHitSchema).describe('搜索结果数组'),
   })
 })
 
@@ -44,43 +44,43 @@ export type SearchResult = z.infer<ReturnType<typeof searchResultSchema>>
 
 const outputSchema = lazySchema(() =>
   z.object({
-    query: z.string().describe('The search query that was executed'),
+    query: z.string().describe('已执行的搜索查询'),
     results: z
       .array(z.union([searchResultSchema(), z.string()]))
-      .describe('Search results and/or text commentary from the model'),
+      .describe('搜索结果和/或模型的文本评论'),
     durationSeconds: z
       .number()
-      .describe('Time taken to complete the search operation'),
+      .describe('完成搜索操作所花费的时间'),
   }),
 )
 type OutputSchema = ReturnType<typeof outputSchema>
 
 export type Output = z.infer<OutputSchema>
 
-// Re-export WebSearchProgress from centralized types to break import cycles
+// 从集中类型重新导出 WebSearchProgress 以打破导入循环
 export type { WebSearchProgress } from 'src/types/tools.js'
 
 import type { WebSearchProgress } from 'src/types/tools.js'
 
 export const WebSearchTool = buildTool({
   name: WEB_SEARCH_TOOL_NAME,
-  searchHint: 'search the web for current information',
+  searchHint: '搜索网络以获取当前信息',
   maxResultSizeChars: 100_000,
   shouldDefer: true,
   async description(input) {
-    return `Claude wants to search the web for: ${input.query}`
+    return `Claude 想要搜索网络：${input.query}`
   },
   userFacingName() {
-    return 'Web Search'
+    return '网络搜索'
   },
   getToolUseSummary,
   getActivityDescription(input) {
     const summary = getToolUseSummary(input)
-    return summary ? `Searching for ${summary}` : 'Searching the web'
+    return summary ? `正在搜索 ${summary}` : '正在搜索网络'
   },
   isEnabled() {
-    // Always enabled — the adapter factory selects the appropriate backend
-    // (API server-side search or Bing fallback) based on provider capabilities.
+    // 始终启用 — 适配器工厂根据提供者能力选择合适的后端
+    // （API 服务端搜索或 Bing 回退）
     return true
   },
   get inputSchema(): InputSchema {
@@ -101,7 +101,7 @@ export const WebSearchTool = buildTool({
   async checkPermissions(_input): Promise<PermissionResult> {
     return {
       behavior: 'passthrough',
-      message: 'WebSearchTool requires permission.',
+      message: 'WebSearchTool 需要权限。',
       suggestions: [
         {
           type: 'addRules',
@@ -126,7 +126,7 @@ export const WebSearchTool = buildTool({
     if (!query.length) {
       return {
         result: false,
-        message: 'Error: Missing query',
+        message: '错误：缺少查询',
         errorCode: 1,
       }
     }
@@ -134,7 +134,7 @@ export const WebSearchTool = buildTool({
       return {
         result: false,
         message:
-          'Error: Cannot specify both allowed_domains and blocked_domains in the same request',
+          '错误：不能在同一个请求中同时指定 allowed_domains 和 blocked_domains',
         errorCode: 2,
       }
     }
@@ -163,7 +163,7 @@ export const WebSearchTool = buildTool({
     const endTime = performance.now()
     const durationSeconds = (endTime - startTime) / 1000
 
-    // Convert adapter SearchResult[] to legacy Output format
+    // 将适配器的 SearchResult[] 转换为旧的输出格式
     const results: (SearchResult | string)[] = []
     if (adapterResults.length > 0) {
       results.push({
@@ -171,7 +171,7 @@ export const WebSearchTool = buildTool({
         content: adapterResults.map(r => ({ title: r.title, url: r.url, snippet: r.snippet })),
       })
     } else {
-      results.push('No search results found.')
+      results.push('未找到搜索结果。')
     }
 
     const data: Output = {
@@ -184,7 +184,7 @@ export const WebSearchTool = buildTool({
   mapToolResultToToolResultBlockParam(output, toolUseID) {
     const { query, results } = output
 
-    let formattedOutput = `Web search results for query: "${query}"\n\n`
+    let formattedOutput = `“${query}”的网络搜索结果：\n\n`
 
     ;(results ?? []).forEach(result => {
       if (result == null) {
@@ -194,23 +194,23 @@ export const WebSearchTool = buildTool({
         formattedOutput += result + '\n\n'
       } else {
         if (result.content?.length > 0) {
-          formattedOutput += 'Links:\n'
+          formattedOutput += '链接：\n'
           for (const link of result.content) {
             formattedOutput += `  - [${link.title}](${link.url})`
             if (link.snippet) {
-              formattedOutput += `: ${link.snippet}`
+              formattedOutput += `：${link.snippet}`
             }
             formattedOutput += '\n'
           }
           formattedOutput += '\n'
         } else {
-          formattedOutput += 'No links found.\n\n'
+          formattedOutput += '未找到链接。\n\n'
         }
       }
     })
 
     formattedOutput +=
-      '\nREMINDER: You MUST include the sources above in your response to the user using markdown hyperlinks.'
+      '\n提醒：您必须在回复用户时使用 Markdown 超链接包含上述来源。'
 
     return {
       tool_use_id: toolUseID,

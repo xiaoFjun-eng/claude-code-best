@@ -32,13 +32,13 @@ const inputSchema = lazySchema(() =>
     action: z
       .enum(['keep', 'remove'])
       .describe(
-        '"keep" leaves the worktree and branch on disk; "remove" deletes both.',
+        '"keep" 保留磁盘上的工作树和分支；"remove" 删除两者。',
       ),
     discard_changes: z
       .boolean()
       .optional()
       .describe(
-        'Required true when action is "remove" and the worktree has uncommitted files or unmerged commits. The tool will refuse and list them otherwise.',
+        '当 action 为 "remove" 且工作树有未提交文件或未合并提交时必须为 true。否则工具将拒绝并列出它们。',
       ),
   }),
 )
@@ -65,16 +65,13 @@ type ChangeSummary = {
 }
 
 /**
- * Returns null when state cannot be reliably determined — callers that use
- * this as a safety gate must treat null as "unknown, assume unsafe"
- * (fail-closed). A silent 0/0 would let cleanupWorktree destroy real work.
+ * 当状态无法可靠确定时返回 null —— 使用此函数作为安全门禁的调用方必须将 null 视为“未知，假定不安全”（故障关闭）。
+ * 静默的 0/0 会让 cleanupWorktree 破坏真正的工作。
  *
- * Null is returned when:
- * - git status or rev-list exit non-zero (lock file, corrupt index, bad ref)
- * - originalHeadCommit is undefined but git status succeeded — this is the
- *   hook-based-worktree-wrapping-git case (worktree.ts:525-532 doesn't set
- *   originalHeadCommit). We can see the working tree is git, but cannot count
- *   commits without a baseline, so we cannot prove the branch is clean.
+ * 在以下情况下返回 null：
+ * - git status 或 rev-list 退出码非零（锁文件、损坏的索引、错误的引用）
+ * - originalHeadCommit 为 undefined 但 git status 成功 —— 这是基于钩子的工作树包装 git 的情况（worktree.ts:525-532 未设置 originalHeadCommit）。
+ *   我们可以看到工作树是 git 仓库，但没有基线无法计算提交数，因此无法证明分支是干净的。
  */
 async function countWorktreeChanges(
   worktreePath: string,
@@ -92,8 +89,7 @@ async function countWorktreeChanges(
   const changedFiles = count(status.stdout.split('\n'), l => l.trim() !== '')
 
   if (!originalHeadCommit) {
-    // git status succeeded → this is a git repo, but without a baseline
-    // commit we cannot count commits. Fail-closed rather than claim 0.
+    // git status 成功 → 这是一个 git 仓库，但没有基线提交，无法计算提交数。故障关闭，而不是声称 0。
     return null
   }
 
@@ -113,30 +109,25 @@ async function countWorktreeChanges(
 }
 
 /**
- * Restore session state to reflect the original directory.
- * This is the inverse of the session-level mutations in EnterWorktreeTool.call().
+ * 恢复会话状态以反映原始目录。
+ * 这是 EnterWorktreeTool.call() 中会话级变更的逆向操作。
  *
- * keepWorktree()/cleanupWorktree() handle process.chdir and currentWorktreeSession;
- * this handles everything above the worktree utility layer.
+ * keepWorktree()/cleanupWorktree() 处理 process.chdir 和 currentWorktreeSession；
+ * 此函数处理工作树工具层以上的所有内容。
  */
 function restoreSessionToOriginalCwd(
   originalCwd: string,
   projectRootIsWorktree: boolean,
 ): void {
   setCwd(originalCwd)
-  // EnterWorktree sets originalCwd to the *worktree* path (intentional — see
-  // state.ts getProjectRoot comment). Reset to the real original.
+  // EnterWorktree 将 originalCwd 设置为 *工作树* 路径（有意为之 —— 参见 state.ts 中 getProjectRoot 的注释）。重置为真正的原始值。
   setOriginalCwd(originalCwd)
-  // --worktree startup sets projectRoot to the worktree; mid-session
-  // EnterWorktreeTool does not. Only restore when it was actually changed —
-  // otherwise we'd move projectRoot to wherever the user had cd'd before
-  // entering the worktree (session.originalCwd), breaking the "stable project
-  // identity" contract.
+  // --worktree 启动时将 projectRoot 设置为工作树；会话中途的 EnterWorktreeTool 不会设置。仅在真正更改时恢复 ——
+  // 否则我们会将 projectRoot 移动到用户进入工作树之前 cd 到的任何位置（session.originalCwd），破坏“稳定项目标识”的约定。
   if (projectRootIsWorktree) {
     setProjectRoot(originalCwd)
-    // setup.ts's --worktree block called updateHooksConfigSnapshot() to re-read
-    // hooks from the worktree. Restore symmetrically. (Mid-session
-    // EnterWorktreeTool never touched the snapshot, so no-op there.)
+    // setup.ts 的 --worktree 块调用了 updateHooksConfigSnapshot() 以从工作树重新读取钩子。对称地恢复。
+    // （会话中途的 EnterWorktreeTool 从未触及快照，因此此处无操作。）
     updateHooksConfigSnapshot()
   }
   saveWorktreeState(null)
@@ -147,10 +138,10 @@ function restoreSessionToOriginalCwd(
 
 export const ExitWorktreeTool: Tool<InputSchema, Output> = buildTool({
   name: EXIT_WORKTREE_TOOL_NAME,
-  searchHint: 'exit a worktree session and return to the original directory',
+  searchHint: '退出工作树会话并返回到原始目录',
   maxResultSizeChars: 100_000,
   async description() {
-    return 'Exits a worktree session created by EnterWorktree and restores the original working directory'
+    return '退出由 EnterWorktree 创建的工作树会话并恢复原始工作目录'
   },
   async prompt() {
     return getExitWorktreeToolPrompt()
@@ -162,7 +153,7 @@ export const ExitWorktreeTool: Tool<InputSchema, Output> = buildTool({
     return outputSchema()
   },
   userFacingName() {
-    return 'Exiting worktree'
+    return '退出工作树'
   },
   shouldDefer: true,
   isDestructive(input) {
@@ -172,17 +163,15 @@ export const ExitWorktreeTool: Tool<InputSchema, Output> = buildTool({
     return input.action
   },
   async validateInput(input) {
-    // Scope guard: getCurrentWorktreeSession() is null unless EnterWorktree
-    // (specifically createWorktreeForSession) ran in THIS session. Worktrees
-    // created by `git worktree add`, or by EnterWorktree in a previous
-    // session, do not populate it. This is the sole entry gate — everything
-    // past this point operates on a path EnterWorktree created.
+    // 作用域门禁：除非 EnterWorktree（具体来说是 createWorktreeForSession）在 *本次* 会话中运行，否则 getCurrentWorktreeSession() 为 null。
+    // 由 `git worktree add` 创建的工作树，或由先前会话中的 EnterWorktree 创建的工作树，不会填充它。这是唯一的入口门禁 ——
+    // 此后的所有操作都在 EnterWorktree 创建的路径上进行。
     const session = getCurrentWorktreeSession()
     if (!session) {
       return {
         result: false,
         message:
-          'No-op: there is no active EnterWorktree session to exit. This tool only operates on worktrees created by EnterWorktree in the current session — it will not touch worktrees created manually or in a previous session. No filesystem changes were made.',
+          '无操作：没有活动的 EnterWorktree 会话可退出。此工具仅操作由 EnterWorktree 在当前会话中创建的工作树 —— 不会触碰手动创建或先前会话中创建的工作树。未对文件系统进行任何更改。',
         errorCode: 1,
       }
     }
@@ -195,7 +184,7 @@ export const ExitWorktreeTool: Tool<InputSchema, Output> = buildTool({
       if (summary === null) {
         return {
           result: false,
-          message: `Could not verify worktree state at ${session.worktreePath}. Refusing to remove without explicit confirmation. Re-invoke with discard_changes: true to proceed — or use action: "keep" to preserve the worktree.`,
+          message: `无法验证 ${session.worktreePath} 的工作树状态。拒绝在没有明确确认的情况下删除。请使用 discard_changes: true 重新调用以继续 — 或使用 action: "keep" 保留工作树。`,
           errorCode: 3,
         }
       }
@@ -204,17 +193,17 @@ export const ExitWorktreeTool: Tool<InputSchema, Output> = buildTool({
         const parts: string[] = []
         if (changedFiles > 0) {
           parts.push(
-            `${changedFiles} uncommitted ${changedFiles === 1 ? 'file' : 'files'}`,
+            `${changedFiles} 个未提交的${changedFiles === 1 ? '文件' : '文件'}`,
           )
         }
         if (commits > 0) {
           parts.push(
-            `${commits} ${commits === 1 ? 'commit' : 'commits'} on ${session.worktreeBranch ?? 'the worktree branch'}`,
+            `${commits} 个${commits === 1 ? '提交' : '提交'} ${session.worktreeBranch ? `在工作树分支 ${session.worktreeBranch} 上` : '在工作树分支上'}`,
           )
         }
         return {
           result: false,
-          message: `Worktree has ${parts.join(' and ')}. Removing will discard this work permanently. Confirm with the user, then re-invoke with discard_changes: true — or use action: "keep" to preserve the worktree.`,
+          message: `工作树有 ${parts.join(' 和 ')}。删除将永久丢弃这些工作。请与用户确认，然后使用 discard_changes: true 重新调用 — 或使用 action: "keep" 保留工作树。`,
           errorCode: 2,
         }
       }
@@ -227,12 +216,11 @@ export const ExitWorktreeTool: Tool<InputSchema, Output> = buildTool({
   async call(input) {
     const session = getCurrentWorktreeSession()
     if (!session) {
-      // validateInput guards this, but the session is module-level mutable
-      // state — defend against a race between validation and execution.
-      throw new Error('Not in a worktree session')
+      // validateInput 会守卫这一点，但会话是模块级的可变状态 —— 防止验证和执行之间的竞争条件。
+      throw new Error('不在工作树会话中')
     }
 
-    // Capture before keepWorktree/cleanupWorktree null out currentWorktreeSession.
+    // 在 keepWorktree/cleanupWorktree 将 currentWorktreeSession 置为 null 之前捕获。
     const {
       originalCwd,
       worktreePath,
@@ -241,18 +229,13 @@ export const ExitWorktreeTool: Tool<InputSchema, Output> = buildTool({
       originalHeadCommit,
     } = session
 
-    // --worktree startup calls setOriginalCwd(getCwd()) and
-    // setProjectRoot(getCwd()) back-to-back right after setCwd(worktreePath)
-    // (setup.ts:235/239), so both hold the same realpath'd value and BashTool
-    // cd never touches either. Mid-session EnterWorktreeTool sets originalCwd
-    // but NOT projectRoot. (Can't use getCwd() — BashTool mutates it on every
-    // cd. Can't use session.worktreePath — it's join()'d, not realpath'd.)
+    // --worktree 启动在 setCwd(worktreePath) 之后立即连续调用 setOriginalCwd(getCwd()) 和 setProjectRoot(getCwd())
+    // （setup.ts:235/239），因此两者都持有相同的 realpath 值，BashTool cd 从不触及它们。会话中途的 EnterWorktreeTool 设置 originalCwd 但不设置 projectRoot。
+    // （不能使用 getCwd() — BashTool 在每次 cd 时都会修改它。不能使用 session.worktreePath — 它是 join() 的结果，不是 realpath。）
     const projectRootIsWorktree = getProjectRoot() === getOriginalCwd()
 
-    // Re-count at execution time for accurate analytics and output — the
-    // worktree state at validateInput time may not match now. Null (git
-    // failure) falls back to 0/0; safety gating already happened in
-    // validateInput, so this only affects analytics + messaging.
+    // 在执行时重新计数以获得准确的分析和输出 —— validateInput 时的工作树状态可能已经改变。null（git 失败）回退到 0/0；
+    // 安全门禁已在 validateInput 中完成，因此这只影响分析和消息。
     const { changedFiles, commits } = (await countWorktreeChanges(
       worktreePath,
       originalHeadCommit,
@@ -269,7 +252,7 @@ export const ExitWorktreeTool: Tool<InputSchema, Output> = buildTool({
       })
 
       const tmuxNote = tmuxSessionName
-        ? ` Tmux session ${tmuxSessionName} is still running; reattach with: tmux attach -t ${tmuxSessionName}`
+        ? ` Tmux 会话 ${tmuxSessionName} 仍在运行；重新附加请使用：tmux attach -t ${tmuxSessionName}`
         : ''
       return {
         data: {
@@ -278,7 +261,7 @@ export const ExitWorktreeTool: Tool<InputSchema, Output> = buildTool({
           worktreePath,
           worktreeBranch,
           tmuxSessionName,
-          message: `Exited worktree. Your work is preserved at ${worktreePath}${worktreeBranch ? ` on branch ${worktreeBranch}` : ''}. Session is now back in ${originalCwd}.${tmuxNote}`,
+          message: `已退出工作树。您的工作已保留在 ${worktreePath}${worktreeBranch ? ` 分支 ${worktreeBranch} 上` : ''}。会话现在回到 ${originalCwd}。${tmuxNote}`,
         },
       }
     }
@@ -298,15 +281,15 @@ export const ExitWorktreeTool: Tool<InputSchema, Output> = buildTool({
 
     const discardParts: string[] = []
     if (commits > 0) {
-      discardParts.push(`${commits} ${commits === 1 ? 'commit' : 'commits'}`)
+      discardParts.push(`${commits} 个${commits === 1 ? '提交' : '提交'}`)
     }
     if (changedFiles > 0) {
       discardParts.push(
-        `${changedFiles} uncommitted ${changedFiles === 1 ? 'file' : 'files'}`,
+        `${changedFiles} 个未提交的${changedFiles === 1 ? '文件' : '文件'}`,
       )
     }
     const discardNote =
-      discardParts.length > 0 ? ` Discarded ${discardParts.join(' and ')}.` : ''
+      discardParts.length > 0 ? ` 已丢弃 ${discardParts.join(' 和 ')}。` : ''
     return {
       data: {
         action: 'remove' as const,
@@ -315,7 +298,7 @@ export const ExitWorktreeTool: Tool<InputSchema, Output> = buildTool({
         worktreeBranch,
         discardedFiles: changedFiles,
         discardedCommits: commits,
-        message: `Exited and removed worktree at ${worktreePath}.${discardNote} Session is now back in ${originalCwd}.`,
+        message: `已退出并删除工作树 ${worktreePath}。${discardNote}会话现在回到 ${originalCwd}。`,
       },
     }
   },

@@ -22,10 +22,10 @@ import {
 import { cleanupOldVersions } from './nativeInstaller/index.js'
 import { autoUpdateMarketplacesAndPluginsInBackground } from './plugins/pluginAutoupdate.js'
 
-// 24 hours in milliseconds
+// 24 小时的毫秒数
 const RECURRING_CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000
 
-// 10 minutes after start.
+// 启动后 10 分钟
 const DELAY_VERY_SLOW_OPERATIONS_THAT_HAPPEN_EVERY_SESSION = 10 * 60 * 1000
 
 export function startBackgroundHousekeeping(): void {
@@ -42,7 +42,7 @@ export function startBackgroundHousekeeping(): void {
 
   let needsCleanup = true
   async function runVerySlowOps(): Promise<void> {
-    // If the user did something in the last minute, don't make them wait for these slow operations to run.
+    // 如果用户在过去一分钟内有操作，不要让他们等待这些慢操作运行
     if (
       getIsInteractive() &&
       getLastInteractionTime() > Date.now() - 1000 * 60
@@ -59,7 +59,7 @@ export function startBackgroundHousekeeping(): void {
       await cleanupOldMessageFilesInBackground()
     }
 
-    // If the user did something in the last minute, don't make them wait for these slow operations to run.
+    // 如果用户在过去一分钟内有操作，不要让他们等待这些慢操作运行
     if (
       getIsInteractive() &&
       getLastInteractionTime() > Date.now() - 1000 * 60
@@ -79,16 +79,16 @@ export function startBackgroundHousekeeping(): void {
     DELAY_VERY_SLOW_OPERATIONS_THAT_HAPPEN_EVERY_SESSION,
   ).unref()
 
-  // For long-running sessions, schedule recurring cleanup every 24 hours.
-  // Both cleanup functions use marker files and locks to throttle to once per day
-  // and skip immediately if another process holds the lock.
+  // 对于长时间运行的会话，每 24 小时安排一次定期清理。
+  // 两个清理函数都使用标记文件和锁来控制为每天一次，
+  // 如果另一个进程持有锁，则跳过执行。
   if (process.env.USER_TYPE === 'ant') {
     const interval = setInterval(() => {
       void cleanupNpmCacheForAnthropicPackages()
       void cleanupOldVersionsThrottled()
     }, RECURRING_CLEANUP_INTERVAL_MS)
 
-    // Don't let this interval keep the process alive
+    // 不要让这个定时器使进程无法退出
     interval.unref()
   }
 }

@@ -23,24 +23,24 @@ import {
 
 const inputSchema = lazySchema(() =>
   z.strictObject({
-    url: z.string().url().describe('The URL to fetch content from'),
-    prompt: z.string().describe('The prompt to run on the fetched content'),
+    url: z.string().url().describe('要获取内容的 URL'),
+    prompt: z.string().describe('对获取的内容运行的提示词'),
   }),
 )
 type InputSchema = ReturnType<typeof inputSchema>
 
 const outputSchema = lazySchema(() =>
   z.object({
-    bytes: z.number().describe('Size of the fetched content in bytes'),
-    code: z.number().describe('HTTP response code'),
-    codeText: z.string().describe('HTTP response code text'),
+    bytes: z.number().describe('获取的内容大小（字节）'),
+    code: z.number().describe('HTTP 响应状态码'),
+    codeText: z.string().describe('HTTP 响应状态码文本'),
     result: z
       .string()
-      .describe('Processed result from applying the prompt to the content'),
+      .describe('将提示词应用于内容后的处理结果'),
     durationMs: z
       .number()
-      .describe('Time taken to fetch and process the content'),
-    url: z.string().describe('The URL that was fetched'),
+      .describe('获取和处理内容所花费的时间（毫秒）'),
+    url: z.string().describe('已获取的 URL'),
   }),
 )
 type OutputSchema = ReturnType<typeof outputSchema>
@@ -53,29 +53,29 @@ function webFetchToolInputToPermissionRuleContent(input: {
   try {
     const parsedInput = WebFetchTool.inputSchema.safeParse(input)
     if (!parsedInput.success) {
-      return `input:${input.toString()}`
+      return `输入:${input.toString()}`
     }
     const { url } = parsedInput.data
     const hostname = new URL(url).hostname
-    return `domain:${hostname}`
+    return `域名:${hostname}`
   } catch {
-    return `input:${input.toString()}`
+    return `输入:${input.toString()}`
   }
 }
 
 export const WebFetchTool = buildTool({
   name: WEB_FETCH_TOOL_NAME,
-  searchHint: 'fetch and extract content from a URL',
-  // 100K chars - tool result persistence threshold
+  searchHint: '从 URL 获取并提取内容',
+  // 10 万字符 - 工具结果持久化阈值
   maxResultSizeChars: 100_000,
   shouldDefer: true,
   async description(input) {
     const { url } = input as { url: string }
     try {
       const hostname = new URL(url).hostname
-      return `Claude wants to fetch content from ${hostname}`
+      return `Claude 想要从 ${hostname} 获取内容`
     } catch {
-      return `Claude wants to fetch content from this URL`
+      return `Claude 想要从此 URL 获取内容`
     }
   },
   userFacingName() {
@@ -84,7 +84,7 @@ export const WebFetchTool = buildTool({
   getToolUseSummary,
   getActivityDescription(input) {
     const summary = getToolUseSummary(input)
-    return summary ? `Fetching ${summary}` : 'Fetching web page'
+    return summary ? `正在获取 ${summary}` : '正在获取网页'
   },
   get inputSchema(): InputSchema {
     return inputSchema()
@@ -105,7 +105,7 @@ export const WebFetchTool = buildTool({
     const appState = context.getAppState()
     const permissionContext = appState.toolPermissionContext
 
-    // Check if the hostname is in the preapproved list
+    // 检查主机名是否在预批准列表中
     try {
       const { url } = input as { url: string }
       const parsedUrl = new URL(url)
@@ -113,14 +113,14 @@ export const WebFetchTool = buildTool({
         return {
           behavior: 'allow',
           updatedInput: input,
-          decisionReason: { type: 'other', reason: 'Preapproved host' },
+          decisionReason: { type: 'other', reason: '预批准的主机' },
         }
       }
     } catch {
-      // If URL parsing fails, continue with normal permission checks
+      // 如果 URL 解析失败，继续正常权限检查
     }
 
-    // Check for a rule specific to the tool input (matching hostname)
+    // 检查特定于工具输入的规则（匹配主机名）
     const ruleContent = webFetchToolInputToPermissionRuleContent(input)
 
     const denyRule = getRuleByContentsForTool(
@@ -131,7 +131,7 @@ export const WebFetchTool = buildTool({
     if (denyRule) {
       return {
         behavior: 'deny',
-        message: `${WebFetchTool.name} denied access to ${ruleContent}.`,
+        message: `${WebFetchTool.name} 拒绝访问 ${ruleContent}。`,
         decisionReason: {
           type: 'rule',
           rule: denyRule,
@@ -147,7 +147,7 @@ export const WebFetchTool = buildTool({
     if (askRule) {
       return {
         behavior: 'ask',
-        message: `Claude requested permissions to use ${WebFetchTool.name}, but you haven't granted it yet.`,
+        message: `Claude 请求使用 ${WebFetchTool.name} 的权限，但您尚未授予。`,
         decisionReason: {
           type: 'rule',
           rule: askRule,
@@ -174,18 +174,15 @@ export const WebFetchTool = buildTool({
 
     return {
       behavior: 'ask',
-      message: `Claude requested permissions to use ${WebFetchTool.name}, but you haven't granted it yet.`,
+      message: `Claude 请求使用 ${WebFetchTool.name} 的权限，但您尚未授予。`,
       suggestions: buildSuggestions(ruleContent),
     }
   },
   async prompt(_options) {
-    // Always include the auth warning regardless of whether ToolSearch is
-    // currently in the tools list. Conditionally toggling this prefix based
-    // on ToolSearch availability caused the tool description to flicker
-    // between SDK query() calls (when ToolSearch enablement varies due to
-    // MCP tool count thresholds), invalidating the Anthropic API prompt
-    // cache on each toggle — two consecutive cache misses per flicker event.
-    return `IMPORTANT: WebFetch WILL FAIL for authenticated or private URLs. Before using this tool, check if the URL points to an authenticated service (e.g. Google Docs, Confluence, Jira, GitHub). If so, look for a specialized MCP tool that provides authenticated access.
+    // 无论 ToolSearch 当前是否在工具列表中，始终包含认证警告。
+    // 根据 ToolSearch 可用性有条件地切换此前缀会导致工具描述在 SDK query() 调用之间闪烁（当 ToolSearch 因 MCP 工具计数阈值变化而启用状态变化时），
+    // 从而在每次切换时使 Anthropic API 提示缓存失效 — 每次闪烁事件会导致两次连续的缓存未命中。
+    return `重要提示：WebFetch 对于需要认证的私有 URL 将会失败。在使用此工具之前，请检查 URL 是否指向需要认证的服务（例如 Google Docs、Confluence、Jira、GitHub）。如果是，请寻找提供认证访问的专用 MCP 工具。
 ${DESCRIPTION}`
   },
   async validateInput(input) {
@@ -195,7 +192,7 @@ ${DESCRIPTION}`
     } catch {
       return {
         result: false,
-        message: `Error: Invalid URL "${url}". The URL provided could not be parsed.`,
+        message: `错误：无效的 URL“${url}”。提供的 URL 无法解析。`,
         meta: { reason: 'invalid_url' },
         errorCode: 1,
       }
@@ -213,26 +210,26 @@ ${DESCRIPTION}`
 
     const response = await getURLMarkdownContent(url, abortController)
 
-    // Check if we got a redirect to a different host
+    // 检查是否重定向到了不同的主机
     if ('type' in response && response.type === 'redirect') {
       const statusText =
         response.statusCode === 301
-          ? 'Moved Permanently'
+          ? '永久移动'
           : response.statusCode === 308
-            ? 'Permanent Redirect'
+            ? '永久重定向'
             : response.statusCode === 307
-              ? 'Temporary Redirect'
-              : 'Found'
+              ? '临时重定向'
+              : '已找到'
 
-      const message = `REDIRECT DETECTED: The URL redirects to a different host.
+      const message = `检测到重定向：该 URL 重定向到了不同的主机。
 
-Original URL: ${response.originalUrl}
-Redirect URL: ${response.redirectUrl}
-Status: ${response.statusCode} ${statusText}
+原始 URL：${response.originalUrl}
+重定向 URL：${response.redirectUrl}
+状态：${response.statusCode} ${statusText}
 
-To complete your request, I need to fetch content from the redirected URL. Please use WebFetch again with these parameters:
-- url: "${response.redirectUrl}"
-- prompt: "${prompt}"`
+为了完成您的请求，我需要从重定向后的 URL 获取内容。请使用以下参数再次调用 WebFetch：
+- url：“${response.redirectUrl}”
+- prompt：“${prompt}”`
 
       const output: Output = {
         bytes: Buffer.byteLength(message),
@@ -277,11 +274,10 @@ To complete your request, I need to fetch content from the redirected URL. Pleas
       )
     }
 
-    // Binary content (PDFs, etc.) was additionally saved to disk with a
-    // mime-derived extension. Note it so Claude can inspect the raw file
-    // if the Haiku summary above isn't enough.
+    // 二进制内容（PDF 等）会额外保存到磁盘，并使用从 MIME 派生的扩展名。
+    // 如果 Haiku 总结不够，标记出来以便 Claude 可以检查原始文件。
     if (persistedPath) {
-      result += `\n\n[Binary content (${contentType}, ${formatFileSize(persistedSize ?? bytes)}) also saved to ${persistedPath}]`
+      result += `\n\n[二进制内容（${contentType}，大小 ${formatFileSize(persistedSize ?? bytes)}）也已保存到 ${persistedPath}]`
     }
 
     const output: Output = {

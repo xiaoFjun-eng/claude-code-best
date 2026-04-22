@@ -12,24 +12,24 @@ const inputSchema = lazySchema(() =>
     task_id: z
       .string()
       .optional()
-      .describe('The ID of the background task to stop'),
-    // shell_id is accepted for backward compatibility with the deprecated KillShell tool
-    shell_id: z.string().optional().describe('Deprecated: use task_id instead'),
+      .describe('要停止的后台任务的 ID'),
+    // 保留 shell_id 是为了与已弃用的 KillShell 工具保持向后兼容
+    shell_id: z.string().optional().describe('已弃用：请改用 task_id'),
   }),
 )
 type InputSchema = ReturnType<typeof inputSchema>
 
 const outputSchema = lazySchema(() =>
   z.object({
-    message: z.string().describe('Status message about the operation'),
-    task_id: z.string().describe('The ID of the task that was stopped'),
-    task_type: z.string().describe('The type of the task that was stopped'),
-    // Optional: tool outputs are persisted to transcripts and replayed on --resume
-    // without re-validation, so sessions from before this field was added lack it.
+    message: z.string().describe('关于操作的状态消息'),
+    task_id: z.string().describe('已停止的任务的 ID'),
+    task_type: z.string().describe('已停止的任务的类型'),
+    // 可选：工具输出会被持久化到对话记录中，并在 --resume 时回放，而不会重新验证，
+    // 因此在此字段添加之前的会话可能没有该字段。
     command: z
       .string()
       .optional()
-      .describe('The command or description of the stopped task'),
+      .describe('已停止任务的命令或描述'),
   }),
 )
 type OutputSchema = ReturnType<typeof outputSchema>
@@ -38,12 +38,11 @@ export type Output = z.infer<OutputSchema>
 
 export const TaskStopTool = buildTool({
   name: TASK_STOP_TOOL_NAME,
-  searchHint: 'kill a running background task',
-  // KillShell is the deprecated name - kept as alias for backward compatibility
-  // with existing transcripts and SDK users
+  searchHint: '终止正在运行的后台任务',
+  // KillShell 是已弃用的名称 - 保留作为别名，用于与现有对话记录和 SDK 用户保持向后兼容
   aliases: ['KillShell'],
   maxResultSizeChars: 100_000,
-  userFacingName: () => (process.env.USER_TYPE === 'ant' ? '' : 'Stop Task'),
+  userFacingName: () => (process.env.USER_TYPE === 'ant' ? '' : '停止任务'),
   get inputSchema(): InputSchema {
     return inputSchema()
   },
@@ -58,12 +57,12 @@ export const TaskStopTool = buildTool({
     return input.task_id ?? input.shell_id ?? ''
   },
   async validateInput({ task_id, shell_id }, { getAppState }) {
-    // Support both task_id and shell_id (deprecated KillShell compat)
+    // 同时支持 task_id 和 shell_id（已弃用的 KillShell 兼容）
     const id = task_id ?? shell_id
     if (!id) {
       return {
         result: false,
-        message: 'Missing required parameter: task_id',
+        message: '缺少必需参数：task_id',
         errorCode: 1,
       }
     }
@@ -74,7 +73,7 @@ export const TaskStopTool = buildTool({
     if (!task) {
       return {
         result: false,
-        message: `No task found with ID: ${id}`,
+        message: `未找到 ID 为 ${id} 的任务`,
         errorCode: 1,
       }
     }
@@ -82,7 +81,7 @@ export const TaskStopTool = buildTool({
     if (task.status !== 'running') {
       return {
         result: false,
-        message: `Task ${id} is not running (status: ${task.status})`,
+        message: `任务 ${id} 未在运行（状态：${task.status}）`,
         errorCode: 3,
       }
     }
@@ -90,7 +89,7 @@ export const TaskStopTool = buildTool({
     return { result: true }
   },
   async description() {
-    return `Stop a running background task by ID`
+    return `按 ID 停止正在运行的后台任务`
   },
   async prompt() {
     return DESCRIPTION
@@ -108,10 +107,10 @@ export const TaskStopTool = buildTool({
     { task_id, shell_id },
     { getAppState, setAppState, abortController },
   ) {
-    // Support both task_id and shell_id (deprecated KillShell compat)
+    // 同时支持 task_id 和 shell_id（已弃用的 KillShell 兼容）
     const id = task_id ?? shell_id
     if (!id) {
-      throw new Error('Missing required parameter: task_id')
+      throw new Error('缺少必需参数：task_id')
     }
 
     const result = await stopTask(id, {
@@ -121,7 +120,7 @@ export const TaskStopTool = buildTool({
 
     return {
       data: {
-        message: `Successfully stopped task: ${result.taskId} (${result.command})`,
+        message: `成功停止任务：${result.taskId}（${result.command}）`,
         task_id: result.taskId,
         task_type: result.taskType,
         command: result.command,

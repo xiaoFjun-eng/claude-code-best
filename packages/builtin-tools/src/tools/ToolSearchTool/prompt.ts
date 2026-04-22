@@ -4,7 +4,7 @@ import { getFeatureValue_CACHED_MAY_BE_STALE } from 'src/services/analytics/grow
 import type { Tool } from 'src/Tool.js'
 import { AGENT_TOOL_NAME } from '../AgentTool/constants.js'
 
-// Dead code elimination: Brief tool name only needed when KAIROS or KAIROS_BRIEF is on
+// 死代码消除：仅在启用 KAIROS 或 KAIROS_BRIEF 时需要 Brief 工具名称
 /* eslint-disable @typescript-eslint/no-require-imports */
 const BRIEF_TOOL_NAME: string | null =
   feature('KAIROS') || feature('KAIROS_BRIEF')
@@ -28,10 +28,8 @@ const PROMPT_HEAD = `获取被延迟加载（deferred）的工具的完整 schem
 
 `
 
-// Matches isDeferredToolsDeltaEnabled in toolSearch.ts (not imported —
-// toolSearch.ts imports from this file). When enabled: tools announced
-// via system-reminder attachments. When disabled: prepended
-// <available-deferred-tools> block (pre-gate behavior).
+// 匹配 toolSearch.ts 中的 isDeferredToolsDeltaEnabled（未导入 — toolSearch.ts 从本文件导入）。
+// 启用时：工具通过 system-reminder 附件宣布。禁用时：使用前置的 <available-deferred-tools> 块（门控前的行为）。
 function getToolLocationHint(): string {
   const deltaEnabled =
     process.env.USER_TYPE === 'ant' ||
@@ -51,28 +49,27 @@ query 形式：
 - "+slack send"：要求名称中包含 "slack"，并用剩余关键词进行排序`
 
 /**
- * Check if a tool should be deferred (requires ToolSearch to load).
- * A tool is deferred if:
- * - It's an MCP tool (always deferred - workflow-specific)
- * - It has shouldDefer: true
+ * 检查某个工具是否应该被延迟（需要 ToolSearch 来加载）。
+ * 满足以下条件之一的工具会被延迟：
+ * - 它是 MCP 工具（总是延迟 —— 工作流相关）
+ * - 它具有 shouldDefer: true
  *
- * A tool is NEVER deferred if it has alwaysLoad: true (MCP tools set this via
- * _meta['anthropic/alwaysLoad']). This check runs first, before any other rule.
+ * 如果工具具有 alwaysLoad: true，则永远不会被延迟（MCP 工具通过 _meta['anthropic/alwaysLoad'] 设置此项）。
+ * 此检查最先执行，在所有其他规则之前。
  */
 export function isDeferredTool(tool: Tool): boolean {
-  // Explicit opt-out via _meta['anthropic/alwaysLoad'] — tool appears in the
-  // initial prompt with full schema. Checked first so MCP tools can opt out.
+  // 通过 _meta['anthropic/alwaysLoad'] 显式退出 —— 工具会以完整 schema 出现在初始提示中。
+  // 首先检查，以便 MCP 工具可以选择退出。
   if (tool.alwaysLoad === true) return false
 
-  // MCP tools are always deferred (workflow-specific)
+  // MCP 工具总是被延迟（工作流相关）
   if (tool.isMcp === true) return true
 
-  // Never defer ToolSearch itself — the model needs it to load everything else
+  // 永远不要延迟 ToolSearch 本身 —— 模型需要它来加载其他所有工具
   if (tool.name === TOOL_SEARCH_TOOL_NAME) return false
 
-  // Fork-first experiment: Agent must be available turn 1, not behind ToolSearch.
-  // Lazy require: static import of forkSubagent → coordinatorMode creates a cycle
-  // through constants/tools.ts at module init.
+  // Fork 优先实验：Agent 必须在第一轮就可用，不能放在 ToolSearch 后面。
+  // 懒加载：静态导入 forkSubagent → coordinatorMode 会在模块初始化时通过 constants/tools.ts 产生循环依赖。
   if (feature('FORK_SUBAGENT') && tool.name === AGENT_TOOL_NAME) {
     type ForkMod = typeof import('../AgentTool/forkSubagent.js')
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -80,11 +77,9 @@ export function isDeferredTool(tool: Tool): boolean {
     if (m.isForkSubagentEnabled()) return false
   }
 
-  // Brief is the primary communication channel whenever the tool is present.
-  // Its prompt contains the text-visibility contract, which the model must
-  // see without a ToolSearch round-trip. No runtime gate needed here: this
-  // tool's isEnabled() IS isBriefEnabled(), so being asked about its deferral
-  // status implies the gate already passed.
+  // Brief 是工具存在时的主要通信通道。
+  // 其提示包含了文本可见性约定，模型必须在不经过 ToolSearch 往返的情况下看到它。
+  // 此处不需要运行时门控：此工具的 isEnabled() 就是 isBriefEnabled()，因此询问其延迟状态意味着门控已经通过。
   if (
     (feature('KAIROS') || feature('KAIROS_BRIEF')) &&
     BRIEF_TOOL_NAME &&
@@ -93,8 +88,8 @@ export function isDeferredTool(tool: Tool): boolean {
     return false
   }
 
-  // SendUserFile is a file-delivery communication channel (sibling of Brief).
-  // Must be immediately available without a ToolSearch round-trip.
+  // SendUserFile 是一个文件交付通信通道（与 Brief 类似）。
+  // 必须立即可用，不能经过 ToolSearch 往返。
   if (
     feature('KAIROS') &&
     SEND_USER_FILE_TOOL_NAME &&
@@ -108,9 +103,8 @@ export function isDeferredTool(tool: Tool): boolean {
 }
 
 /**
- * Format one deferred-tool line for the <available-deferred-tools> user
- * message. Search hints (tool.searchHint) are not rendered — the
- * hints A/B (exp_xenhnnmn0smrx4, stopped Mar 21) showed no benefit.
+ * 为 <available-deferred-tools> 用户消息格式化一行延迟工具信息。
+ * 搜索提示（tool.searchHint）不会被渲染 —— 提示 A/B 测试（exp_xenhnnmn0smrx4，已于 3 月 21 日停止）未显示任何收益。
  */
 export function formatDeferredToolLine(tool: Tool): string {
   return tool.name

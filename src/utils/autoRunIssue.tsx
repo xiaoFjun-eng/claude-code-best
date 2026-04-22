@@ -11,8 +11,8 @@ type Props = {
 }
 
 /**
- * Component that shows a notification about running /issue command
- * with the ability to cancel via ESC key
+ * 显示关于运行 /issue 命令通知的组件
+ * 支持按 ESC 键取消
  */
 export function AutoRunIssueNotification({
   onRun,
@@ -21,10 +21,10 @@ export function AutoRunIssueNotification({
 }: Props): React.ReactNode {
   const hasRunRef = useRef(false)
 
-  // Handle ESC key to cancel
+  // 处理 ESC 键取消
   useKeybinding('confirm:no', onCancel, { context: 'Confirmation' })
 
-  // Run /issue immediately on mount
+  // 挂载后立即运行 /issue
   useEffect(() => {
     if (!hasRunRef.current) {
       hasRunRef.current = true
@@ -35,15 +35,15 @@ export function AutoRunIssueNotification({
   return (
     <Box flexDirection="column" marginTop={1}>
       <Box>
-        <Text bold>Running feedback capture...</Text>
+        <Text bold>正在运行反馈收集...</Text>
       </Box>
       <Box>
         <Text dimColor>
-          Press <KeyboardShortcutHint shortcut="Esc" action="cancel" /> anytime
+          随时按 <KeyboardShortcutHint shortcut="Esc" action="cancel" />
         </Text>
       </Box>
       <Box>
-        <Text dimColor>Reason: {reason}</Text>
+        <Text dimColor>原因：{reason}</Text>
       </Box>
     </Box>
   )
@@ -52,10 +52,10 @@ export function AutoRunIssueNotification({
 export type AutoRunIssueReason = 'feedback_survey_bad' | 'feedback_survey_good'
 
 /**
- * Determines if /issue should auto-run for Ant users
+ * 判断 /issue 是否应为 Ant 用户自动运行
  */
 export function shouldAutoRunIssue(reason: AutoRunIssueReason): boolean {
-  // Only for Ant users
+  // 仅限 Ant 用户
   if (process.env.USER_TYPE !== 'ant') {
     return false
   }
@@ -71,11 +71,11 @@ export function shouldAutoRunIssue(reason: AutoRunIssueReason): boolean {
 }
 
 /**
- * Returns the appropriate command to auto-run based on the reason
- * ANT-ONLY: good-claude command only exists in ant builds
+ * 根据原因返回要自动运行的相应命令
+ * 仅限 Ant 内部：good-claude 命令仅存在于 ant 构建中
  */
 export function getAutoRunCommand(reason: AutoRunIssueReason): string {
-  // Only ant builds have the /good-claude command
+  // 仅 ant 构建具有 /good-claude 命令
   if (process.env.USER_TYPE === 'ant' && reason === 'feedback_survey_good') {
     return '/good-claude'
   }
@@ -83,15 +83,15 @@ export function getAutoRunCommand(reason: AutoRunIssueReason): string {
 }
 
 /**
- * Gets a human-readable description of why /issue is being auto-run
+ * 获取关于为何自动运行 /issue 的人类可读描述
  */
 export function getAutoRunIssueReasonText(reason: AutoRunIssueReason): string {
   switch (reason) {
     case 'feedback_survey_bad':
-      return 'You responded "Bad" to the feedback survey'
+      return '您对反馈调查回复了“差”'
     case 'feedback_survey_good':
-      return 'You responded "Good" to the feedback survey'
+      return '您对反馈调查回复了“好”'
     default:
-      return 'Unknown reason'
+      return '未知原因'
   }
 }

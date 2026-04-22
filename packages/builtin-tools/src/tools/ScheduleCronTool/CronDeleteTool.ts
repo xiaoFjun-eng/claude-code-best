@@ -19,7 +19,7 @@ import { renderDeleteResultMessage, renderDeleteToolUseMessage } from './UI.js'
 
 const inputSchema = lazySchema(() =>
   z.strictObject({
-    id: z.string().describe('Job ID returned by CronCreate.'),
+    id: z.string().describe('CronCreate 返回的任务 ID。'),
   }),
 )
 type InputSchema = ReturnType<typeof inputSchema>
@@ -34,7 +34,7 @@ export type DeleteOutput = z.infer<OutputSchema>
 
 export const CronDeleteTool = buildTool({
   name: CRON_DELETE_TOOL_NAME,
-  searchHint: 'cancel a scheduled cron job',
+  searchHint: '取消一个已计划的 cron 任务',
   maxResultSizeChars: 100_000,
   shouldDefer: true,
   get inputSchema(): InputSchema {
@@ -64,16 +64,16 @@ export const CronDeleteTool = buildTool({
     if (!task) {
       return {
         result: false,
-        message: `No scheduled job with id '${input.id}'`,
+        message: `不存在 ID 为 '${input.id}' 的计划任务`,
         errorCode: 1,
       }
     }
-    // Teammates may only delete their own crons.
+    // 队友只能删除自己的 cron 任务。
     const ctx = getTeammateContext()
     if (ctx && task.agentId !== ctx.agentId) {
       return {
         result: false,
-        message: `Cannot delete cron job '${input.id}': owned by another agent`,
+        message: `无法删除 cron 任务 '${input.id}'：由其他代理拥有`,
         errorCode: 2,
       }
     }
@@ -87,7 +87,7 @@ export const CronDeleteTool = buildTool({
     return {
       tool_use_id: toolUseID,
       type: 'tool_result',
-      content: `Cancelled job ${output.id}.`,
+      content: `已取消任务 ${output.id}。`,
     }
   },
   renderToolUseMessage: renderDeleteToolUseMessage,

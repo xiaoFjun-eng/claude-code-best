@@ -29,14 +29,14 @@ const inputSchema = lazySchema(() =>
     cron: z
       .string()
       .describe(
-        'Standard 5-field cron expression in local time: "M H DoM Mon DoW" (e.g. "*/5 * * * *" = every 5 minutes, "30 14 28 2 *" = Feb 28 at 2:30pm local once).',
+        '标准 5 字段 cron 表达式，使用本地时间："M H DoM Mon DoW"（例如 "*/5 * * * *" = 每 5 分钟，"30 14 28 2 *" = 2 月 28 日下午 2:30 本地时间一次）。',
       ),
-    prompt: z.string().describe('The prompt to enqueue at each fire time.'),
+    prompt: z.string().describe('每次触发时要入队执行的提示词。'),
     recurring: semanticBoolean(z.boolean().optional()).describe(
-      `true (default) = fire on every cron match until deleted or auto-expired after ${DEFAULT_MAX_AGE_DAYS} days. false = fire once at the next match, then auto-delete. Use false for "remind me at X" one-shot requests with pinned minute/hour/dom/month.`,
+      `true（默认）= 每次 cron 匹配时触发，直到删除或 ${DEFAULT_MAX_AGE_DAYS} 天后自动过期。false = 仅在下一次匹配时触发一次，然后自动删除。对于“在 X 时间提醒我”的单次请求（固定分钟/小时/日期/月份）使用 false。`,
     ),
     durable: semanticBoolean(z.boolean().optional()).describe(
-      'true = persist to .claude/scheduled_tasks.json and survive restarts. false (default) = in-memory only, dies when this Claude session ends. Use true only when the user asks the task to survive across sessions.',
+      'true = 持久化到 .claude/scheduled_tasks.json，重启后仍然存在。false（默认）= 仅内存中，此 Claude 会话结束时消失。仅当用户要求任务跨会话持久化时使用 true。',
     ),
   }),
 )
@@ -55,7 +55,7 @@ export type CreateOutput = z.infer<OutputSchema>
 
 export const CronCreateTool = buildTool({
   name: CRON_CREATE_TOOL_NAME,
-  searchHint: 'schedule a recurring or one-shot prompt',
+  searchHint: '计划一个周期性或单次运行的提示词',
   maxResultSizeChars: 100_000,
   shouldDefer: true,
   get inputSchema(): InputSchema {
@@ -83,14 +83,14 @@ export const CronCreateTool = buildTool({
     if (!parseCronExpression(input.cron)) {
       return {
         result: false,
-        message: `Invalid cron expression '${input.cron}'. Expected 5 fields: M H DoM Mon DoW.`,
+        message: `无效的 cron 表达式 '${input.cron}'。应为 5 个字段：M H DoM Mon DoW。`,
         errorCode: 1,
       }
     }
     if (nextCronRunMs(input.cron, Date.now()) === null) {
       return {
         result: false,
-        message: `Cron expression '${input.cron}' does not match any calendar date in the next year.`,
+        message: `cron 表达式 '${input.cron}' 在未来一年内不匹配任何日历日期。`,
         errorCode: 2,
       }
     }
@@ -98,25 +98,23 @@ export const CronCreateTool = buildTool({
     if (tasks.length >= MAX_JOBS) {
       return {
         result: false,
-        message: `Too many scheduled jobs (max ${MAX_JOBS}). Cancel one first.`,
+        message: `计划任务过多（最多 ${MAX_JOBS} 个）。请先取消一个。`,
         errorCode: 3,
       }
     }
-    // Teammates don't persist across sessions, so a durable teammate cron
-    // would orphan on restart (agentId would point to a nonexistent teammate).
+    // 队友不跨会话持久化，因此持久的队友 cron 会在重启后成为孤儿（agentId 会指向一个不存在的队友）。
     if (input.durable && getTeammateContext()) {
       return {
         result: false,
         message:
-          'durable crons are not supported for teammates (teammates do not persist across sessions)',
+          '队友不支持 durable cron（队友不跨会话持久化）',
         errorCode: 4,
       }
     }
     return { result: true }
   },
   async call({ cron, prompt, recurring = true, durable = false }) {
-    // Kill switch forces session-only; schema stays stable so the model sees
-    // no validation errors when the gate flips mid-session.
+    // 终止开关强制为仅会话模式；模式保持稳定，以便当门控在会话中途翻转时模型不会看到验证错误。
     const effectiveDurable = durable && isDurableCronEnabled()
     const id = await addCronTask(
       cron,
@@ -125,11 +123,9 @@ export const CronCreateTool = buildTool({
       effectiveDurable,
       getTeammateContext()?.agentId,
     )
-    // Enable the scheduler so the task fires in this session. The
-    // useScheduledTasks hook polls this flag and will start watching
-    // on the next tick. For durable: false tasks the file never changes
-    // — check() reads the session store directly — but the enable flag
-    // is still what starts the tick loop.
+    // 启用调度器，以便任务在此会话中触发。
+    // useScheduledTasks 钩子会轮询此标志，并在下一个 tick 开始监视。对于 durable: false 的任务，文件从不改变
+    // — check() 直接读取会话存储 — 但启用标志仍然是启动 tick 循环的因素。
     setScheduledTasksEnabled(true)
     return {
       data: {
@@ -142,14 +138,14 @@ export const CronCreateTool = buildTool({
   },
   mapToolResultToToolResultBlockParam(output, toolUseID) {
     const where = output.durable
-      ? 'Persisted to .claude/scheduled_tasks.json'
-      : 'Session-only (not written to disk, dies when Claude exits)'
+      ? '已持久化到 .claude/scheduled_tasks.json'
+      : '仅会话内存（不写入磁盘，Claude 退出时消失）'
     return {
       tool_use_id: toolUseID,
       type: 'tool_result',
       content: output.recurring
-        ? `Scheduled recurring job ${output.id} (${output.humanSchedule}). ${where}. Auto-expires after ${DEFAULT_MAX_AGE_DAYS} days. Use CronDelete to cancel sooner.`
-        : `Scheduled one-shot task ${output.id} (${output.humanSchedule}). ${where}. It will fire once then auto-delete.`,
+        ? `已计划周期性任务 ${output.id}（${output.humanSchedule}）。${where}。将在 ${DEFAULT_MAX_AGE_DAYS} 天后自动过期。如需提前取消，请使用 CronDelete。`
+        : `已计划单次任务 ${output.id}（${output.humanSchedule}）。${where}。它将触发一次后自动删除。`,
     }
   },
   renderToolUseMessage: renderCreateToolUseMessage,

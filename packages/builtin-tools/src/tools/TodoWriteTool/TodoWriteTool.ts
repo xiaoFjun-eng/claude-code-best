@@ -12,15 +12,15 @@ import { DESCRIPTION, PROMPT } from './prompt.js'
 
 const inputSchema = lazySchema(() =>
   z.strictObject({
-    todos: TodoListSchema().describe('The updated todo list'),
+    todos: TodoListSchema().describe('更新后的待办事项列表'),
   }),
 )
 type InputSchema = ReturnType<typeof inputSchema>
 
 const outputSchema = lazySchema(() =>
   z.object({
-    oldTodos: TodoListSchema().describe('The todo list before the update'),
-    newTodos: TodoListSchema().describe('The todo list after the update'),
+    oldTodos: TodoListSchema().describe('更新前的待办事项列表'),
+    newTodos: TodoListSchema().describe('更新后的待办事项列表'),
     verificationNudgeNeeded: z.boolean().optional(),
   }),
 )
@@ -30,7 +30,7 @@ export type Output = z.infer<OutputSchema>
 
 export const TodoWriteTool = buildTool({
   name: TODO_WRITE_TOOL_NAME,
-  searchHint: 'manage the session task checklist',
+  searchHint: '管理会话任务清单',
   maxResultSizeChars: 100_000,
   strict: true,
   async description() {
@@ -53,10 +53,10 @@ export const TodoWriteTool = buildTool({
     return !isTodoV2Enabled()
   },
   toAutoClassifierInput(input) {
-    return `${input.todos.length} items`
+    return `${input.todos.length} 项`
   },
   async checkPermissions(input) {
-    // No permission checks required for todo operations
+    // 待办事项操作无需权限检查
     return { behavior: 'allow', updatedInput: input }
   },
   renderToolUseMessage() {
@@ -69,10 +69,9 @@ export const TodoWriteTool = buildTool({
     const allDone = todos.every(_ => _.status === 'completed')
     const newTodos = allDone ? [] : todos
 
-    // Structural nudge: if the main-thread agent is closing out a 3+ item
-    // list and none of those items was a verification step, append a reminder
-    // to the tool result. Fires at the exact loop-exit moment where skips
-    // happen ("when the last task closed, the loop exited").
+    // 结构性提示：如果主线程代理正在结束一个包含 3 项以上任务的列表，
+    // 且其中没有一项是验证步骤，则在工具结果中附加一个提醒。
+    // 在循环退出的确切时刻触发（“当最后一个任务关闭时，循环退出”）。
     let verificationNudgeNeeded = false
     if (
       feature('VERIFICATION_AGENT') &&
@@ -102,9 +101,9 @@ export const TodoWriteTool = buildTool({
     }
   },
   mapToolResultToToolResultBlockParam({ verificationNudgeNeeded }, toolUseID) {
-    const base = `Todos have been modified successfully. Ensure that you continue to use the todo list to track your progress. Please proceed with the current tasks if applicable`
+    const base = `待办事项已成功修改。请确保继续使用待办事项列表来跟踪您的进度。如果适用，请继续执行当前任务。`
     const nudge = verificationNudgeNeeded
-      ? `\n\nNOTE: You just closed out 3+ tasks and none of them was a verification step. Before writing your final summary, spawn the verification agent (subagent_type="${VERIFICATION_AGENT_TYPE}"). You cannot self-assign PARTIAL by listing caveats in your summary \u2014 only the verifier issues a verdict.`
+      ? `\n\n注意：您刚刚完成了 3 个以上的任务，其中没有一个任务是验证步骤。在编写最终总结之前，请生成验证代理（subagent_type="${VERIFICATION_AGENT_TYPE}"）。您不能通过在总结中列出免责条款来自行分配 PARTIAL 结果——只有验证代理可以发布判定。`
       : ''
     return {
       tool_use_id: toolUseID,

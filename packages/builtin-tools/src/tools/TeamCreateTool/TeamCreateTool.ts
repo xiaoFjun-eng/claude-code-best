@@ -36,14 +36,14 @@ import { renderToolUseMessage } from './UI.js'
 
 const inputSchema = lazySchema(() =>
   z.strictObject({
-    team_name: z.string().describe('Name for the new team to create.'),
-    description: z.string().optional().describe('Team description/purpose.'),
+    team_name: z.string().describe('要创建的新团队的名称。'),
+    description: z.string().optional().describe('团队描述/目的。'),
     agent_type: z
       .string()
       .optional()
       .describe(
-        'Type/role of the team lead (e.g., "researcher", "test-runner"). ' +
-          'Used for team file and inter-agent coordination.',
+        '团队负责人的类型/角色（例如“研究员”、“测试运行者”）。' +
+          '用于团队文件和代理间协调。',
       ),
   }),
 )
@@ -58,22 +58,22 @@ export type Output = {
 export type Input = z.infer<InputSchema>
 
 /**
- * Generates a unique team name by checking if the provided name already exists.
- * If the name already exists, generates a new word slug.
+ * 通过检查提供的名称是否已存在来生成唯一的团队名称。
+ * 如果名称已存在，则生成一个新的单词短句。
  */
 function generateUniqueTeamName(providedName: string): string {
-  // If the team doesn't exist, use the provided name
+  // 如果团队不存在，则使用提供的名称
   if (!readTeamFile(providedName)) {
     return providedName
   }
 
-  // Team exists, generate a new unique name
+  // 团队已存在，生成一个新的唯一名称
   return generateWordSlug()
 }
 
 export const TeamCreateTool: Tool<InputSchema, Output> = buildTool({
   name: TEAM_CREATE_TOOL_NAME,
-  searchHint: 'create a multi-agent swarm team',
+  searchHint: '创建一个多代理群组团队',
   maxResultSizeChars: 100_000,
   shouldDefer: true,
 
@@ -97,7 +97,7 @@ export const TeamCreateTool: Tool<InputSchema, Output> = buildTool({
     if (!input.team_name || input.team_name.trim().length === 0) {
       return {
         result: false,
-        message: 'team_name is required for TeamCreate',
+        message: 'TeamCreate 需要提供 team_name',
         errorCode: 9,
       }
     }
@@ -105,7 +105,7 @@ export const TeamCreateTool: Tool<InputSchema, Output> = buildTool({
   },
 
   async description() {
-    return 'Create a new team for coordinating multiple agents'
+    return '创建一个用于协调多个代理的新团队'
   },
 
   async prompt() {
@@ -129,23 +129,23 @@ export const TeamCreateTool: Tool<InputSchema, Output> = buildTool({
     const { setAppState, getAppState } = context
     const { team_name, description: _description, agent_type } = input
 
-    // Check if already in a team - restrict to one team per leader
+    // 检查是否已经在某个团队中 —— 限制每个负责人只能管理一个团队
     const appState = getAppState()
     const existingTeam = appState.teamContext?.teamName
 
     if (existingTeam) {
       throw new Error(
-        `Already leading team "${existingTeam}". A leader can only manage one team at a time. Use TeamDelete to end the current team before creating a new one.`,
+        `已经在领导团队“${existingTeam}”。负责人一次只能管理一个团队。请在创建新团队前使用 TeamDelete 结束当前团队。`,
       )
     }
 
-    // If team already exists, generate a unique name instead of failing
+    // 如果团队已存在，则生成一个唯一的名称，而不是失败
     const finalTeamName = generateUniqueTeamName(team_name)
 
-    // Generate a deterministic agent ID for the team lead
+    // 为团队负责人生成确定性的代理 ID
     const leadAgentId = formatAgentId(TEAM_LEAD_NAME, finalTeamName)
     const leadAgentType = agent_type || TEAM_LEAD_NAME
-    // Get the team lead's current model from AppState (handles session model, settings, CLI override)
+    // 从 AppState 获取团队负责人的当前模型（处理会话模型、设置、CLI 覆盖）
     const leadModel = parseUserSpecifiedModel(
       appState.mainLoopModelForSession ??
         appState.mainLoopModel ??
@@ -159,7 +159,7 @@ export const TeamCreateTool: Tool<InputSchema, Output> = buildTool({
       description: _description,
       createdAt: Date.now(),
       leadAgentId,
-      leadSessionId: getSessionId(), // Store actual session ID for team discovery
+      leadSessionId: getSessionId(), // 存储实际的会话 ID 以用于团队发现
       members: [
         {
           agentId: leadAgentId,
@@ -175,22 +175,20 @@ export const TeamCreateTool: Tool<InputSchema, Output> = buildTool({
     }
 
     await writeTeamFileAsync(finalTeamName, teamFile)
-    // Track for session-end cleanup — teams were left on disk forever
-    // unless explicitly TeamDelete'd (gh-32730).
+    // 跟踪会话结束时的清理 — 除非显式调用 TeamDelete，否则团队会永远留在磁盘上（gh-32730）。
     registerTeamForSessionCleanup(finalTeamName)
 
-    // Reset and create the corresponding task list directory (Team = Project = TaskList)
-    // This ensures task numbering starts fresh at 1 for each new swarm
+    // 重置并创建相应的任务列表目录（团队 = 项目 = 任务列表）
+    // 这确保每个新群组的任务编号从 1 开始重新计数
     const taskListId = sanitizeName(finalTeamName)
     await resetTaskList(taskListId)
     await ensureTasksDir(taskListId)
 
-    // Register the team name so getTaskListId() returns it for the leader.
-    // Without this, the leader falls through to getSessionId() and writes tasks
-    // to a different directory than tmux/iTerm2 teammates expect.
+    // 注册团队名称，以便 getTaskListId() 为负责人返回该名称。
+    // 否则，负责人会回退到 getSessionId()，并将任务写入与 tmux/iTerm2 队友期望不同的目录。
     setLeaderTeamName(sanitizeName(finalTeamName))
 
-    // Update AppState with team context
+    // 使用团队上下文更新 AppState
     setAppState(prev => ({
       ...prev,
       teamContext: {
@@ -221,11 +219,11 @@ export const TeamCreateTool: Tool<InputSchema, Output> = buildTool({
         getResolvedTeammateMode() as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
     })
 
-    // Note: We intentionally don't set CLAUDE_CODE_AGENT_ID for the team lead because:
-    // 1. The lead is not a "teammate" - isTeammate() should return false for them
-    // 2. Their ID is deterministic (team-lead@teamName) and can be derived when needed
-    // 3. Setting it would cause isTeammate() to return true, breaking inbox polling
-    // Team name is stored in AppState.teamContext, not process.env
+    // 注意：我们有意不为团队负责人设置 CLAUDE_CODE_AGENT_ID，因为：
+    // 1. 负责人不是“队友”——isTeammate() 应对他们返回 false
+    // 2. 他们的 ID 是确定性的（team-lead@teamName），可以在需要时派生
+    // 3. 设置它会导致 isTeammate() 返回 true，从而破坏收件箱轮询
+    // 团队名称存储在 AppState.teamContext 中，而不是 process.env
 
     return {
       data: {

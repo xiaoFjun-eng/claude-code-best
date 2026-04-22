@@ -70,17 +70,17 @@ const inputSchema = lazySchema(() =>
       .string()
       .describe(
         feature('UDS_INBOX')
-          ? `Recipient: teammate name, "*" for broadcast, "uds:<socket-path>" for a local peer, "bridge:<session-id>" for a Remote Control peer${feature('LAN_PIPES') ? ', or "tcp:<host>:<port>" for a LAN peer' : ''} (use ListPeers to discover)`
-          : 'Recipient: teammate name, or "*" for broadcast to all teammates',
+          ? `收件人：队友名称，"*" 表示广播，"uds:<socket-path>" 表示本地对等节点，"bridge:<session-id>" 表示远程控制对等节点${feature('LAN_PIPES') ? '，或 "tcp:<host>:<port>" 表示局域网对等节点' : ''}（使用 ListPeers 发现）`
+          : '收件人：队友名称，或 "*" 表示广播给所有队友',
       ),
     summary: z
       .string()
       .optional()
       .describe(
-        'A 5-10 word summary shown as a preview in the UI (required when message is a string)',
+        '一段 5-10 个词的摘要，作为预览显示在 UI 中（当 message 为字符串时必需）',
       ),
     message: z.union([
-      z.string().describe('Plain text message content'),
+      z.string().describe('纯文本消息内容'),
       StructuredMessage(),
     ]),
   }),
@@ -175,7 +175,7 @@ async function handleMessage(
   return {
     data: {
       success: true,
-      message: `Message sent to ${recipientName}'s inbox`,
+      message: `消息已发送到 ${recipientName} 的收件箱`,
       routing: {
         sender: senderName,
         senderColor,
@@ -198,20 +198,20 @@ async function handleBroadcast(
 
   if (!teamName) {
     throw new Error(
-      'Not in a team context. Create a team with Teammate spawnTeam first, or set CLAUDE_CODE_TEAM_NAME.',
+      '不在团队上下文中。请先使用 Teammate spawnTeam 创建团队，或设置 CLAUDE_CODE_TEAM_NAME。',
     )
   }
 
   const teamFile = await readTeamFileAsync(teamName)
   if (!teamFile) {
-    throw new Error(`Team "${teamName}" does not exist`)
+    throw new Error(`团队“${teamName}”不存在`)
   }
 
   const senderName =
     getAgentName() || (isTeammate() ? 'teammate' : TEAM_LEAD_NAME)
   if (!senderName) {
     throw new Error(
-      'Cannot broadcast: sender name is required. Set CLAUDE_CODE_AGENT_NAME.',
+      '无法广播：需要发送者名称。请设置 CLAUDE_CODE_AGENT_NAME。',
     )
   }
 
@@ -229,7 +229,7 @@ async function handleBroadcast(
     return {
       data: {
         success: true,
-        message: 'No teammates to broadcast to (you are the only team member)',
+        message: '没有可广播的队友（您是唯一的团队成员）',
         recipients: [],
       },
     }
@@ -252,7 +252,7 @@ async function handleBroadcast(
   return {
     data: {
       success: true,
-      message: `Message broadcast to ${recipients.length} teammate(s): ${recipients.join(', ')}`,
+      message: `消息已广播给 ${recipients.length} 位队友：${recipients.join(', ')}`,
       recipients,
       routing: {
         sender: senderName,
@@ -295,7 +295,7 @@ async function handleShutdownRequest(
   return {
     data: {
       success: true,
-      message: `Shutdown request sent to ${targetName}. Request ID: ${requestId}`,
+      message: `关闭请求已发送到 ${targetName}。请求 ID：${requestId}`,
       request_id: requestId,
       target: targetName,
     },
@@ -347,7 +347,7 @@ async function handleShutdownApproval(
 
   if (ownBackendType === 'in-process') {
     logForDebugging(
-      `[SendMessageTool] In-process teammate ${agentName} approving shutdown - signaling abort`,
+      `[SendMessageTool] 进程内队友 ${agentName} 批准关闭 - 触发中止信号`,
     )
 
     if (agentId) {
@@ -356,11 +356,11 @@ async function handleShutdownApproval(
       if (task?.abortController) {
         task.abortController.abort()
         logForDebugging(
-          `[SendMessageTool] Aborted controller for in-process teammate ${agentName}`,
+          `[SendMessageTool] 已中止进程内队友 ${agentName} 的控制器`,
         )
       } else {
         logForDebugging(
-          `[SendMessageTool] Warning: Could not find task/abortController for ${agentName}`,
+          `[SendMessageTool] 警告：未找到 ${agentName} 的任务/abortController`,
         )
       }
     }
@@ -370,14 +370,14 @@ async function handleShutdownApproval(
       const task = findTeammateTaskByAgentId(agentId, appState.tasks)
       if (task?.abortController) {
         logForDebugging(
-          `[SendMessageTool] Fallback: Found in-process task for ${agentName} via AppState, aborting`,
+          `[SendMessageTool] 回退：通过 AppState 找到 ${agentName} 的进程内任务，正在中止`,
         )
         task.abortController.abort()
 
         return {
           data: {
             success: true,
-            message: `Shutdown approved (fallback path). Agent ${agentName} is now exiting.`,
+            message: `关闭已批准（回退路径）。代理 ${agentName} 正在退出。`,
             request_id: requestId,
           },
         }
@@ -392,7 +392,7 @@ async function handleShutdownApproval(
   return {
     data: {
       success: true,
-      message: `Shutdown approved. Sent confirmation to team-lead. Agent ${agentName} is now exiting.`,
+      message: `关闭已批准。已向团队负责人发送确认。代理 ${agentName} 正在退出。`,
       request_id: requestId,
     },
   }
@@ -425,7 +425,7 @@ async function handleShutdownRejection(
   return {
     data: {
       success: true,
-      message: `Shutdown rejected. Reason: "${reason}". Continuing to work.`,
+      message: `关闭已被拒绝。原因："${reason}"。继续工作。`,
       request_id: requestId,
     },
   }
@@ -441,7 +441,7 @@ async function handlePlanApproval(
 
   if (!isTeamLead(appState.teamContext)) {
     throw new Error(
-      'Only the team lead can approve plans. Teammates cannot approve their own or other plans.',
+      '只有团队负责人可以批准计划。队友无法批准自己或他人的计划。',
     )
   }
 
@@ -469,7 +469,7 @@ async function handlePlanApproval(
   return {
     data: {
       success: true,
-      message: `Plan approved for ${recipientName}. They will receive the approval and can proceed with implementation.`,
+      message: `已批准 ${recipientName} 的计划。他们将收到批准并可以继续实施。`,
       request_id: requestId,
     },
   }
@@ -486,7 +486,7 @@ async function handlePlanRejection(
 
   if (!isTeamLead(appState.teamContext)) {
     throw new Error(
-      'Only the team lead can reject plans. Teammates cannot reject their own or other plans.',
+      '只有团队负责人可以拒绝计划。队友无法拒绝自己或他人的计划。',
     )
   }
 
@@ -511,7 +511,7 @@ async function handlePlanRejection(
   return {
     data: {
       success: true,
-      message: `Plan rejected for ${recipientName} with feedback: "${feedback}"`,
+      message: `已拒绝 ${recipientName} 的计划，反馈："${feedback}"`,
       request_id: requestId,
     },
   }
@@ -520,7 +520,7 @@ async function handlePlanRejection(
 export const SendMessageTool: Tool<InputSchema, SendMessageToolOutput> =
   buildTool({
     name: SEND_MESSAGE_TOOL_NAME,
-    searchHint: 'send messages to agent teammates (swarm protocol)',
+    searchHint: '向代理队友发送消息（群协议）',
     maxResultSizeChars: 100_000,
 
     userFacingName() {
@@ -570,15 +570,15 @@ export const SendMessageTool: Tool<InputSchema, SendMessageToolOutput> =
 
     toAutoClassifierInput(input) {
       if (typeof input.message === 'string') {
-        return `to ${input.to}: ${input.message}`
+        return `发送到 ${input.to}：${input.message}`
       }
       switch (input.message.type) {
         case 'shutdown_request':
-          return `shutdown_request to ${input.to}`
+          return `向 ${input.to} 发送关闭请求`
         case 'shutdown_response':
-          return `shutdown_response ${input.message.approve ? 'approve' : 'reject'} ${input.message.request_id}`
+          return `关闭响应 ${input.message.approve ? '批准' : '拒绝'} ${input.message.request_id}`
         case 'plan_approval_response':
-          return `plan_approval ${input.message.approve ? 'approve' : 'reject'} to ${input.to}`
+          return `计划审批 ${input.message.approve ? '批准' : '拒绝'} 发送给 ${input.to}`
       }
     },
 
@@ -586,11 +586,11 @@ export const SendMessageTool: Tool<InputSchema, SendMessageToolOutput> =
       if (feature('UDS_INBOX') && parseAddress(input.to).scheme === 'bridge') {
         return {
           behavior: 'ask' as const,
-          message: `Send a message to Remote Control session ${input.to}? It arrives as a user prompt on the receiving Claude (possibly another machine) via Anthropic's servers.`,
+          message: `向远程控制会话 ${input.to} 发送消息？该消息会通过 Anthropic 的服务器作为用户提示到达接收方的 Claude（可能是另一台机器）。`,
           decisionReason: {
             type: 'safetyCheck',
             reason:
-              'Cross-machine bridge message requires explicit user consent',
+              '跨机器桥接消息需要用户明确同意',
             classifierApprovable: false,
           },
         }
@@ -598,10 +598,10 @@ export const SendMessageTool: Tool<InputSchema, SendMessageToolOutput> =
       if (feature('LAN_PIPES') && parseAddress(input.to).scheme === 'tcp') {
         return {
           behavior: 'ask' as const,
-          message: `Send a message to LAN peer ${input.to}? This connects directly over TCP to a machine on your local network.`,
+          message: `向局域网对等节点 ${input.to} 发送消息？这将通过 TCP 直接连接到本地网络上的机器。`,
           decisionReason: {
             type: 'safetyCheck',
-            reason: 'Cross-machine LAN message requires explicit user consent',
+            reason: '跨机器局域网消息需要用户明确同意',
             classifierApprovable: false,
           },
         }
@@ -613,7 +613,7 @@ export const SendMessageTool: Tool<InputSchema, SendMessageToolOutput> =
       if (input.to.trim().length === 0) {
         return {
           result: false,
-          message: 'to must not be empty',
+          message: 'to 不能为空',
           errorCode: 9,
         }
       }
@@ -626,7 +626,7 @@ export const SendMessageTool: Tool<InputSchema, SendMessageToolOutput> =
       ) {
         return {
           result: false,
-          message: 'address target must not be empty',
+          message: '地址目标不能为空',
           errorCode: 9,
         }
       }
@@ -634,31 +634,28 @@ export const SendMessageTool: Tool<InputSchema, SendMessageToolOutput> =
         return {
           result: false,
           message:
-            'to must be a bare teammate name or "*" — there is only one team per session',
+            'to 必须是纯队友名称或 "*" — 每个会话只有一个团队',
           errorCode: 9,
         }
       }
       if (feature('UDS_INBOX') && parseAddress(input.to).scheme === 'bridge') {
-        // Structured-message rejection first — it's the permanent constraint.
-        // Showing "not connected" first would make the user reconnect only to
-        // hit this error on retry.
+        // 首先检查结构化消息的限制 — 这是永久约束。
+        // 如果先显示“未连接”，用户可能会重新连接，但重试时仍会遇到此错误。
         if (typeof input.message !== 'string') {
           return {
             result: false,
             message:
-              'structured messages cannot be sent cross-session — only plain text',
+              '结构化消息无法跨会话发送 — 仅支持纯文本',
             errorCode: 9,
           }
         }
-        // postInterClaudeMessage derives from= via getReplBridgeHandle() —
-        // check handle directly for the init-timing window. Also check
-        // isReplBridgeActive() to reject outbound-only (CCR mirror) mode
-        // where the bridge is write-only and peer messaging is unsupported.
+        // postInterClaudeMessage 通过 getReplBridgeHandle() 获取 from= — 直接检查句柄以处理初始化时机窗口。
+        // 同时检查 isReplBridgeActive() 以拒绝仅出站（CCR 镜像）模式，该模式下桥接是只写的，不支持对等消息。
         if (!getReplBridgeHandle() || !isReplBridgeActive()) {
           return {
             result: false,
             message:
-              'Remote Control is not connected — cannot send to a bridge: target. Reconnect with /remote-control first.',
+              '远程控制未连接 — 无法发送到 bridge: 目标。请先使用 /remote-control 重新连接。',
             errorCode: 9,
           }
         }
@@ -682,7 +679,7 @@ export const SendMessageTool: Tool<InputSchema, SendMessageToolOutput> =
         if (!input.summary || input.summary.trim().length === 0) {
           return {
             result: false,
-            message: 'summary is required when message is a string',
+            message: '当 message 为字符串时，summary 是必需的',
             errorCode: 9,
           }
         }
@@ -692,7 +689,7 @@ export const SendMessageTool: Tool<InputSchema, SendMessageToolOutput> =
       if (input.to === '*') {
         return {
           result: false,
-          message: 'structured messages cannot be broadcast (to: "*")',
+          message: '结构化消息无法广播（to: "*"）',
           errorCode: 9,
         }
       }
@@ -700,7 +697,7 @@ export const SendMessageTool: Tool<InputSchema, SendMessageToolOutput> =
         return {
           result: false,
           message:
-            'structured messages cannot be sent cross-session — only plain text',
+            '结构化消息无法跨会话发送 — 仅支持纯文本',
           errorCode: 9,
         }
       }
@@ -711,7 +708,7 @@ export const SendMessageTool: Tool<InputSchema, SendMessageToolOutput> =
       ) {
         return {
           result: false,
-          message: `shutdown_response must be sent to "${TEAM_LEAD_NAME}"`,
+          message: `shutdown_response 必须发送给“${TEAM_LEAD_NAME}”`,
           errorCode: 9,
         }
       }
@@ -723,7 +720,7 @@ export const SendMessageTool: Tool<InputSchema, SendMessageToolOutput> =
       ) {
         return {
           result: false,
-          message: 'reason is required when rejecting a shutdown request',
+          message: '拒绝关闭请求时需要提供原因',
           errorCode: 9,
         }
       }
@@ -756,15 +753,14 @@ export const SendMessageTool: Tool<InputSchema, SendMessageToolOutput> =
       if (feature('UDS_INBOX') && typeof input.message === 'string') {
         const addr = parseAddress(input.to)
         if (addr.scheme === 'bridge') {
-          // Re-check handle — checkPermissions blocks on user approval (can be
-          // minutes). validateInput's check is stale if the bridge dropped
-          // during the prompt wait; without this, from="unknown" ships.
-          // Also re-check isReplBridgeActive for outbound-only mode.
+          // 重新检查句柄 — checkPermissions 会阻塞等待用户批准（可能需要几分钟）。
+          // validateInput 的检查在等待提示期间如果桥接断开则已过时；没有这个，from="unknown" 会被发出。
+          // 同时为仅出站模式重新检查 isReplBridgeActive。
           if (!getReplBridgeHandle() || !isReplBridgeActive()) {
             return {
               data: {
                 success: false,
-                message: `Remote Control disconnected before send — cannot deliver to ${input.to}`,
+                message: `远程控制在发送前已断开 — 无法传递到 ${input.to}`,
               },
             }
           }
@@ -781,8 +777,8 @@ export const SendMessageTool: Tool<InputSchema, SendMessageToolOutput> =
             data: {
               success: result.ok,
               message: result.ok
-                ? `”${preview}” → ${input.to}`
-                : `Failed to send to ${input.to}: ${result.error ?? 'unknown'}`,
+                ? `“${preview}” → ${input.to}`
+                : `发送到 ${input.to} 失败：${result.error ?? '未知错误'}`,
             },
           }
         }
@@ -797,14 +793,14 @@ export const SendMessageTool: Tool<InputSchema, SendMessageToolOutput> =
             return {
               data: {
                 success: true,
-                message: `”${preview}” → ${input.to}`,
+                message: `“${preview}” → ${input.to}`,
               },
             }
           } catch (e) {
             return {
               data: {
                 success: false,
-                message: `Failed to send to ${input.to}: ${errorMessage(e)}`,
+                message: `发送到 ${input.to} 失败：${errorMessage(e)}`,
               },
             }
           }
@@ -819,7 +815,7 @@ export const SendMessageTool: Tool<InputSchema, SendMessageToolOutput> =
             return {
               data: {
                 success: false,
-                message: `Invalid TCP target format: ${addr.target}. Expected host:port`,
+                message: `无效的 TCP 目标格式：${addr.target}。期望格式：host:port`,
               },
             }
           }
@@ -832,22 +828,22 @@ export const SendMessageTool: Tool<InputSchema, SendMessageToolOutput> =
             return {
               data: {
                 success: true,
-                message: `”${preview}” → ${input.to} (TCP ${ep.host}:${ep.port})`,
+                message: `“${preview}” → ${input.to} (TCP ${ep.host}:${ep.port})`,
               },
             }
           } catch (e) {
             return {
               data: {
                 success: false,
-                message: `Failed to send via TCP to ${input.to}: ${errorMessage(e)}`,
+                message: `通过 TCP 发送到 ${input.to} 失败：${errorMessage(e)}`,
               },
             }
           }
         }
       }
 
-      // Route to in-process subagent by name or raw agentId before falling
-      // through to ambient-team resolution. Stopped agents are auto-resumed.
+      // 按名称或原始 agentId 路由到进程内子代理，在回退到环境团队解析之前。
+      // 已停止的代理会自动恢复。
       if (typeof input.message === 'string' && input.to !== '*') {
         const appState = context.getAppState()
         const registered = appState.agentNameRegistry.get(input.to)
@@ -864,11 +860,11 @@ export const SendMessageTool: Tool<InputSchema, SendMessageToolOutput> =
               return {
                 data: {
                   success: true,
-                  message: `Message queued for delivery to ${input.to} at its next tool round.`,
+                  message: `消息已排队，将在 ${input.to} 的下一个工具轮次中传递。`,
                 },
               }
             }
-            // task exists but stopped — auto-resume
+            // 任务存在但已停止 — 自动恢复
             try {
               const result = await resumeAgentBackground({
                 agentId,
@@ -882,22 +878,21 @@ export const SendMessageTool: Tool<InputSchema, SendMessageToolOutput> =
               return {
                 data: {
                   success: true,
-                  message: `Agent "${input.to}" was stopped (${task.status}); resumed it in the background with your message. You'll be notified when it finishes. Output: ${result.outputFile}`,
+                  message: `代理“${input.to}”已停止（状态：${task.status}）；已在后台恢复并带上您的消息。完成时会通知您。输出文件：${result.outputFile}`,
                 },
               }
             } catch (e) {
               return {
                 data: {
                   success: false,
-                  message: `Agent "${input.to}" is stopped (${task.status}) and could not be resumed: ${errorMessage(e)}`,
+                  message: `代理“${input.to}”已停止（状态：${task.status}）且无法恢复：${errorMessage(e)}`,
                 },
               }
             }
           } else {
-            // task evicted from state — try resume from disk transcript.
-            // agentId is either a registered name or a format-matching raw ID
-            // (toAgentId validates the createAgentId format, so teammate names
-            // never reach this block).
+            // 任务已从状态中驱逐 — 尝试从磁盘记录恢复。
+            // agentId 要么是注册的名称，要么是格式匹配的原始 ID
+            // （toAgentId 会验证 createAgentId 格式，因此队友名称永远不会进入此代码块）。
             try {
               const result = await resumeAgentBackground({
                 agentId,
@@ -911,14 +906,14 @@ export const SendMessageTool: Tool<InputSchema, SendMessageToolOutput> =
               return {
                 data: {
                   success: true,
-                  message: `Agent "${input.to}" had no active task; resumed from transcript in the background with your message. You'll be notified when it finishes. Output: ${result.outputFile}`,
+                  message: `代理“${input.to}”没有活动任务；已从记录中恢复并在后台带上您的消息。完成时会通知您。输出文件：${result.outputFile}`,
                 },
               }
             } catch (e) {
               return {
                 data: {
                   success: false,
-                  message: `Agent "${input.to}" is registered but has no transcript to resume. It may have been cleaned up. (${errorMessage(e)})`,
+                  message: `代理“${input.to}”已注册但没有可恢复的记录。它可能已被清理。（${errorMessage(e)}）`,
                 },
               }
             }
@@ -934,7 +929,7 @@ export const SendMessageTool: Tool<InputSchema, SendMessageToolOutput> =
       }
 
       if (input.to === '*') {
-        throw new Error('structured messages cannot be broadcast')
+        throw new Error('结构化消息无法广播')
       }
 
       switch (input.message.type) {
@@ -959,7 +954,7 @@ export const SendMessageTool: Tool<InputSchema, SendMessageToolOutput> =
           return handlePlanRejection(
             input.to,
             input.message.request_id,
-            input.message.feedback ?? 'Plan needs revision',
+            input.message.feedback ?? '计划需要修改',
             context,
           )
       }

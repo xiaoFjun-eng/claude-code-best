@@ -32,7 +32,7 @@ export type Output = z.infer<OutputSchema>
 
 export const TaskListTool = buildTool({
   name: TASK_LIST_TOOL_NAME,
-  searchHint: 'list all tasks',
+  searchHint: '列出所有任务',
   maxResultSizeChars: 100_000,
   async description() {
     return DESCRIPTION
@@ -69,7 +69,7 @@ export const TaskListTool = buildTool({
       t => !t.metadata?._internal,
     )
 
-    // Build a set of resolved task IDs for filtering
+    // 构建已解决任务 ID 的集合，用于过滤
     const resolvedTaskIds = new Set(
       allTasks.filter(t => t.status === 'completed').map(t => t.id),
     )
@@ -94,7 +94,7 @@ export const TaskListTool = buildTool({
       return {
         tool_use_id: toolUseID,
         type: 'tool_result',
-        content: 'No tasks found',
+        content: '未找到任务',
       }
     }
 
@@ -102,7 +102,7 @@ export const TaskListTool = buildTool({
       const owner = task.owner ? ` (${task.owner})` : ''
       const blocked =
         task.blockedBy.length > 0
-          ? ` [blocked by ${task.blockedBy.map(id => `#${id}`).join(', ')}]`
+          ? ` [被 ${task.blockedBy.map(id => `#${id}`).join('、')} 阻塞]`
           : ''
       return `#${task.id} [${task.status}] ${task.subject}${owner}${blocked}`
     })

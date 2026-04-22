@@ -42,12 +42,12 @@ export type AttributionTexts = {
 }
 
 /**
- * Returns attribution text for commits and PRs based on user settings.
- * Handles:
- * - Dynamic model name via getPublicModelName()
- * - Custom attribution settings (settings.attribution.commit/pr)
- * - Backward compatibility with deprecated includeCoAuthoredBy setting
- * - Remote mode: returns session URL for attribution
+ * 根据用户设置返回提交和 PR 的归因文本。
+ * 处理：
+ * - 通过 getPublicModelName() 获取动态模型名称
+ * - 自定义归因设置（settings.attribution.commit/pr）
+ * - 与已弃用的 includeCoAuthoredBy 设置保持向后兼容
+ * - 远程模式：返回会话 URL 作为归因
  */
 export function getAttributionTexts(): AttributionTexts {
   if (process.env.USER_TYPE === 'ant' && isUndercover()) {
@@ -58,7 +58,7 @@ export function getAttributionTexts(): AttributionTexts {
     const remoteSessionId = process.env.CLAUDE_CODE_REMOTE_SESSION_ID
     if (remoteSessionId) {
       const ingressUrl = process.env.SESSION_INGRESS_URL
-      // Skip for local dev - URLs won't persist
+      // 跳过本地开发环境 —— URL 不会持久化
       if (!isRemoteSessionLocal(remoteSessionId, ingressUrl)) {
         const sessionUrl = getRemoteSessionUrl(remoteSessionId, ingressUrl)
         return { commit: sessionUrl, pr: sessionUrl }
@@ -67,21 +67,21 @@ export function getAttributionTexts(): AttributionTexts {
     return { commit: '', pr: '' }
   }
 
-  // @[MODEL LAUNCH]: Update the hardcoded fallback model name below (guards against codename leaks).
-  // For internal repos, use the real model name. For external repos,
-  // fall back to "Claude Opus 4.6" for unrecognized models to avoid leaking codenames.
+  // @[MODEL LAUNCH]: 更新下面的硬编码回退模型名称（防止代号泄露）。
+  // 对于内部仓库，使用真实的模型名称。对于外部仓库，
+  // 对于无法识别的模型回退到 "Claude Opus 4.6"，以避免泄露代号。
   const model = getMainLoopModel()
   const isKnownPublicModel = getPublicModelDisplayName(model) !== null
   const modelName =
     isInternalModelRepoCached() || isKnownPublicModel
       ? getPublicModelName(model)
       : 'Claude Opus 4.6'
-  const defaultAttribution = `🤖 Generated with [Claude Code](${PRODUCT_URL})`
+  const defaultAttribution = `🤖 由 [Claude Code](${PRODUCT_URL}) 生成`
   const defaultCommit = `Co-Authored-By: ${modelName} <noreply@anthropic.com>`
 
   const settings = getInitialSettings()
 
-  // New attribution setting takes precedence over deprecated includeCoAuthoredBy
+  // 新的归因设置优先于已弃用的 includeCoAuthoredBy
   if (settings.attribution) {
     return {
       commit: settings.attribution.commit ?? defaultCommit,
@@ -89,7 +89,7 @@ export function getAttributionTexts(): AttributionTexts {
     }
   }
 
-  // Backward compatibility: deprecated includeCoAuthoredBy setting
+  // 向后兼容：已弃用的 includeCoAuthoredBy 设置
   if (settings.includeCoAuthoredBy === false) {
     return { commit: '', pr: '' }
   }
@@ -98,8 +98,8 @@ export function getAttributionTexts(): AttributionTexts {
 }
 
 /**
- * Check if a message content string is terminal output rather than a user prompt.
- * Terminal output includes bash input/output tags and caveat messages about local commands.
+ * 检查消息内容字符串是否为终端输出而不是用户提示。
+ * 终端输出包括 bash 输入/输出标签以及关于本地命令的提示信息。
  */
 function isTerminalOutput(content: string): boolean {
   for (const tag of TERMINAL_OUTPUT_TAGS) {
@@ -111,10 +111,10 @@ function isTerminalOutput(content: string): boolean {
 }
 
 /**
- * Count user messages with visible text content in a list of non-sidechain messages.
- * Excludes tool_result blocks, terminal output, and empty messages.
+ * 统计非侧链消息列表中具有可见文本内容的用户消息数量。
+ * 排除 tool_result 块、终端输出和空消息。
  *
- * Callers should pass messages already filtered to exclude sidechain messages.
+ * 调用方应传入已过滤掉侧链消息的消息列表。
  */
 export function countUserPromptsInMessages(
   messages: ReadonlyArray<{ type: string; message?: { content?: unknown } }>,
@@ -162,11 +162,11 @@ export function countUserPromptsInMessages(
 }
 
 /**
- * Count non-sidechain user messages in transcript entries.
- * Used to calculate the number of "steers" (user prompts - 1).
+ * 统计对话记录条目中的非侧链用户消息数量。
+ * 用于计算“引导”次数（用户提示数 - 1）。
  *
- * Counts user messages that contain actual user-typed text,
- * excluding tool_result blocks, sidechain messages, and terminal output.
+ * 统计包含用户实际输入文本的用户消息，
+ * 排除 tool_result 块、侧链消息和终端输出。
  */
 function countUserPromptsFromEntries(entries: ReadonlyArray<Entry>): number {
   const nonSidechain = entries.filter(
@@ -177,10 +177,10 @@ function countUserPromptsFromEntries(entries: ReadonlyArray<Entry>): number {
 }
 
 /**
- * Get full attribution data from the provided AppState's attribution state.
- * Uses ALL tracked files from the attribution state (not just staged files)
- * because for PR attribution, files may not be staged yet.
- * Returns null if no attribution data is available.
+ * 从提供的 AppState 的归因状态中获取完整的归因数据。
+ * 使用归因状态中所有跟踪的文件（不仅仅是暂存文件），
+ * 因为对于 PR 归因，文件可能尚未暂存。
+ * 如果没有可用的归因数据，则返回 null。
  */
 async function getPRAttributionData(
   appState: AppState,
@@ -191,7 +191,7 @@ async function getPRAttributionData(
     return null
   }
 
-  // Handle both Map and plain object (in case of serialization)
+  // 处理 Map 和普通对象（以防序列化）
   const fileStates = attribution.fileStates
   const isMap = fileStates instanceof Map
   const trackedFiles = isMap
@@ -219,8 +219,8 @@ const MEMORY_ACCESS_TOOL_NAMES = new Set([
 ])
 
 /**
- * Count memory file accesses in transcript entries.
- * Uses the same detection conditions as the PostToolUse session file access hooks.
+ * 统计对话记录条目中的内存文件访问次数。
+ * 使用与 PostToolUse 会话文件访问钩子相同的检测条件。
  */
 function countMemoryFileAccessFromEntries(
   entries: ReadonlyArray<Entry>,
@@ -243,10 +243,9 @@ function countMemoryFileAccessFromEntries(
 }
 
 /**
- * Read session transcript entries and compute prompt count and memory access
- * count. Pre-compact entries are skipped — the N-shot count and memory-access
- * count should reflect only the current conversation arc, not accumulated
- * prompts from before a compaction boundary.
+ * 读取会话对话记录条目并计算提示计数和内存访问计数。
+ * 压缩前的条目会被跳过 —— N-shot 计数和内存访问计数应仅反映当前对话弧，
+ * 而不是压缩边界之前累积的提示。
  */
 async function getTranscriptStats(): Promise<{
   promptCount: number
@@ -255,12 +254,10 @@ async function getTranscriptStats(): Promise<{
   try {
     const filePath = getTranscriptPath()
     const fileSize = (await stat(filePath)).size
-    // Fused reader: attr-snap lines (84% of a long session by bytes) are
-    // skipped at the fd level so peak scales with output, not file size. The
-    // one surviving attr-snap at EOF is a no-op for the count functions
-    // (neither checks type === 'attribution-snapshot'). When the last
-    // boundary has preservedSegment the reader returns full (no truncate);
-    // the findLastIndex below still slices to post-boundary.
+    // 融合读取器：在 fd 级别跳过属性快照行（按字节计算，在长会话中占 84%），
+    // 因此峰值随输出规模变化，而不是文件大小。文件末尾存留的一个属性快照对计数函数无影响
+    // （两者都不检查 type === 'attribution-snapshot'）。当最后一个边界有 preservedSegment 时，
+    // 读取器返回完整内容（无截断）；下面的 findLastIndex 仍然切片到边界之后。
     const scan = await readTranscriptForLoad(filePath, fileSize)
     const buf = scan.postBoundaryBuf
     const entries = parseJSONL<Entry>(buf)
@@ -282,17 +279,17 @@ async function getTranscriptStats(): Promise<{
 }
 
 /**
- * Get enhanced PR attribution text with Claude contribution stats.
+ * 获取增强的 PR 归因文本，包含 Claude 贡献统计信息。
  *
- * Format: "🤖 Generated with Claude Code (93% 3-shotted by claude-opus-4-5)"
+ * 格式："🤖 由 Claude Code 生成 (93% 3-shotted by claude-opus-4-5)"
  *
- * Rules:
- * - Shows Claude contribution percentage from commit attribution
- * - Shows N-shotted where N is the prompt count (1-shotted, 2-shotted, etc.)
- * - Shows short model name (e.g., claude-opus-4-5)
- * - Returns default attribution if stats can't be computed
+ * 规则：
+ * - 显示来自提交归因的 Claude 贡献百分比
+ * - 显示 N-shotted，其中 N 是提示计数（1-shotted、2-shotted 等）
+ * - 显示短模型名称（例如 claude-opus-4-5）
+ * - 如果无法计算统计信息，则返回默认归因
  *
- * @param getAppState Function to get the current AppState (from command context)
+ * @param getAppState 获取当前 AppState 的函数（来自命令上下文）
  */
 export async function getEnhancedPRAttribution(
   getAppState: () => AppState,
@@ -305,7 +302,7 @@ export async function getEnhancedPRAttribution(
     const remoteSessionId = process.env.CLAUDE_CODE_REMOTE_SESSION_ID
     if (remoteSessionId) {
       const ingressUrl = process.env.SESSION_INGRESS_URL
-      // Skip for local dev - URLs won't persist
+      // 跳过本地开发环境 —— URL 不会持久化
       if (!isRemoteSessionLocal(remoteSessionId, ingressUrl)) {
         return getRemoteSessionUrl(remoteSessionId, ingressUrl)
       }
@@ -315,32 +312,32 @@ export async function getEnhancedPRAttribution(
 
   const settings = getInitialSettings()
 
-  // If user has custom PR attribution, use that
+  // 如果用户有自定义的 PR 归因，则使用它
   if (settings.attribution?.pr) {
     return settings.attribution.pr
   }
 
-  // Backward compatibility: deprecated includeCoAuthoredBy setting
+  // 向后兼容：已弃用的 includeCoAuthoredBy 设置
   if (settings.includeCoAuthoredBy === false) {
     return ''
   }
 
-  const defaultAttribution = `🤖 Generated with [Claude Code](${PRODUCT_URL})`
+  const defaultAttribution = `🤖 由 [Claude Code](${PRODUCT_URL}) 生成`
 
-  // Get AppState first
+  // 首先获取 AppState
   const appState = getAppState()
 
   logForDebugging(
-    `PR Attribution: appState.attribution exists: ${!!appState.attribution}`,
+    `PR 归因: appState.attribution 存在: ${!!appState.attribution}`,
   )
   if (appState.attribution) {
     const fileStates = appState.attribution.fileStates
     const isMap = fileStates instanceof Map
     const fileCount = isMap ? fileStates.size : Object.keys(fileStates).length
-    logForDebugging(`PR Attribution: fileStates count: ${fileCount}`)
+    logForDebugging(`PR 归因: fileStates 计数: ${fileCount}`)
   }
 
-  // Get attribution stats (transcript is read once for both prompt count and memory access)
+  // 获取归因统计信息（对话记录仅读取一次，用于提示计数和内存访问）
   const [attributionData, { promptCount, memoryAccessCount }, isInternal] =
     await Promise.all([
       getPRAttributionData(appState),
@@ -351,43 +348,41 @@ export async function getEnhancedPRAttribution(
   const claudePercent = attributionData?.summary.claudePercent ?? 0
 
   logForDebugging(
-    `PR Attribution: claudePercent: ${claudePercent}, promptCount: ${promptCount}, memoryAccessCount: ${memoryAccessCount}`,
+    `PR 归因: claudePercent: ${claudePercent}, promptCount: ${promptCount}, memoryAccessCount: ${memoryAccessCount}`,
   )
 
-  // Get short model name, sanitized for non-internal repos
+  // 获取短模型名称，对于非内部仓库进行清理
   const rawModelName = getCanonicalName(getMainLoopModel())
   const shortModelName = isInternal
     ? rawModelName
     : sanitizeModelName(rawModelName)
 
-  // If no attribution data, return default
+  // 如果没有归因数据，返回默认值
   if (claudePercent === 0 && promptCount === 0 && memoryAccessCount === 0) {
-    logForDebugging('PR Attribution: returning default (no data)')
+    logForDebugging('PR 归因: 返回默认值（无数据）')
     return defaultAttribution
   }
 
-  // Build the enhanced attribution: "🤖 Generated with Claude Code (93% 3-shotted by claude-opus-4-5, 2 memories recalled)"
+  // 构建增强归因： "🤖 由 Claude Code 生成 (93% 3-shotted by claude-opus-4-5, 2 memories recalled)"
   const memSuffix =
     memoryAccessCount > 0
-      ? `, ${memoryAccessCount} ${memoryAccessCount === 1 ? 'memory' : 'memories'} recalled`
+      ? `, 调用了 ${memoryAccessCount} ${memoryAccessCount === 1 ? '条记忆' : '条记忆'}`
       : ''
-  const summary = `🤖 Generated with [Claude Code](${PRODUCT_URL}) (${claudePercent}% ${promptCount}-shotted by ${shortModelName}${memSuffix})`
+  const summary = `🤖 由 [Claude Code](${PRODUCT_URL}) 生成 (${claudePercent}% ${promptCount}-shotted by ${shortModelName}${memSuffix})`
 
-  // Append trailer lines for squash-merge survival. Only for allowlisted repos
-  // (INTERNAL_MODEL_REPOS) and only in builds with COMMIT_ATTRIBUTION enabled —
-  // attributionTrailer.ts contains excluded strings, so reach it via dynamic
-  // import behind feature(). When the repo is configured with
-  // squash_merge_commit_message=PR_BODY (cli, apps), the PR body becomes the
-  // squash commit body verbatim — trailer lines at the end become proper git
-  // trailers on the squash commit.
+  // 为 squash 合并存活追加尾部行。仅适用于允许列表中的仓库
+  // （INTERNAL_MODEL_REPOS）并且仅在启用了 COMMIT_ATTRIBUTION 的构建中 ——
+  // attributionTrailer.ts 包含排除的字符串，因此通过 feature() 后面的动态导入访问它。
+  // 当仓库配置为 squash_merge_commit_message=PR_BODY（cli, apps）时，
+  // PR 正文将逐字成为 squash 提交正文 —— 末尾的尾部行成为 squash 提交上正确的 git 尾部。
   if (feature('COMMIT_ATTRIBUTION') && isInternal && attributionData) {
     const { buildPRTrailers } = await import('./attributionTrailer.js')
     const trailers = buildPRTrailers(attributionData, appState.attribution)
     const result = `${summary}\n\n${trailers.join('\n')}`
-    logForDebugging(`PR Attribution: returning with trailers: ${result}`)
+    logForDebugging(`PR 归因: 返回带尾部的结果: ${result}`)
     return result
   }
 
-  logForDebugging(`PR Attribution: returning summary: ${summary}`)
+  logForDebugging(`PR 归因: 返回摘要: ${summary}`)
   return summary
 }

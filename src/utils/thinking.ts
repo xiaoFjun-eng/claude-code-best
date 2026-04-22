@@ -1,4 +1,4 @@
-// biome-ignore-all assist/source/organizeImports: ANT-ONLY import markers must not be reordered
+// biome-ignore-all assist/source/organizeImports: 仅限 Ant 内部的导入标记不得重新排序
 import type { Theme } from './theme.js'
 import { feature } from 'bun:bundle'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/growthbook.js'
@@ -14,8 +14,7 @@ export type ThinkingConfig =
   | { type: 'disabled' }
 
 /**
- * Build-time gate (feature) + runtime gate (GrowthBook). The build flag
- * controls code inclusion in external builds; the GB flag controls rollout.
+ * 构建时门控（feature）+ 运行时门控（GrowthBook）。构建标志控制外部构建中的代码包含；GB 标志控制发布。
  */
 export function isUltrathinkEnabled(): boolean {
   if (!feature('ULTRATHINK')) {
@@ -25,14 +24,14 @@ export function isUltrathinkEnabled(): boolean {
 }
 
 /**
- * Check if text contains the "ultrathink" keyword.
+ * 检查文本是否包含 "ultrathink" 关键词。
  */
 export function hasUltrathinkKeyword(text: string): boolean {
   return /\bultrathink\b/i.test(text)
 }
 
 /**
- * Find positions of "ultrathink" keyword in text (for UI highlighting/notification)
+ * 查找文本中 "ultrathink" 关键词的位置（用于 UI 高亮/通知）
  */
 export function findThinkingTriggerPositions(text: string): Array<{
   word: string
@@ -40,9 +39,8 @@ export function findThinkingTriggerPositions(text: string): Array<{
   end: number
 }> {
   const positions: Array<{ word: string; start: number; end: number }> = []
-  // Fresh /g literal each call — String.prototype.matchAll copies lastIndex
-  // from the source regex, so a shared instance would leak state from
-  // hasUltrathinkKeyword's .test() into this call on the next render.
+  // 每次调用都使用新的 /g 字面量 — String.prototype.matchAll 会复制源正则表达式的 lastIndex，
+  // 因此共享实例会导致 hasUltrathinkKeyword 的 .test() 中的状态泄漏到下一次渲染的此调用中。
   const matches = text.matchAll(/\bultrathink\b/gi)
 
   for (const match of matches) {
@@ -86,8 +84,8 @@ export function getRainbowColor(
   return colors[charIndex % colors.length]!
 }
 
-// TODO(inigo): add support for probing unknown models via API error detection
-// Provider-aware thinking support detection (aligns with modelSupportsISP in betas.ts)
+// TODO(inigo): 添加通过 API 错误检测探测未知模型的支持
+// 支持思维能力的提供者感知检测（与 betas.ts 中的 modelSupportsISP 对齐）
 export function modelSupportsThinking(model: string): boolean {
   const supported3P = get3PModelCapabilityOverride(model, 'thinking')
   if (supported3P !== undefined) {
@@ -98,30 +96,29 @@ export function modelSupportsThinking(model: string): boolean {
       return true
     }
   }
-  // IMPORTANT: Do not change thinking support without notifying the model
-  // launch DRI and research. This can greatly affect model quality and bashing.
+  // 重要提示：未经模型发布负责人和研究团队通知，请勿更改思维能力支持。这会极大地影响模型质量和稳定性。
   const canonical = getCanonicalName(model)
   const provider = getAPIProvider()
-  // 1P and Foundry: all Claude 4+ models (including Haiku 4.5)
+  // 1P 和 Foundry：所有 Claude 4+ 模型（包括 Haiku 4.5）
   if (provider === 'foundry' || provider === 'firstParty') {
     return !canonical.includes('claude-3-')
   }
-  // 3P (Bedrock/Vertex): only Opus 4+ and Sonnet 4+
+  // 3P（Bedrock/Vertex）：仅 Opus 4+ 和 Sonnet 4+
   return canonical.includes('sonnet-4') || canonical.includes('opus-4')
 }
 
-// @[MODEL LAUNCH]: Add the new model to the allowlist if it supports adaptive thinking.
+// @[MODEL LAUNCH]: 如果新模型支持自适应思维，请将其添加到允许列表中。
 export function modelSupportsAdaptiveThinking(model: string): boolean {
   const supported3P = get3PModelCapabilityOverride(model, 'adaptive_thinking')
   if (supported3P !== undefined) {
     return supported3P
   }
   const canonical = getCanonicalName(model)
-  // Supported by a subset of Claude 4 models
+  // 由 Claude 4 模型的一个子集支持
   if (canonical.includes('opus-4-6') || canonical.includes('sonnet-4-6')) {
     return true
   }
-  // Exclude any other known legacy models (allowlist above catches 4-6 variants first)
+  // 排除任何其他已知的旧模型（上面的允许列表首先捕获 4-6 变体）
   if (
     canonical.includes('opus') ||
     canonical.includes('sonnet') ||
@@ -129,17 +126,14 @@ export function modelSupportsAdaptiveThinking(model: string): boolean {
   ) {
     return false
   }
-  // IMPORTANT: Do not change adaptive thinking support without notifying the
-  // model launch DRI and research. This can greatly affect model quality and
-  // bashing.
+  // 重要提示：未经模型发布负责人和研究团队通知，请勿更改自适应思维能力支持。
+  // 这会极大地影响模型质量和稳定性。
 
-  // Newer models (4.6+) are all trained on adaptive thinking and MUST have it
-  // enabled for model testing. DO NOT default to false for first party, otherwise
-  // we may silently degrade model quality.
+  // 较新的模型（4.6+）都经过自适应思维训练，并且必须为模型测试启用它。
+  // 对于第一方，不要默认为 false，否则我们可能会无声地降低模型质量。
 
-  // Default to true for unknown model strings on 1P and Foundry (because Foundry
-  // is a proxy). Do not default to true for other 3P as they have different formats
-  // for their model strings.
+  // 对于第一方和 Foundry（因为 Foundry 是代理），对未知模型字符串默认为 true。
+  // 不要对其他第三方默认为 true，因为它们的模型字符串具有不同的格式。
   const provider = getAPIProvider()
   return provider === 'firstParty' || provider === 'foundry'
 }
@@ -154,10 +148,9 @@ export function shouldEnableThinkingByDefault(): boolean {
     return false
   }
 
-  // IMPORTANT: Do not change default thinking enabled value without notifying
-  // the model launch DRI and research. This can greatly affect model quality and
-  // bashing.
+  // 重要提示：未经模型发布负责人和研究团队通知，请勿更改默认的思维启用值。
+  // 这会极大地影响模型质量和稳定性。
 
-  // Enable thinking by default unless explicitly disabled.
+  // 除非显式禁用，否则默认启用思维。
   return true
 }

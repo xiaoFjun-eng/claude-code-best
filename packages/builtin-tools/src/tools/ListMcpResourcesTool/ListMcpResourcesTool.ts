@@ -17,7 +17,7 @@ const inputSchema = lazySchema(() =>
     server: z
       .string()
       .optional()
-      .describe('Optional server name to filter resources by'),
+      .describe('可选的服务器名称，用于按服务器筛选资源'),
   }),
 )
 type InputSchema = ReturnType<typeof inputSchema>
@@ -25,11 +25,11 @@ type InputSchema = ReturnType<typeof inputSchema>
 const outputSchema = lazySchema(() =>
   z.array(
     z.object({
-      uri: z.string().describe('Resource URI'),
-      name: z.string().describe('Resource name'),
-      mimeType: z.string().optional().describe('MIME type of the resource'),
-      description: z.string().optional().describe('Resource description'),
-      server: z.string().describe('Server that provides this resource'),
+      uri: z.string().describe('资源 URI'),
+      name: z.string().describe('资源名称'),
+      mimeType: z.string().optional().describe('资源的 MIME 类型'),
+      description: z.string().optional().describe('资源描述'),
+      server: z.string().describe('提供此资源的服务器'),
     }),
   ),
 )
@@ -49,7 +49,7 @@ export const ListMcpResourcesTool = buildTool({
   },
   shouldDefer: true,
   name: LIST_MCP_RESOURCES_TOOL_NAME,
-  searchHint: 'list resources from connected MCP servers',
+  searchHint: '列出已连接 MCP 服务器中的资源',
   maxResultSizeChars: 100_000,
   async description() {
     return DESCRIPTION
@@ -72,15 +72,13 @@ export const ListMcpResourcesTool = buildTool({
 
     if (targetServer && clientsToProcess.length === 0) {
       throw new Error(
-        `Server "${targetServer}" not found. Available servers: ${mcpClients.map(c => c.name).join(', ')}`,
+        `未找到服务器“${targetServer}”。可用的服务器：${mcpClients.map(c => c.name).join(', ')}`,
       )
     }
 
-    // fetchResourcesForClient is LRU-cached (by server name) and already
-    // warm from startup prefetch. Cache is invalidated on onclose and on
-    // resources/list_changed notifications, so results are never stale.
-    // ensureConnectedClient is a no-op when healthy (memoize hit), but after
-    // onclose it returns a fresh connection so the re-fetch succeeds.
+    // fetchResourcesForClient 是 LRU 缓存的（按服务器名称），并且已经在启动预取时预热。
+    // 缓存在 onclose 和 resources/list_changed 通知时失效，因此结果永远不会过时。
+    // ensureConnectedClient 在健康状态下是无操作（命中 memoize），但在 onclose 后它会返回一个新的连接，以便重新获取成功。
     const results = await Promise.all(
       clientsToProcess.map(async client => {
         if (client.type !== 'connected') return []
@@ -88,7 +86,7 @@ export const ListMcpResourcesTool = buildTool({
           const fresh = await ensureConnectedClient(client)
           return await fetchResourcesForClient(fresh)
         } catch (error) {
-          // One server's reconnect failure shouldn't sink the whole result.
+          // 一个服务器的重连失败不应使整个结果失效。
           logMCPError(client.name, errorMessage(error))
           return []
         }
@@ -111,7 +109,7 @@ export const ListMcpResourcesTool = buildTool({
         tool_use_id: toolUseID,
         type: 'tool_result',
         content:
-          'No resources found. MCP servers may still provide tools even if they have no resources.',
+          '未找到资源。即使没有资源，MCP 服务器可能仍然提供工具。',
       }
     }
     return {

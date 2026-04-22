@@ -49,7 +49,6 @@ function BridgeToggle({ onDone, name }: Props): React.ReactNode {
   const replBridgeOutboundOnly = useAppState(s => s.replBridgeOutboundOnly)
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false)
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: 桥接仅启动一次，不应在状态变化时重启
   useEffect(() => {
     // 如果已连接或在完全双向模式下启用，则显示
     // 断开连接确认。仅出站（CCR 镜像）不计入 —

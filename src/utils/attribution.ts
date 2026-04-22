@@ -75,7 +75,7 @@ export function getAttributionTexts(): AttributionTexts {
   const modelName =
     isInternalModelRepoCached() || isKnownPublicModel
       ? getPublicModelName(model)
-      : 'Claude Opus 4.6'
+      : 'Claude Opus 4.7'
   const defaultAttribution = `🤖 由 [Claude Code](${PRODUCT_URL}) 生成`
   const defaultCommit = `Co-Authored-By: ${modelName} <noreply@anthropic.com>`
 

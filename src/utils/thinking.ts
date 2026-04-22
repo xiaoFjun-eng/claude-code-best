@@ -115,7 +115,11 @@ export function modelSupportsAdaptiveThinking(model: string): boolean {
   }
   const canonical = getCanonicalName(model)
   // 由 Claude 4 模型的一个子集支持
-  if (canonical.includes('opus-4-6') || canonical.includes('sonnet-4-6')) {
+  if (
+    canonical.includes('opus-4-7') ||
+    canonical.includes('opus-4-6') ||
+    canonical.includes('sonnet-4-6')
+  ) {
     return true
   }
   // 排除任何其他已知的旧模型（上面的允许列表首先捕获 4-6 变体）

@@ -464,11 +464,8 @@ import {
 } from '../utils/autoRunIssue.js';
 import type { HookProgress } from '../types/hooks.js';
 import { TungstenLiveMonitor } from '@claude-code-best/builtin-tools/tools/TungstenTool/TungstenLiveMonitor.js';
-/* eslint-disable @typescript-eslint/no-require-imports */
-const WebBrowserPanelModule = feature('WEB_BROWSER_TOOL')
-  ? (require('@claude-code-best/builtin-tools/tools/WebBrowserTool/WebBrowserPanel.js') as typeof import('@claude-code-best/builtin-tools/tools/WebBrowserTool/WebBrowserPanel.js'))
-  : null;
-/* eslint-enable @typescript-eslint/no-require-imports */
+// WebBrowserPanel removed — browser-lite returns results inline via tool_result.
+// For full browser interaction use Claude-in-Chrome MCP tools.
 import { IssueFlagBanner } from '../components/PromptInput/IssueFlagBanner.js';
 import { useIssueFlagBanner } from '../hooks/useIssueFlagBanner.js';
 import { CompanionSprite, CompanionFloatingBubble, MIN_COLS_FOR_FULL_SPRITE } from '../buddy/CompanionSprite.js';
@@ -5667,7 +5664,7 @@ Claude Code 已被挂起。运行 \`fg\` 以恢复 Claude Code。
                 </Box>
               )}
               {process.env.USER_TYPE === 'ant' && <TungstenLiveMonitor />}
-              {feature('WEB_BROWSER_TOOL') ? WebBrowserPanelModule && <WebBrowserPanelModule.WebBrowserPanel /> : null}
+              {/* WebBrowserPanel removed — browser-lite, no panel */}
               <Box flexGrow={1} />
               {showSpinner && (
                 <SpinnerWithVerb
@@ -6180,7 +6177,7 @@ Claude Code 已被挂起。运行 \`fg\` 以恢复 Claude Code。
                       />
                     )}
                     {/* 技能改进调查 - 在检测到改进时显示（仅限蚂蚁） */}
-                    {process.env.USER_TYPE === 'ant' && skillImprovementSurvey.suggestion && (
+                    {skillImprovementSurvey.suggestion && (
                       <SkillImprovementSurvey
                         isOpen={skillImprovementSurvey.isOpen}
                         skillName={skillImprovementSurvey.suggestion.skillName}

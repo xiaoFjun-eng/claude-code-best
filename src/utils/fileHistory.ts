@@ -1060,7 +1060,6 @@ async function readFileAsyncOrNull(path: string): Promise<string | null> {
 const ENABLE_DUMP_STATE = false
 function maybeDumpStateForDebug(state: FileHistoryState): void {
   if (ENABLE_DUMP_STATE) {
-    // biome-ignore lint/suspicious/noConsole:: 有意输出到控制台
     console.error(inspect(state, false, 5))
   }
 }

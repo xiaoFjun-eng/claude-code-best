@@ -498,7 +498,6 @@ async function _runAndCache(
   } catch (e) {
     if (epoch !== _apiKeyHelperEpoch) return ' '
     const detail = e instanceof Error ? e.message : String(e)
-    // biome-ignore lint/suspicious/noConsole: 用户配置的脚本失败；必须在不使用 --debug 的情况下可见
     console.error(chalk.red(`apiKeyHelper 失败: ${detail}`))
     logForDebugging(`从 apiKeyHelper 获取 API 密钥时出错: ${detail}`, {
       level: 'error',
@@ -671,7 +670,6 @@ export function refreshAwsAuth(awsAuthRefresh: string): Promise<boolean> {
           : chalk.red(
               '运行 awsAuthRefresh（在设置或 ~/.claude.json 中）时出错：',
             )
-        // biome-ignore lint/suspicious/noConsole:: 有意的控制台输出
         console.error(message)
         authStatusManager.endAuthentication(false)
         void resolve(false)
@@ -750,10 +748,8 @@ async function getAwsCredsFromCredentialExport(): Promise<{
         '从 awsCredentialExport（在设置或 ~/.claude.json 中）获取 AWS 凭证时出错：',
       )
       if (e instanceof Error) {
-        // biome-ignore lint/suspicious/noConsole:: 有意的控制台输出
         console.error(message, e.message)
       } else {
-        // biome-ignore lint/suspicious/noConsole:: 有意的控制台输出
         console.error(message, e)
       }
       return null
@@ -937,7 +933,6 @@ export function refreshGcpAuth(gcpAuthRefresh: string): Promise<boolean> {
           : chalk.red(
               '运行 gcpAuthRefresh（在设置或 ~/.claude.json 中）时出错：',
             )
-        // biome-ignore lint/suspicious/noConsole:: 有意的控制台输出
         console.error(message)
         authStatusManager.endAuthentication(false)
         void resolve(false)
@@ -1737,6 +1732,7 @@ export function getOtelHeadersFromHelper(): Record<string, string> {
   const debounceMs = parseInt(
     process.env.CLAUDE_CODE_OTEL_HEADERS_HELPER_DEBOUNCE_MS ||
       DEFAULT_OTEL_HEADERS_DEBOUNCE_MS.toString(),
+    10,
   )
   if (
     cachedOtelHeaders &&

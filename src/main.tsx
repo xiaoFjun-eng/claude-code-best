@@ -6426,7 +6426,69 @@ ${formattedErrors}
 		}
 	}
 
-	// Remote Control 命令 —— 将本地环境连接到 claude.ai
+	// claude autonomy — CLI subcommands mirroring /autonomy slash command
+	{
+		const autonomyCmd = program
+			.command("autonomy")
+			.description("Inspect and manage automatic autonomy runs and flows");
+
+		autonomyCmd
+			.command("status")
+			.description("Print autonomy run, flow, team, pipe, and remote-control status")
+			.option("--deep", "Include teams, pipes, daemon, and remote-control sections")
+			.action(async (options: { deep?: boolean }) => {
+				const { autonomyStatusHandler } = await import("./cli/handlers/autonomy.js");
+				await autonomyStatusHandler(options);
+				process.exit(0);
+			});
+
+		autonomyCmd
+			.command("runs [limit]")
+			.description("List recent autonomy runs")
+			.action(async (limit?: string) => {
+				const { autonomyRunsHandler } = await import("./cli/handlers/autonomy.js");
+				await autonomyRunsHandler(limit);
+				process.exit(0);
+			});
+
+		autonomyCmd
+			.command("flows [limit]")
+			.description("List recent autonomy flows")
+			.action(async (limit?: string) => {
+				const { autonomyFlowsHandler } = await import("./cli/handlers/autonomy.js");
+				await autonomyFlowsHandler(limit);
+				process.exit(0);
+			});
+
+		const flowCmd = autonomyCmd
+			.command("flow <flowId>")
+			.description("Inspect a single autonomy flow")
+			.action(async (flowId: string) => {
+				const { autonomyFlowHandler } = await import("./cli/handlers/autonomy.js");
+				await autonomyFlowHandler(flowId);
+				process.exit(0);
+			});
+
+		flowCmd
+			.command("cancel <flowId>")
+			.description("Cancel a queued, waiting, or running autonomy flow")
+			.action(async (flowId: string) => {
+				const { autonomyFlowCancelHandler } = await import("./cli/handlers/autonomy.js");
+				await autonomyFlowCancelHandler(flowId);
+				process.exit(0);
+			});
+
+		flowCmd
+			.command("resume <flowId>")
+			.description("Resume a waiting autonomy flow")
+			.action(async (flowId: string) => {
+				const { autonomyFlowResumeHandler } = await import("./cli/handlers/autonomy.js");
+				await autonomyFlowResumeHandler(flowId);
+				process.exit(0);
+			});
+	}
+
+		// Remote Control 命令 —— 将本地环境连接到 claude.ai
 	// /code。实际命令在 Commander.js 运行前被 cli.tsx
 	// 中的快速路径拦截，因此此注册仅用于帮助输出。始终隐藏：此时（在 enable
 	// Configs 之前）调用 isBridgeEnabled() 会在 isCl

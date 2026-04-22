@@ -62,7 +62,6 @@ export function filterAllowedSdkBetas(
   }
 
   if (isClaudeAISubscriber()) {
-    // biome-ignore lint/suspicious/noConsole: 故意警告
     console.warn(
       '警告：自定义测试功能仅适用于 API 密钥用户。忽略提供的测试功能。',
     )
@@ -71,7 +70,6 @@ export function filterAllowedSdkBetas(
 
   const { allowed, disallowed } = partitionBetasByAllowlist(sdkBetas)
   for (const beta of disallowed) {
-    // biome-ignore lint/suspicious/noConsole: 故意警告
     console.warn(
       `警告：测试功能头 '${beta}' 不被允许。仅支持以下测试功能：${ALLOWED_SDK_BETAS.join(', ')}`,
     )
@@ -145,6 +143,7 @@ export function modelSupportsStructuredOutputs(model: string): boolean {
     canonical.includes('claude-opus-4-1') ||
     canonical.includes('claude-opus-4-5') ||
     canonical.includes('claude-opus-4-6') ||
+    canonical.includes('claude-opus-4-7') ||
     canonical.includes('claude-haiku-4-5')
   )
 }
@@ -181,8 +180,8 @@ export function modelSupportsAutoMode(model: string): boolean {
       if (/claude-(opus|sonnet|haiku)-4(?!-[6-9])/.test(m)) return false
       return true
     }
-    // 外部允许列表（第一方已在上面检查过）。
-    return /^claude-(opus|sonnet)-4-6/.test(m)
+    // External allowlist (firstParty already checked above).
+    return /^claude-(opus|sonnet)-4-[67]/.test(m)
   }
   return false
 }
@@ -263,16 +262,18 @@ export const getAllModelBetas = memoize((model: string): string[] => {
     betaHeaders.push(REDACT_THINKING_BETA_HEADER)
   }
 
-  // 为工具清理（ant 选择加入）或思考保留添加上下文管理测试功能。
-  const antOptedIntoToolClearing =
-    isEnvTruthy(process.env.USE_API_CONTEXT_MANAGEMENT) &&
-    process.env.USER_TYPE === 'ant'
+  // Add context management beta for tool clearing or thinking preservation.
+  // Tool clearing is enabled by default for all users (upstream gates on ant);
+  // thinking preservation activates when the model supports context management.
+  const toolClearingOptIn =
+    isEnvTruthy(process.env.USE_API_CONTEXT_MANAGEMENT) ||
+    modelSupportsContextManagement(model)
 
   const thinkingPreservationEnabled = modelSupportsContextManagement(model)
 
   if (
     shouldIncludeFirstPartyOnlyBetas() &&
-    (antOptedIntoToolClearing || thinkingPreservationEnabled)
+    (toolClearingOptIn || thinkingPreservationEnabled)
   ) {
     betaHeaders.push(CONTEXT_MANAGEMENT_BETA_HEADER)
   }

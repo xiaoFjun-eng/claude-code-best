@@ -1382,7 +1382,8 @@ export const connectToServer = memoize(
                 return
               }
 
-              // 等待优雅关闭，并快速升级（总计 500 毫秒以保持 CLI 响应性）
+              // Wait for graceful shutdown with rapid escalation (total 500ms to keep CLI responsive)
+              // biome-ignore lint/suspicious/noAsyncPromiseExecutor: async needed for sequential await inside executor
               await new Promise<void>(async resolve => {
                 let resolved = false
 

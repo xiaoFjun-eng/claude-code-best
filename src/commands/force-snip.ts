@@ -44,7 +44,7 @@ const forceSnip = {
   name: 'force-snip',
   description: '强制在当前点截断对话历史',
   supportsNonInteractive: true,
-  isHidden: true,
+  isHidden: false,
   load: () => Promise.resolve({ call }),
 } satisfies Command
 

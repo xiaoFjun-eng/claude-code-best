@@ -101,6 +101,8 @@ import {
   extractQuotaStatusFromHeaders,
 } from '../claudeAiLimits.js'
 import { getAPIContextManagement } from '../compact/apiMicrocompact.js'
+import { bedrockAdapter } from '../providerUsage/adapters/bedrock.js'
+import { updateProviderBuckets } from '../providerUsage/store.js'
 
 /* eslint-disable @typescript-eslint/no-require-imports */
 const autoModeStateModule = feature('TRANSCRIPT_CLASSIFIER')
@@ -532,13 +534,12 @@ export async function verifyApiKey(
           }),
         async anthropic => {
           const messages: MessageParam[] = [{ role: 'user', content: 'test' }]
-          // biome-ignore lint/plugin: API 密钥验证有意设计为最简化的直接调用
           await anthropic.beta.messages.create({
             model,
             max_tokens: 1,
             messages,
             temperature: 1,
-            ...(betas.length > 0 && { betas }),
+            ...(betas.length > 0 && { betas: betas.filter(Boolean) }),
             metadata: getAPIMetadata(),
             ...getExtraBodyParams(),
           })
@@ -861,7 +862,6 @@ export async function* executeNonStreamingRequest(
       )
 
       try {
-        // biome-ignore lint/plugin: 非流式 API 调用
         return await anthropic.beta.messages.create(
           {
             ...adjustedParams,
@@ -1186,10 +1186,15 @@ async function* queryModel(
     cacheEditingBetaHeader = betas.CACHE_EDITING_BETA_HEADER
     const featureEnabled = isCachedMicrocompactEnabled()
     const modelSupported = isModelSupportedForCacheEditing(options.model)
-    cachedMCEnabled = featureEnabled && modelSupported
+    // cachedMC requires a non-empty beta header; the CACHE_EDITING_BETA_HEADER
+    // constant is '' in this fork (upstream hasn't published the real value).
+    // Without it, cache_reference and cache_edits in the request body cause
+    // API 400: "tool_result.cache_reference: Extra inputs are not permitted".
+    const headerAvailable = !!cacheEditingBetaHeader
+    cachedMCEnabled = featureEnabled && modelSupported && headerAvailable
     const config = getCachedMCConfig()
     logForDebugging(
-      `缓存 MC 门控：enabled=${featureEnabled} modelSupported=${modelSupported} model=${options.model} supportedModels=${jsonStringify((config as any).supportedModels)}`,
+      `Cached MC gate: enabled=${featureEnabled} modelSupported=${modelSupported} headerAvailable=${headerAvailable} model=${options.model} supportedModels=${jsonStringify((config as Record<string, unknown>).supportedModels)}`,
     )
   }
 
@@ -1669,6 +1674,7 @@ ${deferredToolList}
       options.querySource === 'repl_main_thread'
     if (
       cacheEditingHeaderLatched &&
+      cacheEditingBetaHeader &&
       getAPIProvider() === 'firstParty' &&
       options.querySource === 'repl_main_thread' &&
       !betasParams.includes(cacheEditingBetaHeader)
@@ -1684,7 +1690,12 @@ ${deferredToolList}
       ? (options.temperatureOverride ?? 1)
       : undefined
 
-    lastRequestBetas = betasParams
+    // Filter out any empty-string beta headers before sending.
+    // Constants like CACHE_EDITING_BETA_HEADER or AFK_MODE_BETA_HEADER
+    // can be '' when their feature gate is off; an empty string in the
+    // betas array produces an invalid anthropic-beta header (400 error).
+    const filteredBetas = betasParams.filter(Boolean)
+    lastRequestBetas = filteredBetas
 
     return {
       model: normalizeModelStringForAPI(options.model),
@@ -1700,7 +1711,7 @@ ${deferredToolList}
       system,
       tools: allTools,
       tool_choice: options.toolChoice,
-      ...(useBetas && { betas: betasParams }),
+      ...(useBetas && { betas: filteredBetas }),
       metadata: getAPIMetadata(),
       max_tokens: maxOutputTokens,
       thinking,
@@ -1800,10 +1811,9 @@ ${deferredToolList}
             ? randomUUID()
             : undefined
 
-        // 使用原始流而不是 BetaMessageStream，以避免 O(n²) 的部分 JSON 解析
-        // BetaMessageStream 在每个 input_json_delta 上调用 partialParse()，我们不需要，
-        // 因为我们自己处理工具输入累积
-        // biome-ignore lint/plugin: 主对话循环单独处理归属
+        // Use raw stream instead of BetaMessageStream to avoid O(n²) partial JSON parsing
+        // BetaMessageStream calls partialParse() on every input_json_delta, which we don't need
+        // since we handle tool input accumulation ourselves
         const result = await anthropic.beta.messages
           .create(
             { ...params, stream: true },
@@ -2359,7 +2369,17 @@ ${deferredToolList}
       const resp = streamResponse as unknown as Response | undefined
       if (resp) {
         extractQuotaStatusFromHeaders(resp.headers)
-        // 存储标头以用于网关检测
+        // Non-Anthropic providers that flow through this same client path
+        // (Bedrock) expose their own throttle headers — let their adapter
+        // overwrite the store with its bucket(s). Anthropic's adapter runs
+        // inside extractQuotaStatusFromHeaders.
+        if (getAPIProvider() === 'bedrock') {
+          updateProviderBuckets(
+            'bedrock',
+            bedrockAdapter.parseHeaders(resp.headers),
+          )
+        }
+        // Store headers for gateway detection
         responseHeaders = resp.headers
       }
     } catch (streamingError) {
@@ -3119,8 +3139,9 @@ export function addCacheBreakpoints(
     }
   }
 
-  // 查找包含 cache_control 标记的最后一条消息
-  // 将 cache_reference 添加到严格位于最后一个 cache_control 标记之前的
+  // Add cache_reference to tool_result blocks that are within the cached prefix.
+  // Must be done AFTER cache_edits insertion since that modifies content arrays.
+  // Note: this code only runs when useCachedMC=true (early return at line ~3202).
   if (enablePromptCaching) {
     // tool_result 块中。API 要求 cache_reference 出现在最后一个 cache_control "之前或之上" — 我们使用严格的 "之前"
     let lastCCMsg = -1

@@ -160,7 +160,7 @@ function SetModelAndClose({
       // @[模型发布]: 为 1M 访问权限更新检查。
       if (model && isOpus1mUnavailable(model)) {
         onDone(
-          `您的账户无法使用具有 1M 上下文的 Opus 4.6。了解更多：https://code.claude.com/docs/en/model-config#extended-context-with-1m`,
+          `您的账户无法使用具有 1M 上下文的 Opus 4.7。了解更多：https://code.claude.com/docs/en/model-config#extended-context-with-1m`,
           { display: 'system' },
         )
         return

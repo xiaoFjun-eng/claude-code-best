@@ -41,7 +41,7 @@ export async function launchSnapshotUpdateDialog(
       scope={props.scope}
       snapshotTimestamp={props.snapshotTimestamp}
       onComplete={done}
-      onCancel={() => done('keep')}
+      onCancel={() => done('keep')} // Esc/cancel → safe default: keep current memory
     />
   ))
 }

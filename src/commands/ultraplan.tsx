@@ -63,7 +63,7 @@ export function isUltraplanEnabled(): boolean {
 // 块加载时：GrowthBook 缓存在导入时为空，且 `/config` 开
 // 关可在调用之间切换它。
 function getUltraplanModel(): string {
-  return getFeatureValue_CACHED_MAY_BE_STALE('tengu_ultraplan_model', ALL_MODEL_CONFIGS.opus46.firstParty);
+  return getFeatureValue_CACHED_MAY_BE_STALE('tengu_ultraplan_model', ALL_MODEL_CONFIGS.opus47.firstParty);
 }
 
 // prompt.txt 被包裹在 <system-reminder>

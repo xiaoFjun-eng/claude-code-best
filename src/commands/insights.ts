@@ -3035,7 +3035,6 @@ const usageReport: Command = {
 
       // 如果正在收集，则显示收集消息
       if (collectRemote && hasRemoteHosts) {
-        // biome-ignore lint/suspicious/noConsole: 故意的
         console.error(
           `正在从 ${remoteHosts.length} 个 homespace 收集会话：${remoteHosts.join(', ')}...`,
         )

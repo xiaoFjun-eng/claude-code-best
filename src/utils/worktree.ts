@@ -1223,7 +1223,6 @@ export async function execIntoTmuxWorktree(args: string[]): Promise<{
       }
     }
     repoName = basename(findCanonicalGitRoot(getCwd()) ?? getCwd())
-    // biome-ignore lint/suspicious/noConsole：故意的控制台输出
     console.log(`通过钩子使用工作树：${worktreeDir}`)
   } else {
     // 获取主 Git 仓库根目录（通过工作树解析）
@@ -1246,7 +1245,6 @@ export async function execIntoTmuxWorktree(args: string[]): Promise<{
         prNumber !== null ? { prNumber } : undefined,
       )
       if (!result.existed) {
-        // biome-ignore lint/suspicious/noConsole：故意的控制台输出
         console.log(
           `已创建工作树：${worktreeDir}（基于 ${(result as any).baseBranch}）`,
         )
@@ -1338,7 +1336,6 @@ export async function execIntoTmuxWorktree(args: string[]): Promise<{
   // 使用控制模式时，打印关于 iTerm2 首选项的提示
   if (useControlMode && !sessionExists) {
     const y = chalk.yellow
-    // biome-ignore lint/suspicious/noConsole：故意的用户指导
     console.log(
       `\n${y('╭─ iTerm2 提示 ────────────────────────────────────────────────────────╮')}\n` +
         `${y('│')} 要作为标签页而非新窗口打开：                           ${y('│')}

@@ -20,6 +20,7 @@ import {
 } from './bootstrap/state.js'
 import { getCommands } from './commands.js'
 import { initSessionMemory } from './services/SessionMemory/sessionMemory.js'
+import { initSkillLearning } from './services/skillLearning/runtimeObserver.js'
 import { asSessionId } from './types/ids.js'
 import { isAgentSwarmsEnabled } from './utils/agentSwarmsEnabled.js'
 import { checkAndRestoreTerminalBackup } from './utils/appleTerminalBackup.js'
@@ -68,8 +69,7 @@ export async function setup(
 
   // 检查 Node.js 版本是否低于 18
   const nodeVersion = process.version.match(/^v(\d+)\./)?.[1]
-  if (!nodeVersion || parseInt(nodeVersion) < 18) {
-    // biome-ignore lint/suspicious/noConsole:: 有意为之的控制台输出
+  if (!nodeVersion || parseInt(nodeVersion, 10) < 18) {
     console.error(
       chalk.bold.red(
         '错误：Claude Code 需要 Node.js 版本 18 或更高。',
@@ -117,14 +117,12 @@ export async function setup(
     if (isAgentSwarmsEnabled()) {
       const restoredIterm2Backup = await checkAndRestoreITerm2Backup()
       if (restoredIterm2Backup.status === 'restored') {
-        // biome-ignore lint/suspicious/noConsole:: 有意为之的控制台输出
         console.log(
           chalk.yellow(
             '检测到中断的 iTerm2 设置。您的原始设置已恢复。您可能需要重启 iTerm2 以使更改生效。',
           ),
         )
       } else if (restoredIterm2Backup.status === 'failed') {
-        // biome-ignore lint/suspicious/noConsole:: 有意为之的控制台输出
         console.error(
           chalk.red(
             `恢复 iTerm2 设置失败。请使用以下命令手动恢复您的原始设置：defaults import com.googlecode.iterm2 ${restoredIterm2Backup.backupPath}。`,
@@ -137,14 +135,12 @@ export async function setup(
     try {
       const restoredTerminalBackup = await checkAndRestoreTerminalBackup()
       if (restoredTerminalBackup.status === 'restored') {
-        // biome-ignore lint/suspicious/noConsole:: 有意为之的控制台输出
         console.log(
           chalk.yellow(
             '检测到中断的 Terminal.app 设置。您的原始设置已恢复。您可能需要重启 Terminal.app 以使更改生效。',
           ),
         )
       } else if (restoredTerminalBackup.status === 'failed') {
-        // biome-ignore lint/suspicious/noConsole:: 有意为之的控制台输出
         console.error(
           chalk.red(
             `恢复 Terminal.app 设置失败。请使用以下命令手动恢复您的原始设置：defaults import com.apple.Terminal ${restoredTerminalBackup.backupPath}。`,
@@ -255,7 +251,6 @@ export async function setup(
         worktreeSession.worktreePath,
       )
       if (tmuxResult.created) {
-        // biome-ignore lint/suspicious/noConsole:: 有意输出的控制台信息
         console.log(
           chalk.green(
             `已创建 tmux 会话：${chalk.bold(tmuxSessionName)}
@@ -263,7 +258,6 @@ export async function setup(
           ),
         )
       } else {
-        // biome-ignore lint/suspicious/noConsole:: 有意输出的控制台信息
         console.error(
           chalk.yellow(
             `警告：创建 tmux 会话失败：${tmuxResult.error}`,
@@ -295,7 +289,8 @@ export async function setup(
   // startUdsMessaging，约 20ms）导致 getCommands()
   // 提前执行并缓存了一个空的 bundledSkills 列表。
   if (!isBareMode()) {
-    initSessionMemory() // 同步 —— 注册钩子，门控检查延迟执行
+    initSessionMemory() // Synchronous - registers hook, gate check happens lazily
+    initSkillLearning() // Synchronous - registers hook, gate check happens lazily
     if (feature('CONTEXT_COLLAPSE')) {
       /* eslint-disable @typescript-eslint/no-require-imports */
       ;(
@@ -410,7 +405,6 @@ export async function setup(
       process.env.IS_SANDBOX !== '1' &&
       !isEnvTruthy(process.env.CLAUDE_CODE_BUBBLEWRAP)
     ) {
-      // biome-ignore lint/suspicious/noConsole:: 故意的控制台输出
       console.error(
         `出于安全原因，--dangerously-skip-permissions 不能与 root/sudo 权限一起使用`,
       )
@@ -436,7 +430,6 @@ export async function setup(
       const isSandbox = process.env.IS_SANDBOX === '1'
       const isSandboxed = isDocker || isBubblewrap || isSandbox
       if (!isSandboxed || hasInternet) {
-        // biome-ignore lint/suspicious/noConsole:: 故意的控制台输出
         console.error(
           `--dangerously-skip-permissions 只能在无法访问互联网的 Docker/沙盒容器中使用，但得到 Docker: ${isDocker}, Bubblewrap: ${isBubblewrap}, IS_SANDBOX: ${isSandbox}, hasInternet: ${hasInternet}`,
         )

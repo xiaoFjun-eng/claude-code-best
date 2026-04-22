@@ -432,6 +432,10 @@ const LOCAL_GATE_DEFAULTS: Record<string, unknown> = {
   tengu_kairos_cron_durable: true, // 持久化 cron 任务
   tengu_attribution_header: true, // API 请求归属头
   tengu_slate_prism: true, // 代理进度摘要
+
+  // ── Ultrareview (cloud code review via CCR) ─────────────────────
+  tengu_review_bughunter_config: { enabled: true }, // /ultrareview command visibility
+  tengu_ccr_bundle_seed_enabled: true, // Bundle seed: skip GitHub App check for branch mode
 }
 
 /**

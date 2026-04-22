@@ -918,7 +918,10 @@ function get3PModelFallbackSuggestion(model: string): string | undefined {
   }
   // @[模型发布]: 为新模型添加备用建议链 → 第三方用户的先前版本
   const m = model.toLowerCase()
-  // 如果失败的模型看起来像 Opus 4.6 变体，建议默认的 Opus（第三方为 4.1）
+  // If the failing model looks like an Opus 4.6 variant, suggest the default Opus (4.1 for 3P)
+  if (m.includes('opus-4-7') || m.includes('opus_4_7')) {
+    return getModelStrings().opus46
+  }
   if (m.includes('opus-4-6') || m.includes('opus_4_6')) {
     return getModelStrings().opus41
   }

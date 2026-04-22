@@ -81,7 +81,6 @@ export async function assertMinVersion(): Promise<void> {
       versionConfig.minVersion &&
       lt(MACRO.VERSION, versionConfig.minVersion)
     ) {
-      // biome-ignore lint/suspicious/noConsole:: 有意的控制台输出
       console.error(`
 您的 Claude Code 版本（${MACRO.VERSION}）似乎需要更新。
 需要更新到更高版本（${versionConfig.minVersion} 或更高）才能继续。
@@ -472,7 +471,6 @@ export async function installGlobalPackage(
         currentVersion:
           MACRO.VERSION as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       })
-      // biome-ignore lint/suspicious/noConsole:: 有意的控制台输出
       console.error(`
 错误：在 WSL 中检测到 Windows NPM
 

@@ -23,18 +23,6 @@ import { getAPIProvider } from './providers.js'
 import { LIGHTNING_BOLT } from '../../constants/figures.js'
 import { isModelAllowed } from './modelAllowlist.js'
 import { type ModelAlias, isModelAlias } from './aliases.js'
-
-/**
- * Returns true if the value is a model alias or a model alias with a suffix
- * like [1m] (e.g. "opus", "opus[1m]", "sonnet", "haiku[1m]").
- * Used to guard against infinite recursion when getDefault*Model() falls back
- * to the user-specified setting — an alias like "opus[1m]" would cause
- * parseUserSpecifiedModel → getDefaultOpusModel → parseUserSpecifiedModel loop.
- */
-function isAliasOrAliasWithSuffix(value: string): boolean {
-  const base = value.replace(/\[1m\]$/i, '').trim()
-  return isModelAlias(base)
-}
 import { capitalize } from '../stringUtils.js'
 
 export type ModelShortName = string
@@ -59,17 +47,23 @@ export function isNonCustomOpusModel(model: ModelName): boolean {
     model === getModelStrings().opus40 ||
     model === getModelStrings().opus41 ||
     model === getModelStrings().opus45 ||
-    model === getModelStrings().opus46
+    model === getModelStrings().opus46 ||
+    model === getModelStrings().opus47
   )
 }
 
-/** 辅助函数，用于从 /model（包括通过 /config）、--model 标志、环境变量或已保存的设置中获取模型。如果用户指定的是模型别名，则返回值可以是别名。如果用户未配置任何内容，则返回 undefined，此时我们将回退到默认值（null）。
-
-此函数内的优先级顺序：
-1. 会话期间的模型覆盖（来自 /model 命令）- 最高优先级
-2. 启动时的模型覆盖（来自 --model 标志）
-3. ANTHROPIC_MODEL 环境变量
-4. 设置（来自用户已保存的设置） */
+/**
+ * Helper to get the model from /model (including via /config), the --model flag, environment variable,
+ * or the saved settings. The returned value can be a model alias if that's what the user specified.
+ * Undefined if the user didn't configure anything, in which case we fall back to
+ * the default (null).
+ *
+ * Priority order within this function:
+ * 1. Model override during session (from /model command) - highest priority
+ * 2. Model override at startup (from --model flag)
+ * 3. ANTHROPIC_MODEL environment variable
+ * 4. Settings (from user's saved settings)
+ */
 export function getUserSpecifiedModelSetting(): ModelSetting | undefined {
   let specifiedModel: ModelSetting | undefined
 
@@ -126,21 +120,14 @@ export function getDefaultOpusModel(): ModelName {
   if (process.env.ANTHROPIC_DEFAULT_OPUS_MODEL) {
     return process.env.ANTHROPIC_DEFAULT_OPUS_MODEL
   }
-  // Fall back to user's configured model — custom providers may not
-  // recognize hardcoded Anthropic model IDs.
-  // Skip if the user setting is a model alias (e.g. "opus", "opus[1m]") to
-  // avoid infinite recursion: parseUserSpecifiedModel(alias) → getDefaultOpusModel().
-  const userSpecifiedOpus = getUserSpecifiedModelSetting()
-  if (userSpecifiedOpus && !isAliasOrAliasWithSuffix(userSpecifiedOpus)) {
-    return parseUserSpecifiedModel(userSpecifiedOpus)
-  }
-  // 第三方供应商（Bedrock、Vertex、Foundry）
-  // ——即使值匹配也保持为独立分支，因为第三方可用性滞后于第一
-  // 方，并且这些值在下次模型发布时会再次出现差异。
+  // 3P providers (Bedrock, Vertex, Foundry) all publish Opus 4.7 in sync
+  // with firstParty as of 2026-04-17 (AWS Bedrock, Google Vertex AI, and
+  // Microsoft Foundry announcements and model catalogs all confirm). The
+  // branch is kept as a structural hook in case a future launch lags on 3P.
   if (provider !== 'firstParty') {
-    return getModelStrings().opus46
+    return getModelStrings().opus47
   }
-  return getModelStrings().opus46
+  return getModelStrings().opus47
 }
 
 // @[MODEL LAUNCH]: 更新默认的 Sonnet 模型（第三方供应商可能滞后，因此保持默认值不变）。
@@ -161,15 +148,7 @@ export function getDefaultSonnetModel(): ModelName {
   if (process.env.ANTHROPIC_DEFAULT_SONNET_MODEL) {
     return process.env.ANTHROPIC_DEFAULT_SONNET_MODEL
   }
-  // Fall back to user's configured model (ANTHROPIC_MODEL / settings) —
-  // custom providers (proxies, national clouds) may not recognize the
-  // hardcoded Anthropic model IDs.
-  // Skip if the user setting is a model alias to avoid infinite recursion.
-  const userSpecified = getUserSpecifiedModelSetting()
-  if (userSpecified && !isAliasOrAliasWithSuffix(userSpecified)) {
-    return parseUserSpecifiedModel(userSpecified)
-  }
-  // 对于第三方供应商，默认使用 Sonnet 4.5，因为他们可能还没有 4.6
+  // Default to Sonnet 4.5 for 3P since they may not have 4.6 yet
   if (provider !== 'firstParty') {
     return getModelStrings().sonnet45
   }
@@ -190,13 +169,6 @@ export function getDefaultHaikuModel(): ModelName {
   // Anthropic 特定覆盖（用于第一方和其他第三方供应商）
   if (process.env.ANTHROPIC_DEFAULT_HAIKU_MODEL) {
     return process.env.ANTHROPIC_DEFAULT_HAIKU_MODEL
-  }
-  // Fall back to user's configured model — custom providers may not
-  // recognize hardcoded Anthropic model IDs.
-  // Skip if the user setting is a model alias to avoid infinite recursion.
-  const userSpecifiedHaiku = getUserSpecifiedModelSetting()
-  if (userSpecifiedHaiku && !isAliasOrAliasWithSuffix(userSpecifiedHaiku)) {
-    return parseUserSpecifiedModel(userSpecifiedHaiku)
   }
 
   // Haiku 4.5 在所有平台（第一方、Foundry、Bedrock、Vertex）上都可用
@@ -270,8 +242,11 @@ export function getDefaultMainLoopModel(): ModelName {
 /** 纯字符串匹配，用于从第一方模型名称中剥离日期/提供商后缀。输入必须已是第一方格式的 ID（例如 'claude-3-7-sonnet-20250219'、'us.anthropic.claude-opus-4-6-v1:0'）。不触及设置，因此在模块顶层是安全的（参见 modelCost.ts 中的 MODEL_COSTS）。 */
 export function firstPartyNameToCanonical(name: ModelName): ModelShortName {
   name = name.toLowerCase()
-  // Claude 4+ 模型的特殊情况，用于区分版本。顺
-  // 序很重要：先检查更具体的版本（4-5 在 4 之前）。
+  // Special cases for Claude 4+ models to differentiate versions
+  // Order matters: check more specific versions first (4-5 before 4)
+  if (name.includes('claude-opus-4-7')) {
+    return 'claude-opus-4-7'
+  }
   if (name.includes('claude-opus-4-6')) {
     return 'claude-opus-4-6'
   }
@@ -340,9 +315,9 @@ export function getClaudeAiUserDefaultModelDescription(
 ): string {
   if (isMaxSubscriber() || isTeamPremiumSubscriber()) {
     if (isOpus1mMergeEnabled()) {
-      return `Opus 4.6，支持 100 万上下文 · 处理复杂任务能力最强${fastMode ? getOpus46PricingSuffix(true) : ''}`
+      return `Opus 4.7 with 1M context · Most capable for complex work${fastMode ? getOpusPricingSuffix(true) : ''}`
     }
-    return `Opus 4.6 · 处理复杂任务能力最强${fastMode ? getOpus46PricingSuffix(true) : ''}`
+    return `Opus 4.7 · Most capable for complex work${fastMode ? getOpusPricingSuffix(true) : ''}`
   }
   return 'Sonnet 4.6 · 最适合日常任务'
 }
@@ -351,12 +326,12 @@ export function renderDefaultModelSetting(
   setting: ModelName | ModelAlias,
 ): string {
   if (setting === 'opusplan') {
-    return '计划模式下为 Opus 4.6，否则为 Sonnet 4.6'
+    return 'Opus 4.7 in plan mode, else Sonnet 4.6'
   }
   return renderModelName(parseUserSpecifiedModel(setting))
 }
 
-export function getOpus46PricingSuffix(fastMode: boolean): string {
+export function getOpusPricingSuffix(fastMode: boolean): string {
   if (getAPIProvider() !== 'firstParty') return ''
   const pricing = formatModelPricing(getOpus46CostTier(fastMode))
   const fastModeIndicator = fastMode ? ` (${LIGHTNING_BOLT})` : ''
@@ -397,6 +372,10 @@ export function renderModelSetting(setting: ModelName | ModelAlias): string {
 /** 为已知的公共模型返回人类可读的显示名称，如果模型未被识别为公共模型，则返回 null。 */
 export function getPublicModelDisplayName(model: ModelName): string | null {
   switch (model) {
+    case getModelStrings().opus47:
+      return 'Opus 4.7'
+    case getModelStrings().opus47 + '[1m]':
+      return 'Opus 4.7 (1M context)'
     case getModelStrings().opus46:
       return 'Opus 4.6'
     case getModelStrings().opus46 + '[1m]':
@@ -510,11 +489,12 @@ export function parseUserSpecifiedModel(
     }
   }
 
-  // Opus 4/4.1 在第一方 API 上不再可用（与 Claude
-  // .ai 相同）——静默地重新映射到当前的 Opus 默认版本。'op
-  // us' 别名已经解析到 4.6，因此在 4.5 发布之前，只有那些在
-  // 设置/环境变量/--model/SDK 中固定使用这些明确字符串的用户
-  // 会受影响。第三方提供商可能尚未具备 4.6 能力，因此保持不变地传递。
+  // Opus 4/4.1 are no longer available on the first-party API (same as
+  // Claude.ai) — silently remap to the current Opus default. The 'opus'
+  // alias resolves to the current default Opus (4.7), so the only users
+  // on these explicit strings pinned them in settings/env/--model/SDK
+  // before 4.5 launched. 3P providers may not yet have 4.6/4.7 capacity,
+  // so pass through unchanged.
   if (
     getAPIProvider() === 'firstParty' &&
     isLegacyOpusFirstParty(modelString) &&
@@ -605,6 +585,9 @@ export function getMarketingNameForModel(modelId: string): string | undefined {
   const has1m = modelId.toLowerCase().includes('[1m]')
   const canonical = getCanonicalName(modelId)
 
+  if (canonical.includes('claude-opus-4-7')) {
+    return has1m ? 'Opus 4.7 (with 1M context)' : 'Opus 4.7'
+  }
   if (canonical.includes('claude-opus-4-6')) {
     return has1m ? 'Opus 4.6 (支持 100 万上下文)' : 'Opus 4.6'
   }

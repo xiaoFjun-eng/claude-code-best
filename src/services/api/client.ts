@@ -73,14 +73,10 @@ import {
 function createStderrLogger(): ClientOptions['logger'] {
   return {
     error: (msg, ...args) =>
-      // biome-ignore lint/suspicious/noConsole:: intentional console output -- SDK logger must use console
       console.error('[Anthropic SDK ERROR]', msg, ...args),
-    // biome-ignore lint/suspicious/noConsole:: 故意的控制台输出 -- SDK 日志记录器必须使用控制台
     warn: (msg, ...args) => console.error('[Anthropic SDK WARN]', msg, ...args),
-    // biome-ignore lint/suspicious/noConsole:: 故意的控制台输出 -- SDK 日志记录器必须使用控制台
     info: (msg, ...args) => console.error('[Anthropic SDK INFO]', msg, ...args),
     debug: (msg, ...args) =>
-      // biome-ignore lint/suspicious/noConsole:: intentional console output -- SDK logger must use console
       console.error('[Anthropic SDK DEBUG]', msg, ...args),
   }
 }
@@ -151,8 +147,8 @@ export async function getAnthropicClient({
     }),
   }
   if (isEnvTruthy(process.env.CLAUDE_CODE_USE_BEDROCK)) {
-    const { AnthropicBedrock } = await import('@anthropic-ai/bedrock-sdk')
-    // 如果指定，则为小型快速模型使用区域覆盖
+    const { BedrockClient } = await import('./bedrockClient.js')
+    // Use region override for small fast model if specified
     const awsRegion =
       model === getSmallFastModel() &&
       process.env.ANTHROPIC_SMALL_FAST_MODEL_AWS_REGION
@@ -185,8 +181,8 @@ export async function getAnthropicClient({
         bedrockArgs.awsSessionToken = cachedCredentials.sessionToken
       }
     }
-    // 我们一直在对返回类型撒谎 - 这不支持批处理或模型
-    return new AnthropicBedrock(bedrockArgs) as unknown as Anthropic
+    // we have always been lying about the return type - this doesn't support batching or models
+    return new BedrockClient(bedrockArgs) as unknown as Anthropic
   }
   if (isEnvTruthy(process.env.CLAUDE_CODE_USE_FOUNDRY)) {
     const { AnthropicFoundry } = await import('@anthropic-ai/foundry-sdk')

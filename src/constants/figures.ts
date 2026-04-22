@@ -10,7 +10,8 @@ export const LIGHTNING_BOLT = '↯' // \u21af — 快速模式指示
 export const EFFORT_LOW = '○' // \u25cb — 努力程度：低
 export const EFFORT_MEDIUM = '◐' // \u25d0 — 努力程度：中
 export const EFFORT_HIGH = '●' // \u25cf — 努力程度：高
-export const EFFORT_MAX = '◉' // \u25c9 — 努力程度：最高（仅 Opus 4.6）
+export const EFFORT_XHIGH = '⦿' // \u29bf - effort level: xhigh (Opus 4.7 only)
+export const EFFORT_MAX = '◉'// \u25c9 — 努力程度：最高（仅 Opus 4.6）
 
 // 媒体/触发器状态指示
 export const PLAY_ICON = '\u25b6' // ▶

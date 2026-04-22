@@ -34,8 +34,8 @@ import typescriptClaudeApiToolUse from './claude-api/typescript/claude-api/tool-
 // L.md（当前模型定价表）- claude-a
 // pi/shared/models.md（包含旧版本和别名映射的完整模型目录）
 export const SKILL_MODEL_VARS = {
-  OPUS_ID: 'claude-opus-4-6',
-  OPUS_NAME: 'Claude Opus 4.6',
+  OPUS_ID: 'claude-opus-4-7',
+  OPUS_NAME: 'Claude Opus 4.7',
   SONNET_ID: 'claude-sonnet-4-6',
   SONNET_NAME: 'Claude Sonnet 4.6',
   HAIKU_ID: 'claude-haiku-4-5',

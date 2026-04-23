@@ -23,8 +23,29 @@ const inputSchema = lazySchema(() =>
       .array(z.string())
       .optional()
       .describe('绝不包含来自这些域名的搜索结果'),
+    num_results: z
+      .number()
+      .optional()
+      .describe('要返回的搜索结果数量（默认：8）'),
+    livecrawl: z
+      .enum(['fallback', 'preferred'])
+      .optional()
+      .describe(
+        "实时抓取模式 - 'fallback'：如果缓存内容不可用，则使用实时抓取作为后备；'preferred'：优先使用实时抓取（默认：'fallback'）",
+      ),
+    search_type: z
+      .enum(['auto', 'fast', 'deep'])
+      .optional()
+      .describe(
+        "搜索类型 - 'auto'：平衡搜索（默认），'fast'：快速结果，'deep'：全面搜索",
+      ),
+    context_max_characters: z
+      .number()
+      .optional()
+      .describe('针对 LLM 优化的上下文字符串最大字符数（默认：10000）'),
   }),
 )
+
 type InputSchema = ReturnType<typeof inputSchema>
 
 const searchResultSchema = lazySchema(() => {
@@ -148,6 +169,10 @@ export const WebSearchTool = buildTool({
     const adapterResults = await adapter.search(query, {
       allowedDomains: input.allowed_domains,
       blockedDomains: input.blocked_domains,
+      numResults: input.num_results,
+      livecrawl: input.livecrawl,
+      searchType: input.search_type,
+      contextMaxCharacters: input.context_max_characters,
       signal: context.abortController.signal,
       onProgress(progress) {
         if (onProgress) {

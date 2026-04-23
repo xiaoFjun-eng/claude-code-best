@@ -1,22 +1,8 @@
 import { mock, describe, expect, test } from "bun:test";
+import { logMock } from "../../../../../../tests/mocks/log";
 
 // 模拟 log.ts 以切断繁重的依赖链
-mock.module("src/utils/log.ts", () => ({
-  logError: () => {},
-  logToFile: () => {},
-  getLogDisplayTitle: () => "",
-  logEvent: () => {},
-  logMCPError: () => {},
-  logMCPDebug: () => {},
-  dateToFilename: (d: Date) => d.toISOString().replace(/[:.]/g, "-"),
-  getLogFilePath: () => "/tmp/mock-log",
-  attachErrorLogSink: () => {},
-  getInMemoryErrors: () => [],
-  loadErrorLogs: async () => [],
-  getErrorLogByIndex: async () => null,
-  captureAPIRequest: () => {},
-  _resetErrorLogForTesting: () => {},
-}));
+mock.module("src/utils/log.ts", logMock);
 
 const {
   normalizeQuotes,
@@ -62,15 +48,11 @@ describe("normalizeQuotes", () => {
 
 describe("stripTrailingWhitespace", () => {
   test("去除行尾空格", () => {
-    expect(stripTrailingWhitespace("hello   
-world  ")).toBe("hello
-world");
+    expect(stripTrailingWhitespace("hello   \nworld  ")).toBe("hello\nworld");
   });
 
   test("去除行尾制表符", () => {
-    expect(stripTrailingWhitespace("hello	
-world	")).toBe("hello
-world");
+    expect(stripTrailingWhitespace("hello	\nworld	")).toBe("hello\nworld");
   });
 
   test("保留行首空白字符", () => {
@@ -84,21 +66,17 @@ world");
   });
 
   test("处理 CRLF 换行符", () => {
-    expect(stripTrailingWhitespace("hello   
-world  ")).toBe(
-      "hello
-world"
+    expect(stripTrailingWhitespace("hello   \nworld  ")).toBe(
+      "hello\nworld"
     );
   });
 
   test("处理无尾随空白字符的情况", () => {
-    expect(stripTrailingWhitespace("hello
-world")).toBe("hello
-world");
+    expect(stripTrailingWhitespace("hello\nworld")).toBe("hello\nworld");
   });
 
   test("处理仅 CR 换行符", () => {
-    expect(stripTrailingWhitespace("hello   world  ")).toBe("helloworld");
+    expect(stripTrailingWhitespace("hello   \nworld  ")).toBe("hello\nworld");
   });
 
   test("处理无尾随换行符的内容", () => {
@@ -205,22 +183,12 @@ describe("applyEditToFile", () => {
   });
 
   test("处理跨多行的多行替换", () => {
-    const content = "header
-old line A
-old line B
-footer
-";
+    const content = "header\nold line A\nold line B\nfooter\n";
     const result = applyEditToFile(
       content,
-      "old line A
-old line B",
-      "new line X
-new line Y"
+      "old line A\nold line B",
+      "new line X\nnew line Y"
     );
-    expect(result).toBe("页眉
-新行 X
-新行 Y
-页脚
-");
+    expect(result).toBe("页眉\n新行 X\n新行 Y\n页脚\n");
   });
 });

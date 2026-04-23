@@ -1,7 +1,6 @@
 /**
- * Session Memory automatically maintains a markdown file with notes about the current conversation.
- * It runs periodically in the background using a forked subagent to extract key information
- * without interrupting the main conversation flow.
+ * 会话内存（Session Memory）会自动维护一个包含当前对话笔记的 Markdown 文件。
+ * 它通过派生的子代理在后台定期运行，提取关键信息，而不会中断主对话流程。
  */
 
 import { writeFile } from 'fs/promises'
@@ -63,10 +62,10 @@ import {
 } from './sessionMemoryUtils.js'
 
 // ============================================================================
-// Feature Gate and Config (Cached - Non-blocking)
+// 功能门控和配置（缓存 - 非阻塞）
 // ============================================================================
-// These functions return cached values from disk immediately without blocking
-// on GrowthBook initialization. Values may be stale but are updated in background.
+// 这些函数立即从磁盘返回缓存值，不会阻塞等待 GrowthBook 初始化。
+// 值可能过时，但会在后台更新。
 
 import { errorMessage, getErrnoCode } from '../../utils/errors.js'
 import {
@@ -75,16 +74,16 @@ import {
 } from '../analytics/growthbook.js'
 
 /**
- * Check if session memory feature is enabled.
- * Uses cached gate value - returns immediately without blocking.
+ * 检查会话内存功能是否启用。
+ * 使用缓存的门控值 - 立即返回，不阻塞。
  */
 function isSessionMemoryGateEnabled(): boolean {
   return getFeatureValue_CACHED_MAY_BE_STALE('tengu_session_memory', false)
 }
 
 /**
- * Get session memory config from cache.
- * Returns immediately without blocking - value may be stale.
+ * 从缓存中获取会话内存配置。
+ * 立即返回，不阻塞 - 值可能过时。
  */
 function getSessionMemoryRemoteConfig(): Partial<SessionMemoryConfig> {
   return getDynamicConfig_CACHED_MAY_BE_STALE<Partial<SessionMemoryConfig>>(
@@ -94,13 +93,13 @@ function getSessionMemoryRemoteConfig(): Partial<SessionMemoryConfig> {
 }
 
 // ============================================================================
-// Module State
+// 模块状态
 // ============================================================================
 
 let lastMemoryMessageUuid: string | undefined
 
 /**
- * Reset the last memory message UUID (for testing)
+ * 重置最后一条内存消息的 UUID（用于测试）
  */
 export function resetLastMemoryMessageUuid(): void {
   lastMemoryMessageUuid = undefined
@@ -133,8 +132,8 @@ function countToolCallsSince(
 }
 
 export function shouldExtractMemory(messages: Message[]): boolean {
-  // Check if we've met the initialization threshold
-  // Uses total context window tokens (same as autocompact) for consistent behavior
+  // 检查是否满足初始化阈值
+  // 使用总上下文窗口令牌（与自动压缩相同）以获得一致的行为
   const currentTokenCount = tokenCountWithEstimation(messages)
   if (!isSessionMemoryInitialized()) {
     if (!hasMetInitializationThreshold(currentTokenCount)) {
@@ -143,11 +142,11 @@ export function shouldExtractMemory(messages: Message[]): boolean {
     markSessionMemoryInitialized()
   }
 
-  // Check if we've met the minimum tokens between updates threshold
-  // Uses context window growth since last extraction (same metric as init threshold)
+  // 检查是否满足两次更新之间的最小令牌数阈值
+  // 使用自上次提取以来的上下文窗口增长量（与初始化阈值相同的指标）
   const hasMetTokenThreshold = hasMetUpdateThreshold(currentTokenCount)
 
-  // Check if we've met the tool calls threshold
+  // 检查是否满足工具调用次数阈值
   const toolCallsSinceLastUpdate = countToolCallsSince(
     messages,
     lastMemoryMessageUuid,
@@ -155,17 +154,17 @@ export function shouldExtractMemory(messages: Message[]): boolean {
   const hasMetToolCallThreshold =
     toolCallsSinceLastUpdate >= getToolCallsBetweenUpdates()
 
-  // Check if the last assistant turn has no tool calls (safe to extract)
+  // 检查最后一轮助手消息是否没有工具调用（可以安全提取）
   const hasToolCallsInLastTurn = hasToolCallsInLastAssistantTurn(messages)
 
-  // Trigger extraction when:
-  // 1. Both thresholds are met (tokens AND tool calls), OR
-  // 2. No tool calls in last turn AND token threshold is met
-  //    (to ensure we extract at natural conversation breaks)
+  // 在以下情况下触发提取：
+  // 1. 同时满足两个阈值（令牌数 AND 工具调用次数），或者
+  // 2. 最后一轮没有工具调用且满足令牌数阈值
+  //    （确保在自然对话间隙进行提取）
   //
-  // IMPORTANT: The token threshold (minimumTokensBetweenUpdate) is ALWAYS required.
-  // Even if the tool call threshold is met, extraction won't happen until the
-  // token threshold is also satisfied. This prevents excessive extractions.
+  // 重要提示：令牌数阈值（minimumTokensBetweenUpdate）始终是必需的。
+  // 即使工具调用次数阈值已满足，也必须满足令牌数阈值后才会进行提取。
+  // 这可以防止过度提取。
   const shouldExtract =
     (hasMetTokenThreshold && hasMetToolCallThreshold) ||
     (hasMetTokenThreshold && !hasToolCallsInLastTurn)
@@ -186,20 +185,20 @@ async function setupSessionMemoryFile(
 ): Promise<{ memoryPath: string; currentMemory: string }> {
   const fs = getFsImplementation()
 
-  // Set up directory and file
+  // 设置目录和文件
   const sessionMemoryDir = getSessionMemoryDir()
   await fs.mkdir(sessionMemoryDir, { mode: 0o700 })
 
   const memoryPath = getSessionMemoryPath()
 
-  // Create the memory file if it doesn't exist (wx = O_CREAT|O_EXCL)
+  // 如果内存文件不存在则创建（wx = O_CREAT|O_EXCL）
   try {
     await writeFile(memoryPath, '', {
       encoding: 'utf-8',
       mode: 0o600,
       flag: 'wx',
     })
-    // Only load template if file was just created
+    // 仅当文件刚刚创建时才加载模板
     const template = await loadSessionMemoryTemplate()
     await writeFile(memoryPath, template, {
       encoding: 'utf-8',
@@ -212,8 +211,8 @@ async function setupSessionMemoryFile(
     }
   }
 
-  // Drop any cached entry so FileReadTool's dedup doesn't return a
-  // file_unchanged stub — we need the actual content. The Read repopulates it.
+  // 删除任何缓存的条目，防止 FileReadTool 的去重机制返回 file_unchanged 存根
+  // — 我们需要实际内容。Read 操作会重新填充缓存。
   toolUseContext.readFileState.delete(memoryPath)
   const result = await FileReadTool.call(
     { file_path: memoryPath },
@@ -234,16 +233,16 @@ async function setupSessionMemoryFile(
 }
 
 /**
- * Initialize session memory config from remote config (lazy initialization).
- * Memoized - only runs once per session, subsequent calls return immediately.
- * Uses cached config values - non-blocking.
+ * 从远程配置中初始化会话内存配置（延迟初始化）。
+ * 已记忆化 - 每个会话只运行一次，后续调用立即返回。
+ * 使用缓存的配置值 - 非阻塞。
  */
 const initSessionMemoryConfigIfNeeded = memoize((): void => {
-  // Load config from cache (non-blocking, may be stale)
+  // 从缓存加载配置（非阻塞，可能过时）
   const remoteConfig = getSessionMemoryRemoteConfig()
 
-  // Only use remote values if they are explicitly set (non-zero positive numbers)
-  // This ensures sensible defaults aren't overridden by zero values
+  // 仅当远程值被显式设置（非零正数）时才使用它们
+  // 这确保合理的默认值不会被零值覆盖
   const config: SessionMemoryConfig = {
     minimumMessageTokensToInit:
       remoteConfig.minimumMessageTokensToInit &&
@@ -265,9 +264,9 @@ const initSessionMemoryConfigIfNeeded = memoize((): void => {
 })
 
 /**
- * Session memory post-sampling hook that extracts and updates session notes
+ * 会话内存的后采样钩子，负责提取和更新会话笔记
  */
-// Track if we've logged the gate check failure this session (to avoid spam)
+// 跟踪本次会话是否已记录门控检查失败（避免日志泛滥）
 let hasLoggedGateFailure = false
 
 const extractSessionMemory = sequential(async function (
@@ -275,21 +274,21 @@ const extractSessionMemory = sequential(async function (
 ): Promise<void> {
   const { messages, toolUseContext, querySource } = context
 
-  // Only run session memory on main REPL thread
+  // 仅在主 REPL 线程上运行会话内存
   if (querySource !== 'repl_main_thread') {
-    // Don't log this - it's expected for subagents, teammates, etc.
+    // 不记录此日志 - 对于子代理、队友等是预期行为
     return
   }
 
-  // Poor mode: skip to reduce token consumption
+  // 穷鬼模式：跳过以减少令牌消耗
   if (feature('POOR')) {
     const { isPoorModeActive } = await import('../../commands/poor/poorMode.js')
     if (isPoorModeActive()) return
   }
 
-  // Check gate lazily when hook runs (cached, non-blocking)
+  // 当钩子运行时延迟检查门控（缓存，非阻塞）
   if (!isSessionMemoryGateEnabled()) {
-    // Log gate failure once per session (ant-only)
+    // 每个会话记录一次门控失败（仅限 ant 内部）
     if (process.env.USER_TYPE === 'ant' && !hasLoggedGateFailure) {
       hasLoggedGateFailure = true
       logEvent('tengu_session_memory_gate_disabled', {})
@@ -297,7 +296,7 @@ const extractSessionMemory = sequential(async function (
     return
   }
 
-  // Initialize config from remote (lazy, only once)
+  // 从远程初始化配置（延迟，仅一次）
   initSessionMemoryConfigIfNeeded()
 
   if (!shouldExtractMemory(messages)) {
@@ -306,22 +305,22 @@ const extractSessionMemory = sequential(async function (
 
   markExtractionStarted()
 
-  // Create isolated context for setup to avoid polluting parent's cache
+  // 创建隔离的上下文用于设置，避免污染父级缓存
   const setupContext = createSubagentContext(toolUseContext)
 
-  // Set up file system and read current state with isolated context
+  // 使用隔离的上下文设置文件系统并读取当前状态
   const { memoryPath, currentMemory } =
     await setupSessionMemoryFile(setupContext)
 
-  // Create extraction message
+  // 创建提取消息
   const userPrompt = await buildSessionMemoryUpdatePrompt(
     currentMemory,
     memoryPath,
   )
 
-  // Run session memory extraction using runForkedAgent for prompt caching
-  // runForkedAgent creates an isolated context to prevent mutation of parent state
-  // Pass setupContext.readFileState so the forked agent can edit the memory file
+  // 使用 runForkedAgent 运行会话内存提取，以利用提示缓存
+  // runForkedAgent 创建隔离的上下文，防止变异父级状态
+  // 传递 setupContext.readFileState，以便派生子代理可以编辑内存文件
   await runForkedAgent({
     promptMessages: [createUserMessage({ content: userPrompt })],
     cacheSafeParams: createCacheSafeParams(context),
@@ -331,8 +330,8 @@ const extractSessionMemory = sequential(async function (
     overrides: { readFileState: setupContext.readFileState },
   })
 
-  // Log extraction event for tracking frequency
-  // Use the token usage from the last message in the conversation
+  // 记录提取事件以跟踪频率
+  // 使用对话中最后一条消息的令牌使用情况
   const lastMessage = messages[messages.length - 1]
   const usage = lastMessage ? getTokenUsage(lastMessage) : undefined
   const config = getSessionMemoryConfig()
@@ -347,26 +346,26 @@ const extractSessionMemory = sequential(async function (
     config_tool_calls_between_updates: config.toolCallsBetweenUpdates,
   })
 
-  // Record the context size at extraction for tracking minimumTokensBetweenUpdate
+  // 记录提取时的上下文大小，用于跟踪 minimumTokensBetweenUpdate
   recordExtractionTokenCount(tokenCountWithEstimation(messages))
 
-  // Update lastSummarizedMessageId after successful completion
+  // 成功完成后更新 lastSummarizedMessageId
   updateLastSummarizedMessageIdIfSafe(messages)
 
   markExtractionCompleted()
 })
 
 /**
- * Initialize session memory by registering the post-sampling hook.
- * This is synchronous to avoid race conditions during startup.
- * The gate check and config loading happen lazily when the hook runs.
+ * 通过注册后采样钩子来初始化会话内存。
+ * 此函数是同步的，以避免启动期间的竞态条件。
+ * 门控检查和配置加载会在钩子运行时延迟执行。
  */
 export function initSessionMemory(): void {
   if (getIsRemoteMode()) return
-  // Session memory is used for compaction, so respect auto-compact settings
+  // 会话内存用于压缩，因此需要尊重自动压缩设置
   const autoCompactEnabled = isAutoCompactEnabled()
 
-  // Log initialization state (ant-only to avoid noise in external logs)
+  // 记录初始化状态（仅限 ant 内部，避免外部日志中的噪音）
   if (process.env.USER_TYPE === 'ant') {
     logEvent('tengu_session_memory_init', {
       auto_compact_enabled: autoCompactEnabled,
@@ -377,7 +376,7 @@ export function initSessionMemory(): void {
     return
   }
 
-  // Register hook unconditionally - gate check happens lazily when hook runs
+  // 无条件注册钩子 - 门控检查在钩子运行时延迟进行
   registerPostSamplingHook(extractSessionMemory)
 }
 
@@ -388,33 +387,33 @@ export type ManualExtractionResult = {
 }
 
 /**
- * Manually trigger session memory extraction, bypassing threshold checks.
- * Used by the /summary command.
+ * 手动触发会话内存提取，绕过阈值检查。
+ * 由 /summary 命令使用。
  */
 export async function manuallyExtractSessionMemory(
   messages: Message[],
   toolUseContext: ToolUseContext,
 ): Promise<ManualExtractionResult> {
   if (messages.length === 0) {
-    return { success: false, error: 'No messages to summarize' }
+    return { success: false, error: '没有要总结的消息' }
   }
   markExtractionStarted()
 
   try {
-    // Create isolated context for setup to avoid polluting parent's cache
+    // 创建隔离的上下文用于设置，避免污染父级缓存
     const setupContext = createSubagentContext(toolUseContext)
 
-    // Set up file system and read current state with isolated context
+    // 使用隔离的上下文设置文件系统并读取当前状态
     const { memoryPath, currentMemory } =
       await setupSessionMemoryFile(setupContext)
 
-    // Create extraction message
+    // 创建提取消息
     const userPrompt = await buildSessionMemoryUpdatePrompt(
       currentMemory,
       memoryPath,
     )
 
-    // Get system prompt for cache-safe params
+    // 获取系统提示以用于缓存安全的参数
     const { tools, mainLoopModel } = toolUseContext.options
     const [rawSystemPrompt, userContext, systemContext] = await Promise.all([
       getSystemPrompt(tools, mainLoopModel),
@@ -423,7 +422,7 @@ export async function manuallyExtractSessionMemory(
     ])
     const systemPrompt = asSystemPrompt(rawSystemPrompt)
 
-    // Run session memory extraction using runForkedAgent
+    // 使用 runForkedAgent 运行会话内存提取
     await runForkedAgent({
       promptMessages: [createUserMessage({ content: userPrompt })],
       cacheSafeParams: {
@@ -439,13 +438,13 @@ export async function manuallyExtractSessionMemory(
       overrides: { readFileState: setupContext.readFileState },
     })
 
-    // Log manual extraction event
+    // 记录手动提取事件
     logEvent('tengu_session_memory_manual_extraction', {})
 
-    // Record the context size at extraction for tracking minimumTokensBetweenUpdate
+    // 记录提取时的上下文大小，用于跟踪 minimumTokensBetweenUpdate
     recordExtractionTokenCount(tokenCountWithEstimation(messages))
 
-    // Update lastSummarizedMessageId after successful completion
+    // 成功完成后更新 lastSummarizedMessageId
     updateLastSummarizedMessageIdIfSafe(messages)
 
     return { success: true, memoryPath }
@@ -459,10 +458,10 @@ export async function manuallyExtractSessionMemory(
   }
 }
 
-// Helper functions
+// 辅助函数
 
 /**
- * Creates a canUseTool function that only allows Edit for the exact memory file.
+ * 创建一个 canUseTool 函数，该函数仅允许对确切的内存文件进行编辑操作。
  */
 export function createMemoryFileCanUseTool(memoryPath: string): CanUseToolFn {
   return async (tool: Tool, input: unknown) => {
@@ -479,18 +478,18 @@ export function createMemoryFileCanUseTool(memoryPath: string): CanUseToolFn {
     }
     return {
       behavior: 'deny' as const,
-      message: `only ${FILE_EDIT_TOOL_NAME} on ${memoryPath} is allowed`,
+      message: `只允许在 ${memoryPath} 上使用 ${FILE_EDIT_TOOL_NAME}`,
       decisionReason: {
         type: 'other' as const,
-        reason: `only ${FILE_EDIT_TOOL_NAME} on ${memoryPath} is allowed`,
+        reason: `只允许在 ${memoryPath} 上使用 ${FILE_EDIT_TOOL_NAME}`,
       },
     }
   }
 }
 
 /**
- * Updates lastSummarizedMessageId after successful extraction.
- * Only sets it if the last message doesn't have tool calls (to avoid orphaned tool_results).
+ * 成功提取后更新 lastSummarizedMessageId。
+ * 仅当最后一条消息没有工具调用时才设置（避免遗留孤立的 tool_results）。
  */
 function updateLastSummarizedMessageIdIfSafe(messages: Message[]): void {
   if (!hasToolCallsInLastAssistantTurn(messages)) {

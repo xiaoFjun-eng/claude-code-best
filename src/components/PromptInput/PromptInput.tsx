@@ -1486,7 +1486,7 @@ function PromptInput({
     commandArgumentHint,
     inlineGhostText,
     maxColumnWidth,
-  } = useTypeahead({
+  } = useTypeahead({ //斜杠命令补全功能。
     commands,
     onInputChange: trackAndSetInput,
     onSubmit,

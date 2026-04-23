@@ -89,56 +89,48 @@ export async function* handleStopHooks(
     toolUseContext,
     querySource,
   }
-  // Only save params for main session queries — subagents must not overwrite.
-  // Outside the prompt-suggestion gate: the REPL /btw command and the
-  // side_question SDK control_request both read this snapshot, and neither
-  // depends on prompt suggestions being enabled.
+  // 仅为主会话查询保存参数 — 子代理不得覆盖。
+  // 在提示建议门控之外：REPL 的 /btw 命令和 side_question SDK 控制请求都会读取此快照，
+  // 两者都不依赖于是否启用了提示建议。
   if (querySource === 'repl_main_thread' || querySource === 'sdk') {
     saveCacheSafeParams(createCacheSafeParams(stopHookContext))
   }
 
-  // Template job classification: when running as a dispatched job, classify
-  // state after each turn. Gate on repl_main_thread so background forks
-  // (extract-memories, auto-dream) don't pollute the timeline with their own
-  // assistant messages. Await the classifier so state.json is written before
-  // the turn returns — otherwise `claude list` shows stale state for the gap.
-  // Env key hardcoded (vs importing JOB_ENV_KEY from jobs/state) to match the
-  // require()-gated jobs/ import pattern above; spawn.test.ts asserts the
-  // string matches.
+  // 模板任务分类：当作为分派任务运行时，在每一轮后对状态进行分类。
+  // 门控为 repl_main_thread，以便后台分支（extract-memories、auto-dream）不会用它们自己的助手消息污染时间线。
+  // 等待分类器完成，以便在轮次返回之前写入 state.json — 否则 `claude list` 会在间隙中显示过时的状态。
+  // 环境变量键为硬编码（与从 jobs/state 导入 JOB_ENV_KEY 相对），以匹配上面的 require() 门控 jobs/ 导入模式；spawn.test.ts 断言该字符串匹配。
   if (
     feature('TEMPLATES') &&
     process.env.CLAUDE_JOB_DIR &&
     querySource.startsWith('repl_main_thread') &&
     !toolUseContext.agentId
   ) {
-    // Full turn history — assistantMessages resets each queryLoop iteration,
-    // so tool calls from earlier iterations (Agent spawn, then summary) need
-    // messagesForQuery to be visible in the tool-call summary.
+    // 完整的轮次历史 — assistantMessages 在每个 queryLoop 迭代中重置，
+    // 因此来自先前迭代（Agent 生成，然后摘要）的工具调用需要 messagesForQuery 在工具调用摘要中可见。
     const turnAssistantMessages = stopHookContext.messages.filter(
       (m): m is AssistantMessage => m.type === 'assistant',
     )
     const p = jobClassifierModule!
       .classifyAndWriteState(process.env.CLAUDE_JOB_DIR, turnAssistantMessages)
       .catch(err => {
-        logForDebugging(`[job] classifier error: ${errorMessage(err)}`, {
+        logForDebugging(`[job] 分类器错误：${errorMessage(err)}`, {
           level: 'error',
         })
       })
     await Promise.race([
       p,
-      // eslint-disable-next-line no-restricted-syntax -- sleep() has no .unref(); timer must not block exit
+      // eslint-disable-next-line no-restricted-syntax -- sleep() 没有 .unref()；计时器不得阻止退出
       new Promise<void>(r => setTimeout(r, 60_000).unref()),
     ])
   }
-  // --bare / SIMPLE: skip background bookkeeping (prompt suggestion,
-  // memory extraction, auto-dream). Scripted -p calls don't want auto-memory
-  // or forked agents contending for resources during shutdown.
-  // Poor mode: also skip prompt suggestion and memory extraction.
+  // --bare / SIMPLE：跳过后台书签（提示建议、内存提取、自动 dream）。脚本化的 -p 调用不希望自动内存或派生代理在关闭期间争抢资源。
+  // 穷鬼模式：同样跳过提示建议和内存提取。
   const poorMode = feature('POOR')
     ? (await import('../commands/poor/poorMode.js')).isPoorModeActive()
     : false
   if (!isBareMode()) {
-    // Inline env check for dead code elimination in external builds
+    // 内联环境检查，用于外部构建中的死代码消除
     if (
       !isEnvDefinedFalsy(process.env.CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION) &&
       !poorMode
@@ -151,9 +143,8 @@ export async function* handleStopHooks(
       isExtractModeActive() &&
       !poorMode
     ) {
-      // Fire-and-forget in both interactive and non-interactive. For -p/SDK,
-      // print.ts drains the in-flight promise after flushing the response
-      // but before gracefulShutdownSync (see drainPendingExtraction).
+      // 在交互式和非交互式模式下即发即弃。对于 -p/SDK，
+      // print.ts 在刷新响应后但在 gracefulShutdownSync 之前排空进行中的 promise（参见 drainPendingExtraction）。
       void extractMemoriesModule!.executeExtractMemories(
         stopHookContext,
         toolUseContext.appendSystemMessage as ((msg: import('../types/message.js').SystemMessage) => void) | undefined,
@@ -164,11 +155,9 @@ export async function* handleStopHooks(
     }
   }
 
-  // chicago MCP: auto-unhide + lock release at turn end.
-  // Main thread only — the CU lock is a process-wide module-level variable,
-  // so a subagent's stopHooks releasing it leaves the main thread's cleanup
-  // seeing isLockHeldLocally()===false → no exit notification, and unhides
-  // mid-turn. Subagents don't start CU sessions so this is a pure skip.
+  // chicago MCP：在轮次结束时自动取消隐藏 + 释放锁。
+  // 仅主线程 — CU 锁是进程级的模块级变量，因此子代理的 stopHooks 释放它会导致主线程的清理
+  // 看到 isLockHeldLocally()===false → 没有退出通知，并在轮次中间取消隐藏。子代理不启动 CU 会话，因此纯粹跳过。
   if (feature('CHICAGO_MCP') && !toolUseContext.agentId) {
     try {
       const { cleanupComputerUseAfterTurn } = await import(
@@ -176,7 +165,7 @@ export async function* handleStopHooks(
       )
       await cleanupComputerUseAfterTurn(toolUseContext)
     } catch {
-      // Failures are silent — this is dogfooding cleanup, not critical path
+      // 失败静默处理 — 这是试运行清理，不是关键路径
     }
   }
 
@@ -196,7 +185,7 @@ export async function* handleStopHooks(
       toolUseContext.agentType,
     )
 
-    // Consume all progress messages and get blocking errors
+    // 消费所有进度消息并获取阻塞错误
     let stopHookToolUseID = ''
     let hookCount = 0
     let preventedContinuation = false
@@ -208,11 +197,11 @@ export async function* handleStopHooks(
     for await (const result of generator) {
       if (result.message) {
         yield result.message
-        // Track toolUseID from progress messages and count hooks
+        // 从进度消息中跟踪 toolUseID 并计数钩子
         if (result.message.type === 'progress' && result.message.toolUseID) {
           stopHookToolUseID = result.message.toolUseID as string
           hookCount++
-          // Extract hook command and prompt text from progress data
+          // 从进度数据中提取钩子命令和提示文本
           const progressData = result.message.data as HookProgress
           if (progressData.command) {
             hookInfos.push({
@@ -221,7 +210,7 @@ export async function* handleStopHooks(
             })
           }
         }
-        // Track errors and output from attachments
+        // 从附件中跟踪错误和输出
         if (result.message.type === 'attachment') {
           const attachment = result.message.attachment!
           if (
@@ -231,15 +220,15 @@ export async function* handleStopHooks(
           ) {
             if (attachment.type === 'hook_non_blocking_error') {
               hookErrors.push(
-                (attachment.stderr as string) || `Exit code ${attachment.exitCode}`,
+                (attachment.stderr as string) || `退出码 ${attachment.exitCode}`,
               )
-              // Non-blocking errors always have output
+              // 非阻塞错误总是有输出
               hasOutput = true
             } else if (attachment.type === 'hook_error_during_execution') {
               hookErrors.push(attachment.content as string)
               hasOutput = true
             } else if (attachment.type === 'hook_success') {
-              // Check if successful hook produced any stdout/stderr
+              // 检查成功的钩子是否产生了任何 stdout/stderr
               if (
                 (attachment.stdout && (attachment.stdout as string).trim()) ||
                 (attachment.stderr && (attachment.stderr as string).trim())
@@ -247,8 +236,8 @@ export async function* handleStopHooks(
                 hasOutput = true
               }
             }
-            // Extract per-hook duration for timing visibility.
-            // Hooks run in parallel; match by command + first unassigned entry.
+            // 提取每个钩子的持续时间，用于时间可见性。
+            // 钩子并行运行；通过 command + 第一个未分配的条目进行匹配。
             if ('durationMs' in attachment && 'command' in attachment) {
               const info = hookInfos.find(
                 i =>
@@ -265,19 +254,19 @@ export async function* handleStopHooks(
       if (result.blockingError) {
         const userMessage = createUserMessage({
           content: getStopHookMessage(result.blockingError),
-          isMeta: true, // Hide from UI (shown in summary message instead)
+          isMeta: true, // 在 UI 中隐藏（改为在摘要消息中显示）
         })
         blockingErrors.push(userMessage)
         yield userMessage
         hasOutput = true
-        // Add to hookErrors so it appears in the summary
+        // 将阻塞错误添加到 hookErrors 中，以便出现在摘要中
         hookErrors.push(result.blockingError.blockingError)
       }
-      // Check if hook wants to prevent continuation
+      // 检查钩子是否希望阻止继续
       if (result.preventContinuation) {
         preventedContinuation = true
-        stopReason = result.stopReason || 'Stop hook prevented continuation'
-        // Create attachment to track the stopped continuation (for structured data)
+        stopReason = result.stopReason || 'Stop 钩子阻止了继续'
+        // 创建附件以跟踪停止的继续（用于结构化数据）
         yield createAttachmentMessage({
           type: 'hook_stopped_continuation',
           message: stopReason,
@@ -287,7 +276,7 @@ export async function* handleStopHooks(
         })
       }
 
-      // Check if we were aborted during hook execution
+      // 检查钩子执行期间是否被中止
       if (toolUseContext.abortController.signal.aborted) {
         logEvent('tengu_pre_stop_hooks_cancelled', {
           queryChainId: toolUseContext.queryTracking
@@ -302,7 +291,7 @@ export async function* handleStopHooks(
       }
     }
 
-    // Create summary system message if hooks ran
+    // 如果钩子运行过，创建摘要系统消息
     if (hookCount > 0) {
       yield createStopHookSummaryMessage(
         hookCount,
@@ -315,7 +304,7 @@ export async function* handleStopHooks(
         stopHookToolUseID,
       )
 
-      // Send notification about errors (shown in verbose/transcript mode via ctrl+o)
+      // 发送有关错误的通知（在详细/记录模式下通过 ctrl+o 显示）
       if (hookErrors.length > 0) {
         const expandShortcut = getShortcutDisplay(
           'app:toggleTranscript',
@@ -324,7 +313,7 @@ export async function* handleStopHooks(
         )
         toolUseContext.addNotification?.({
           key: 'stop-hook-error',
-          text: `Stop hook error occurred \u00b7 ${expandShortcut} to see`,
+          text: `Stop 钩子发生错误 · ${expandShortcut} 查看详情`,
           priority: 'immediate',
         })
       }
@@ -334,23 +323,22 @@ export async function* handleStopHooks(
       return { blockingErrors: [], preventContinuation: true }
     }
 
-    // Collect blocking errors from stop hooks
+    // 收集 Stop 钩子中的阻塞错误
     if (blockingErrors.length > 0) {
       return { blockingErrors, preventContinuation: false }
     }
 
-    // After Stop hooks pass, run TeammateIdle and TaskCompleted hooks if this is a teammate
+    // 在 Stop 钩子通过后，如果这是队友，则运行 TeammateIdle 和 TaskCompleted 钩子
     if (isTeammate()) {
       const teammateName = getAgentName() ?? ''
       const teamName = getTeamName() ?? ''
       const teammateBlockingErrors: Message[] = []
       let teammatePreventedContinuation = false
       let teammateStopReason: string | undefined
-      // Each hook executor generates its own toolUseID — capture from progress
-      // messages (same pattern as stopHookToolUseID at L142), not the Stop ID.
+      // 每个钩子执行器生成自己的 toolUseID — 从进度消息中捕获（与 L142 处的 stopHookToolUseID 模式相同），而不是使用 Stop ID。
       let teammateHookToolUseID = ''
 
-      // Run TaskCompleted hooks for any in-progress tasks owned by this teammate
+      // 为此队友拥有的任何进行中的任务运行 TaskCompleted 钩子
       const taskListId = getTaskListId()
       const tasks = await listTasks(taskListId)
       const inProgressTasks = tasks.filter(
@@ -388,11 +376,11 @@ export async function* handleStopHooks(
             teammateBlockingErrors.push(userMessage)
             yield userMessage
           }
-          // Match Stop hook behavior: allow preventContinuation/stopReason
+          // 匹配 Stop 钩子行为：允许 preventContinuation/stopReason
           if (result.preventContinuation) {
             teammatePreventedContinuation = true
             teammateStopReason =
-              result.stopReason || 'TaskCompleted hook prevented continuation'
+              result.stopReason || 'TaskCompleted 钩子阻止了继续'
             yield createAttachmentMessage({
               type: 'hook_stopped_continuation',
               message: teammateStopReason,
@@ -407,7 +395,7 @@ export async function* handleStopHooks(
         }
       }
 
-      // Run TeammateIdle hooks
+      // 运行 TeammateIdle 钩子
       const teammateIdleGenerator = executeTeammateIdleHooks(
         teammateName,
         teamName,
@@ -430,11 +418,11 @@ export async function* handleStopHooks(
           teammateBlockingErrors.push(userMessage)
           yield userMessage
         }
-        // Match Stop hook behavior: allow preventContinuation/stopReason
+        // 匹配 Stop 钩子行为：允许 preventContinuation/stopReason
         if (result.preventContinuation) {
           teammatePreventedContinuation = true
           teammateStopReason =
-            result.stopReason || 'TeammateIdle hook prevented continuation'
+            result.stopReason || 'TeammateIdle 钩子阻止了继续'
           yield createAttachmentMessage({
             type: 'hook_stopped_continuation',
             message: teammateStopReason,
@@ -470,10 +458,9 @@ export async function* handleStopHooks(
         ?.chainId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       queryDepth: toolUseContext.queryTracking?.depth,
     })
-    // Yield a system message that is not visible to the model for the user
-    // to debug their hook.
+    // 生成一条用户不可见的系统消息，用于帮助用户调试其钩子。
     yield createSystemMessage(
-      `Stop hook failed: ${errorMessage(error)}`,
+      `Stop 钩子失败：${errorMessage(error)}`,
       'warning',
     )
     return { blockingErrors: [], preventContinuation: false }

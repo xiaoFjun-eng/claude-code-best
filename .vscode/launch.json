@@ -3,13 +3,10 @@
   "configurations": [
     {
       "name": "Attach to Bun (TUI debug)",
-      // "type": "bun",
-      "type": "node",
+      "type": "bun",
       "request": "attach",
       // "stopOnEntry": false,//bun调试专用
-      // "url": "ws://localhost:8888/2dc3gzl5xo1",//bun调试ts代码。
-      // "url":"ws://127.0.0.1:9229/b9b27f7f-b7e7-43bd-8ce4-8616f7225fa1",//node调试界面。先跑命令：node --inspect-brk --loader tsx scripts/dev.ts
-      "port": 9229,//node调试专用
+      "url": "ws://localhost:8888/2dc3gzl5xo1",//bun调试ts代码。
       "localRoot": "${workspaceFolder}",
       "remoteRoot": "${workspaceFolder}",
       "sourceMapPathOverrides": {

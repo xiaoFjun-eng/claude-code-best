@@ -15,7 +15,7 @@ import { isEssentialTrafficOnly } from '../privacyLevel.js'
 import { jsonStringify } from '../slowOperations.js'
 import { getAPIProvider, isFirstPartyAnthropicBaseUrl } from './providers.js'
 
-// .strip() — don't persist internal-only fields (mycro_deployments etc.) to disk
+// .strip() — 不将内部专有字段（如 mycro_deployments 等）持久化到磁盘
 const ModelCapabilitySchema = lazySchema(() =>
   z
     .object({
@@ -44,27 +44,25 @@ function getCachePath(): string {
 }
 
 function isModelCapabilitiesEligible(): boolean {
-  // Upstream gates this to ant-only, but the /v1/models API is available
-  // to all firstParty users (API key and OAuth). Enabling for everyone
-  // lets model capabilities (max_input_tokens, max_tokens) be fetched
-  // dynamically instead of relying on hardcoded values in context.ts.
+  // 上游将此门控设置为仅限 ant 内部，但 /v1/models API 对所有 firstParty 用户（API 密钥和 OAuth）均可用。
+  // 为所有人启用此功能，可以动态获取模型能力（max_input_tokens, max_tokens），而不是依赖 context.ts 中的硬编码值。
   if (getAPIProvider() !== 'firstParty') return false
   if (!isFirstPartyAnthropicBaseUrl()) return false
   return true
 }
 
-// Longest-id-first so substring match prefers most specific; secondary key for stable isEqual
+// ID 长的优先，以便子字符串匹配时优先匹配最具体的；辅助键用于稳定的 isEqual 比较
 function sortForMatching(models: ModelCapability[]): ModelCapability[] {
   return [...models].sort(
     (a, b) => b.id.length - a.id.length || a.id.localeCompare(b.id),
   )
 }
 
-// Keyed on cache path so tests that set CLAUDE_CONFIG_DIR get a fresh read
+// 以缓存路径为键，以便通过 CLAUDE_CONFIG_DIR 进行测试时获得全新的读取结果
 const loadCache = memoize(
   (path: string): ModelCapability[] | null => {
     try {
-      // eslint-disable-next-line custom-rules/no-sync-fs -- memoized; called from sync getContextWindowForModel
+      // eslint-disable-next-line custom-rules/no-sync-fs -- 已记忆化；从同步 getContextWindowForModel 调用
       const raw = readFileSync(path, 'utf-8')
       const parsed = CacheFileSchema().safeParse(safeParseJSON(raw, false))
       return parsed.success ? parsed.data.models : null
@@ -102,7 +100,7 @@ export async function refreshModelCapabilities(): Promise<void> {
     const path = getCachePath()
     const models = sortForMatching(parsed)
     if (isEqual(loadCache(path), models)) {
-      logForDebugging('[modelCapabilities] cache unchanged, skipping write')
+      logForDebugging('[modelCapabilities] 缓存未更改，跳过写入')
       return
     }
 
@@ -112,10 +110,10 @@ export async function refreshModelCapabilities(): Promise<void> {
       mode: 0o600,
     })
     loadCache.cache.delete(path)
-    logForDebugging(`[modelCapabilities] cached ${models.length} models`)
+    logForDebugging(`[modelCapabilities] 已缓存 ${models.length} 个模型`)
   } catch (error) {
     logForDebugging(
-      `[modelCapabilities] fetch failed: ${error instanceof Error ? error.message : 'unknown'}`,
+      `[modelCapabilities] 获取失败：${error instanceof Error ? error.message : 'unknown'}`,
     )
   }
 }

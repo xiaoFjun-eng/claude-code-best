@@ -89,33 +89,30 @@ function extractFirstUserMessageText(messages: MessageParam[]): string {
   const textBlock = content.find(block => block.type === 'text')
   return textBlock?.type === 'text' ? textBlock.text : ''
 }
-
 /**
- * Lightweight API wrapper for "side queries" outside the main conversation loop.
- *
- * Use this instead of direct client.beta.messages.create() calls to ensure
- * proper OAuth token validation with fingerprint attribution headers.
- *
- * This handles:
- * - Fingerprint computation for OAuth validation
- * - Attribution header injection
- * - CLI system prompt prefix
- * - Proper betas for the model
- * - API metadata
- * - Model string normalization (strips [1m] suffix for API)
- *
- * @example
- * // Permission explainer
- * await sideQuery({ querySource: 'permission_explainer', model, system: SYSTEM_PROMPT, messages, tools, tool_choice })
- *
- * @example
- * // Session search
- * await sideQuery({ querySource: 'session_search', model, system: SEARCH_PROMPT, messages })
- *
- * @example
- * // Model validation
- * await sideQuery({ querySource: 'model_validation', model, max_tokens: 1, messages: [{ role: 'user', content: 'Hi' }] })
- */
+* 用于在主对话循环之外执行“辅助查询”的轻量级 API 封装器。
+* 请使用此封装器代替直接调用 `client.beta.messages.create()`，以确保
+* 使用指纹归属标头进行正确的 OAuth 令牌验证。
+* 此功能处理：
+* - OAuth 验证的指纹计算
+* - 归属标头注入
+* - CLI 系统提示前缀
+* - 模型的正确 beta 版本
+* - API 元数据
+* - 模型字符串规范化（去除 API 的 [1m] 后缀）
+*
+* @example
+* // 权限解释器
+* await sideQuery({ querySource: 'permission_explainer', model, system: SYSTEM_PROMPT, messages, tools, tool_choice })
+*
+* @example
+* // 会话搜索
+* await sideQuery({ querySource: 'session_search', model, system: SEARCH_PROMPT, messages })
+*
+* @example
+* // 模型验证
+* await sideQuery({ querySource: 'model_validation', model, max_tokens: 1, messages: [{ role: 'user', content: 'Hi' }] })
+*/
 export async function sideQuery(opts: SideQueryOptions): Promise<BetaMessage> {
   const {
     model,

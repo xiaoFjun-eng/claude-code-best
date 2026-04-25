@@ -1,8 +1,8 @@
-// Lock file whose mtime IS lastConsolidatedAt. Body is the holder's PID.
+// 锁文件，其mtime即为lastConsolidatedAt。文件内容为持有者的PID。
 //
-// Lives inside the memory dir (getAutoMemPath) so it keys on git-root
-// like memory does, and so it's writable even when the memory path comes
-// from an env/settings override whose parent may not be.
+// 位于内存目录（getAutoMemPath）内，因此与
+// 内存一样以git根目录为键，并且即使内存路径来自父目录可
+// 能不存在的环境/设置覆盖，该文件也是可写的。
 
 import { mkdir, readFile, stat, unlink, utimes, writeFile } from 'fs/promises'
 import { join } from 'path'
@@ -15,17 +15,15 @@ import { getProjectDir } from '../../utils/sessionStorage.js'
 
 const LOCK_FILE = '.consolidate-lock'
 
-// Stale past this even if the PID is live (PID reuse guard).
+// 即使PID存活，超过此时间也视为过期（PID重用防护）。
 const HOLDER_STALE_MS = 60 * 60 * 1000
 
 function lockPath(): string {
   return join(getAutoMemPath(), LOCK_FILE)
 }
 
-/**
- * mtime of the lock file = lastConsolidatedAt. 0 if absent.
- * Per-turn cost: one stat.
- */
+/** 锁文件的mtime = lastConsolidatedAt。若不存在则为0。
+每次调用开销：一次stat。 */
 export async function readLastConsolidatedAt(): Promise<number> {
   try {
     const s = await stat(lockPath())
@@ -35,14 +33,11 @@ export async function readLastConsolidatedAt(): Promise<number> {
   }
 }
 
-/**
- * Acquire: write PID → mtime = now. Returns the pre-acquire mtime
- * (for rollback), or null if blocked / lost a race.
- *
- *   Success → do nothing. mtime stays at now.
- *   Failure → rollbackConsolidationLock(priorMtime) rewinds mtime.
- *   Crash   → mtime stuck, dead PID → next process reclaims.
- */
+/** 获取：写入PID → mtime设为当前时间。返回获取前的mtime（用于回滚），若被阻塞或竞争失败则返回null。
+
+  成功 → 不做任何操作。mtime保持为当前时间。
+  失败 → rollbackConsolidationLock(priorMtime) 回退mtime。
+  崩溃 → mtime卡住，PID已死 → 下一个进程回收。 */
 export async function tryAcquireConsolidationLock(): Promise<number | null> {
   const path = lockPath()
 
@@ -54,24 +49,24 @@ export async function tryAcquireConsolidationLock(): Promise<number | null> {
     const parsed = parseInt(raw.trim(), 10)
     holderPid = Number.isFinite(parsed) ? parsed : undefined
   } catch {
-    // ENOENT — no prior lock.
+    // ENOENT — 无先前锁。
   }
 
   if (mtimeMs !== undefined && Date.now() - mtimeMs < HOLDER_STALE_MS) {
     if (holderPid !== undefined && isProcessRunning(holderPid)) {
       logForDebugging(
-        `[autoDream] lock held by live PID ${holderPid} (mtime ${Math.round((Date.now() - mtimeMs) / 1000)}s ago)`,
+        `[autoDream] 锁被存活的PID ${holderPid} 持有（mtime为 ${Math.round((Date.now() - mtimeMs) / 1000)} 秒前）`,
       )
       return null
     }
-    // Dead PID or unparseable body — reclaim.
+    // PID已死或内容无法解析 — 回收。
   }
 
-  // Memory dir may not exist yet.
+  // 内存目录可能尚不存在。
   await mkdir(getAutoMemPath(), { recursive: true })
   await writeFile(path, String(process.pid))
 
-  // Two reclaimers both write → last wins the PID. Loser bails on re-read.
+  // 两个回收者同时写入 → 最后写入者赢得PID。失败者在重新读取后退出。
   let verify: string
   try {
     verify = await readFile(path, 'utf8')
@@ -83,11 +78,8 @@ export async function tryAcquireConsolidationLock(): Promise<number | null> {
   return mtimeMs ?? 0
 }
 
-/**
- * Rewind mtime to pre-acquire after a failed fork. Clears the PID body —
- * otherwise our still-running process would look like it's holding.
- * priorMtime 0 → unlink (restore no-file).
- */
+/** fork失败后将mtime回退到获取前的状态。清除PID内容——否则我们仍在运行的进程会看起来像持有锁。
+priorMtime为0 → 删除文件（恢复为无文件状态）。 */
 export async function rollbackConsolidationLock(
   priorMtime: number,
 ): Promise<void> {
@@ -98,23 +90,19 @@ export async function rollbackConsolidationLock(
       return
     }
     await writeFile(path, '')
-    const t = priorMtime / 1000 // utimes wants seconds
+    const t = priorMtime / 1000 // utimes需要秒级时间
     await utimes(path, t, t)
   } catch (e: unknown) {
     logForDebugging(
-      `[autoDream] rollback failed: ${(e as Error).message} — next trigger delayed to minHours`,
+      `[autoDream] 回滚失败：${(e as Error).message} — 下次触发延迟至minHours`,
     )
   }
 }
 
-/**
- * Session IDs with mtime after sinceMs. listCandidates handles UUID
- * validation (excludes agent-*.jsonl) and parallel stat.
- *
- * Uses mtime (sessions TOUCHED since), not birthtime (0 on ext4).
- * Caller excludes the current session. Scans per-cwd transcripts — it's
- * a skip-gate, so undercounting worktree sessions is safe.
- */
+/** mtime在sinceMs之后的会话ID。listCandidates负责UUID验证（排除agent-*.jsonl）和并行stat。
+
+使用mtime（自某时间点以来被TOUCHED的会话），而非birthtime（ext4上为0）。
+调用者排除当前会话。按每个cwd的transcripts扫描——这是一个跳过门，因此少算工作树会话是安全的。 */
 export async function listSessionsTouchedSince(
   sinceMs: number,
 ): Promise<string[]> {
@@ -123,18 +111,15 @@ export async function listSessionsTouchedSince(
   return candidates.filter(c => c.mtime > sinceMs).map(c => c.sessionId)
 }
 
-/**
- * Stamp from manual /dream. Optimistic — fires at prompt-build time,
- * no post-skill completion hook. Best-effort.
- */
+/** 来自手动/dream的时间戳。乐观策略——在提示构建时触发，无技能完成后的钩子。尽力而为。 */
 export async function recordConsolidation(): Promise<void> {
   try {
-    // Memory dir may not exist yet (manual /dream before any auto-trigger).
+    // 内存目录可能尚不存在（在任何自动触发之前的手动/dream）。
     await mkdir(getAutoMemPath(), { recursive: true })
     await writeFile(lockPath(), String(process.pid))
   } catch (e: unknown) {
     logForDebugging(
-      `[autoDream] recordConsolidation write failed: ${(e as Error).message}`,
+      `[autoDream] recordConsolidation写入失败：${(e as Error).message}`,
     )
   }
 }

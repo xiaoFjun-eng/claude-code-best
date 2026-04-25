@@ -254,11 +254,11 @@ export type ToolUseContext = {
   ) => (request: PromptRequest) => Promise<PromptResponse>
   toolUseId?: string
   criticalSystemReminder_EXPERIMENTAL?: string
-  /** 此查询回合的 Langfuse 根跟踪跨度。向下传递到工具执行以进行可观测性。 */
+  /** 此查询轮次的 Langfuse 根跟踪跨度。传递给工具执行以实现可观测性。----本Agent自己在query.ts中创建的*/
   langfuseTrace?: LangfuseSpan | null
-  /** 包装并发工具组的 Langfuse 批量跨度。设置后，工具观察结果将嵌套在其下。 */
+  /** 外部/主代理跟踪的 Langfuse 根跟踪跨度。当子代理需要将观测嵌套在父代理跟踪下时使用。----父Agent创建并传递过来的*/
   langfuseRootTrace?: LangfuseSpan | null
-  /** Langfuse batch span wrapping a concurrent tool group. When set, tool observations are nested under it. */
+  /** 封装并发工具组的 Langfuse 批处理跨度。设置后，工具观测将嵌套在其下。----串行、并行都会使用它*/
   langfuseBatchSpan?: LangfuseSpan | null
   /** 为 true 时，即使在子代理上，也保留消息上的 toolUseResult。用于其对话记录对用户可见的进程内队友。 */
   preserveToolUseResults?: boolean

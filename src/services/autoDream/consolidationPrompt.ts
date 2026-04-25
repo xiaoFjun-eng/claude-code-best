@@ -1,5 +1,5 @@
-// Extracted from dream.ts so auto-dream ships independently of KAIROS
-// feature flags (dream.ts is behind a feature()-gated require).
+// 从 dream.ts 中提取，以便自动梦境功能独立于 KAIROS 特性标志（dre
+// am.ts 位于一个由 feature() 门控的 require 之后）。
 
 import {
   DIR_EXISTS_GUIDANCE,
@@ -12,54 +12,54 @@ export function buildConsolidationPrompt(
   transcriptDir: string,
   extra: string,
 ): string {
-  return `# Dream: Memory Consolidation
+  return `# 梦境：记忆整合
 
-You are performing a dream — a reflective pass over your memory files. Synthesize what you've learned recently into durable, well-organized memories so that future sessions can orient quickly.
+你正在执行一次梦境——对记忆文件进行反思性梳理。将你最近学到的东西综合成持久、组织良好的记忆，以便未来的会话能够快速定位。
 
-Memory directory: \`${memoryRoot}\`
+记忆目录：\`${memoryRoot}\`
 ${DIR_EXISTS_GUIDANCE}
 
-Session transcripts: \`${transcriptDir}\` (large JSONL files — grep narrowly, don't read whole files)
+会话记录：\`${transcriptDir}\`（大型 JSONL 文件——精确搜索，不要读取整个文件）
 
 ---
 
-## Phase 1 — Orient
+## 第一阶段——定位
 
-- \`ls\` the memory directory to see what already exists
-- Read \`${ENTRYPOINT_NAME}\` to understand the current index
-- Skim existing topic files so you improve them rather than creating duplicates
-- If \`logs/\` or \`sessions/\` subdirectories exist (assistant-mode layout), review recent entries there
+- 使用 \`ls\` 命令查看记忆目录中已存在的内容
+- 读取 \`${ENTRYPOINT_NAME}\` 以了解当前索引
+- 浏览现有主题文件，以便改进它们而不是创建重复内容
+- 如果存在 \`logs/\` 或 \`sessions/\` 子目录（助手模式布局），则查看其中的近期条目
 
-## Phase 2 — Gather recent signal
+## 第二阶段——收集近期信号
 
-Look for new information worth persisting. Sources in rough priority order:
+寻找值得持久化的新信息。来源按大致优先级排序：
 
-1. **Daily logs** (\`logs/YYYY/MM/YYYY-MM-DD.md\`) if present — these are the append-only stream
-2. **Existing memories that drifted** — facts that contradict something you see in the codebase now
-3. **Transcript search** — if you need specific context (e.g., "what was the error message from yesterday's build failure?"), grep the JSONL transcripts for narrow terms:
-   \`grep -rn "<narrow term>" ${transcriptDir}/ --include="*.jsonl" | tail -50\`
+1. **每日日志**（\`logs/YYYY/MM/YYYY-MM-DD.md\`），如果存在——这些是仅追加的流
+2. **已漂移的现有记忆**——与你现在在代码库中看到的事实相矛盾的内容
+3. **记录搜索**——如果你需要特定上下文（例如，“昨天构建失败的错误信息是什么？”），使用精确术语搜索 JSONL 记录：
+   \`grep -rn "<精确术语>" ${transcriptDir}/ --include="*.jsonl" | tail -50\`
 
-Don't exhaustively read transcripts. Look only for things you already suspect matter.
+不要详尽地阅读记录。只查找你已经怀疑重要的事情。
 
-## Phase 3 — Consolidate
+## 第三阶段——整合
 
-For each thing worth remembering, write or update a memory file at the top level of the memory directory. Use the memory file format and type conventions from your system prompt's auto-memory section — it's the source of truth for what to save, how to structure it, and what NOT to save.
+对于每件值得记住的事情，在记忆目录的顶层写入或更新一个记忆文件。使用系统提示的自动记忆部分中的记忆文件格式和类型约定——这是关于保存什么、如何结构化以及不保存什么的权威来源。
 
-Focus on:
-- Merging new signal into existing topic files rather than creating near-duplicates
-- Converting relative dates ("yesterday", "last week") to absolute dates so they remain interpretable after time passes
-- Deleting contradicted facts — if today's investigation disproves an old memory, fix it at the source
+重点关注：
+- 将新信号合并到现有主题文件中，而不是创建近乎重复的内容
+- 将相对日期（“昨天”、“上周”）转换为绝对日期，以便在时间流逝后仍可解释
+- 删除被矛盾的事实——如果今天的调查推翻了旧的记忆，从源头修复它
 
-## Phase 4 — Prune and index
+## 第四阶段——精简和索引
 
-Update \`${ENTRYPOINT_NAME}\` so it stays under ${MAX_ENTRYPOINT_LINES} lines AND under ~25KB. It's an **index**, not a dump — each entry should be one line under ~150 characters: \`- [Title](file.md) — one-line hook\`. Never write memory content directly into it.
+更新 \`${ENTRYPOINT_NAME}\`，使其保持在 ${MAX_ENTRYPOINT_LINES} 行以内且小于约 25KB。它是一个**索引**，而不是转储——每个条目应为一行，长度不超过约 150 个字符：\`- [标题](file.md) — 一行钩子\`。切勿将记忆内容直接写入其中。
 
-- Remove pointers to memories that are now stale, wrong, or superseded
-- Demote verbose entries: if an index line is over ~200 chars, it's carrying content that belongs in the topic file — shorten the line, move the detail
-- Add pointers to newly important memories
-- Resolve contradictions — if two files disagree, fix the wrong one
+- 移除指向已过时、错误或被取代的记忆的指针
+- 精简冗长条目：如果索引行超过约 200 个字符，则说明它包含了本应属于主题文件的内容——缩短该行，移动细节
+- 添加指向新近重要记忆的指针
+- 解决矛盾——如果两个文件不一致，修复错误的那一个
 
 ---
 
-Return a brief summary of what you consolidated, updated, or pruned. If nothing changed (memories are already tight), say so.${extra ? `\n\n## Additional context\n\n${extra}` : ''}`
+返回你整合、更新或精简的内容的简要摘要。如果没有任何变化（记忆已经很紧凑），请说明。${extra ? `\n\n## Additional context\n\n${extra}` : ''}`
 }

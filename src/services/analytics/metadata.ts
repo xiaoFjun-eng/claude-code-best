@@ -1,9 +1,8 @@
-// biome-ignore-all assist/source/organizeImports: ANT-ONLY import markers must not be reordered
+// biome-ignore-all assist/source/organizeImports: 仅限 ANTS 内部的导入标记不得重新排序
 /**
- * Shared event metadata enrichment for analytics systems
+ * 为分析系统共享的事件元数据增强
  *
- * This module provides a single source of truth for collecting and formatting
- * event metadata across all analytics systems (Datadog, 1P).
+ * 此模块提供了一个单一事实来源，用于收集和格式化所有分析系统（Datadog、第一方）的事件元数据。
  */
 
 import { extname } from 'path'
@@ -42,30 +41,28 @@ import {
 import { feature } from 'bun:bundle'
 
 /**
- * Marker type for verifying analytics metadata doesn't contain sensitive data
+ * 用于验证分析元数据不包含敏感数据的标记类型
  *
- * This type forces explicit verification that string values being logged
- * don't contain code snippets, file paths, or other sensitive information.
+ * 此类型强制显式验证被记录的字符串值不包含代码片段、文件路径或其他敏感信息。
  *
- * The metadata is expected to be JSON-serializable.
+ * 元数据预期是可 JSON 序列化的。
  *
- * Usage: `myString as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS`
+ * 用法：`myString as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS`
  *
- * The type is `never` which means it can never actually hold a value - this is
- * intentional as it's only used for type-casting to document developer intent.
+ * 该类型是 `never`，意味着它永远不能实际持有值 — 这是有意的，
+ * 仅用于类型转换以记录开发者的意图。
  */
 export type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS = never
 
 /**
- * Sanitizes tool names for analytics logging to avoid PII exposure.
+ * 为分析日志清理工具名称，避免暴露 PII。
  *
- * MCP tool names follow the format `mcp__<server>__<tool>` and can reveal
- * user-specific server configurations, which is considered PII-medium.
- * This function redacts MCP tool names while preserving built-in tool names
- * (Bash, Read, Write, etc.) which are safe to log.
+ * MCP 工具名称遵循 `mcp__<server>__<tool>` 格式，可能暴露用户特定的服务器配置，
+ * 这被视为中等 PII。此函数会脱敏 MCP 工具名称，同时保留内置工具名称
+ * （Bash、Read、Write 等），这些可以安全记录。
  *
- * @param toolName - The tool name to sanitize
- * @returns The original name for built-in tools, or 'mcp_tool' for MCP tools
+ * @param toolName - 要清理的工具名称
+ * @returns 内置工具返回原始名称，MCP 工具返回 'mcp_tool'
  */
 export function sanitizeToolNameForAnalytics(
   toolName: string,
@@ -77,27 +74,25 @@ export function sanitizeToolNameForAnalytics(
 }
 
 /**
- * Check if detailed tool name logging is enabled for OTLP events.
- * When enabled, MCP server/tool names and Skill names are logged.
- * Disabled by default to protect PII (user-specific server configurations).
+ * 检查是否为 OTLP 事件启用了详细的工具名称日志记录。
+ * 启用时，会记录 MCP 服务器/工具名称和技能名称。
+ * 默认关闭以保护 PII（用户特定的服务器配置）。
  *
- * Enable with OTEL_LOG_TOOL_DETAILS=1
+ * 通过 OTEL_LOG_TOOL_DETAILS=1 启用
  */
 export function isToolDetailsLoggingEnabled(): boolean {
   return isEnvTruthy(process.env.OTEL_LOG_TOOL_DETAILS)
 }
 
 /**
- * Check if detailed tool name logging (MCP server/tool names) is enabled
- * for analytics events.
+ * 检查是否为分析事件启用了详细的工具名称日志记录（MCP 服务器/工具名称）。
  *
- * Per go/taxonomy, MCP names are medium PII. We log them for:
- * - Cowork (entrypoint=local-agent) — no ZDR concept, log all MCPs
- * - claude.ai-proxied connectors — always official (from claude.ai's list)
- * - Servers whose URL matches the official MCP registry — directory
- *   connectors added via `claude mcp add`, not customer-specific config
+ * 根据 go/taxonomy，MCP 名称属于中等 PII。我们会在以下情况记录它们：
+ * - Cowork（entrypoint=local-agent）— 没有 ZDR 概念，记录所有 MCP
+ * - claude.ai 代理的连接器 — 始终是官方的（来自 claude.ai 的列表）
+ * - URL 匹配官方 MCP 注册表的服务器 — 通过 `claude mcp add` 添加的目录连接器，不是客户特定的配置
  *
- * Custom/user-configured MCPs stay sanitized (toolName='mcp_tool').
+ * 自定义/用户配置的 MCP 保持脱敏（toolName='mcp_tool'）。
  */
 export function isAnalyticsToolDetailsLoggingEnabled(
   mcpServerType: string | undefined,
@@ -116,14 +111,12 @@ export function isAnalyticsToolDetailsLoggingEnabled(
 }
 
 /**
- * Built-in first-party MCP servers whose names are fixed reserved strings,
- * not user-configured — so logging them is not PII. Checked in addition to
- * isAnalyticsToolDetailsLoggingEnabled's transport/URL gates, which a stdio
- * built-in would otherwise fail.
+ * 内置的第一方 MCP 服务器，其名称是固定的保留字符串，不是用户配置的 —
+ * 因此记录它们不是 PII。除了 isAnalyticsToolDetailsLoggingEnabled 的传输/URL 门控外还会检查此项，
+ * 否则 stdio 内置服务器会无法通过该门控。
  *
- * Feature-gated so the set is empty when the feature is off: the name
- * reservation (main.tsx, config.ts addMcpServer) is itself feature-gated, so
- * a user-configured 'computer-use' is possible in builds without the feature.
+ * 通过功能门控，当功能关闭时集合为空：名称保留（main.tsx、config.ts addMcpServer）本身受功能门控，
+ * 因此在没有该功能的构建中，用户配置的 'computer-use' 是可能的。
  */
 /* eslint-disable @typescript-eslint/no-require-imports */
 const BUILTIN_MCP_SERVER_NAMES: ReadonlySet<string> = new Set(
@@ -138,9 +131,8 @@ const BUILTIN_MCP_SERVER_NAMES: ReadonlySet<string> = new Set(
 /* eslint-enable @typescript-eslint/no-require-imports */
 
 /**
- * Spreadable helper for logEvent payloads — returns {mcpServerName, mcpToolName}
- * if the gate passes, empty object otherwise. Consolidates the identical IIFE
- * pattern at each tengu_tool_use_* call site.
+ * 用于 logEvent 负载的可扩展辅助函数 — 如果门控通过，返回 {mcpServerName, mcpToolName}，否则返回空对象。
+ * 合并了每个 tengu_tool_use_* 调用点处相同的 IIFE 模式。
  */
 export function mcpToolDetailsForAnalytics(
   toolName: string,
@@ -167,11 +159,11 @@ export function mcpToolDetailsForAnalytics(
 }
 
 /**
- * Extract MCP server and tool names from a full MCP tool name.
- * MCP tool names follow the format: mcp__<server>__<tool>
+ * 从完整的 MCP 工具名称中提取 MCP 服务器和工具名称。
+ * MCP 工具名称遵循格式：mcp__<server>__<tool>
  *
- * @param toolName - The full tool name (e.g., 'mcp__slack__read_channel')
- * @returns Object with serverName and toolName, or undefined if not an MCP tool
+ * @param toolName - 完整的工具名称（例如 'mcp__slack__read_channel'）
+ * @returns 包含 serverName 和 toolName 的对象，如果不是 MCP 工具则返回 undefined
  */
 export function extractMcpToolDetails(toolName: string):
   | {
@@ -183,14 +175,14 @@ export function extractMcpToolDetails(toolName: string):
     return undefined
   }
 
-  // Format: mcp__<server>__<tool>
+  // 格式：mcp__<server>__<tool>
   const parts = toolName.split('__')
   if (parts.length < 3) {
     return undefined
   }
 
   const serverName = parts[1]
-  // Tool name may contain __ so rejoin remaining parts
+  // 工具名称可能包含 __，因此重新连接剩余部分
   const mcpToolName = parts.slice(2).join('__')
 
   if (!serverName || !mcpToolName) {
@@ -206,11 +198,11 @@ export function extractMcpToolDetails(toolName: string):
 }
 
 /**
- * Extract skill name from Skill tool input.
+ * 从 Skill 工具的输入中提取技能名称。
  *
- * @param toolName - The tool name (should be 'Skill')
- * @param input - The tool input containing the skill name
- * @returns The skill name if this is a Skill tool call, undefined otherwise
+ * @param toolName - 工具名称（应为 'Skill'）
+ * @param input - 包含技能名称的工具输入
+ * @returns 如果这是 Skill 工具调用，则返回技能名称，否则返回 undefined
  */
 export function extractSkillName(
   toolName: string,
@@ -242,7 +234,7 @@ const TOOL_INPUT_MAX_DEPTH = 2
 function truncateToolInputValue(value: unknown, depth = 0): unknown {
   if (typeof value === 'string') {
     if (value.length > TOOL_INPUT_STRING_TRUNCATE_AT) {
-      return `${value.slice(0, TOOL_INPUT_STRING_TRUNCATE_TO)}…[${value.length} chars]`
+      return `${value.slice(0, TOOL_INPUT_STRING_TRUNCATE_TO)}…[${value.length} 字符]`
     }
     return value
   }
@@ -255,27 +247,26 @@ function truncateToolInputValue(value: unknown, depth = 0): unknown {
     return value
   }
   if (depth >= TOOL_INPUT_MAX_DEPTH) {
-    return '<nested>'
+    return '<嵌套>'
   }
   if (Array.isArray(value)) {
     const mapped = value
       .slice(0, TOOL_INPUT_MAX_COLLECTION_ITEMS)
       .map(v => truncateToolInputValue(v, depth + 1))
     if (value.length > TOOL_INPUT_MAX_COLLECTION_ITEMS) {
-      mapped.push(`…[${value.length} items]`)
+      mapped.push(`…[${value.length} 项]`)
     }
     return mapped
   }
   if (typeof value === 'object') {
     const entries = Object.entries(value as Record<string, unknown>)
-      // Skip internal marker keys (e.g. _simulatedSedEdit re-introduced by
-      // SedEditPermissionRequest) so they don't leak into telemetry.
+      // 跳过内部标记键（例如 _simulatedSedEdit），避免它们泄漏到遥测中
       .filter(([k]) => !k.startsWith('_'))
     const mapped = entries
       .slice(0, TOOL_INPUT_MAX_COLLECTION_ITEMS)
       .map(([k, v]) => [k, truncateToolInputValue(v, depth + 1)])
     if (entries.length > TOOL_INPUT_MAX_COLLECTION_ITEMS) {
-      mapped.push(['…', `${entries.length} keys`])
+      mapped.push(['…', `${entries.length} 个键`])
     }
     return Object.fromEntries(mapped)
   }
@@ -283,10 +274,9 @@ function truncateToolInputValue(value: unknown, depth = 0): unknown {
 }
 
 /**
- * Serialize a tool's input arguments for the OTel tool_result event.
- * Truncates long strings and deep nesting to keep the output bounded while
- * preserving forensically useful fields like file paths, URLs, and MCP args.
- * Returns undefined when OTEL_LOG_TOOL_DETAILS is not enabled.
+ * 为 OTel tool_result 事件序列化工具的输入参数。
+ * 截断长字符串和深层嵌套，以保持输出有界，同时保留对取证有用的字段，如文件路径、URL 和 MCP 参数。
+ * 当 OTEL_LOG_TOOL_DETAILS 未启用时返回 undefined。
  */
 export function extractToolInputForTelemetry(
   input: unknown,
@@ -297,28 +287,27 @@ export function extractToolInputForTelemetry(
   const truncated = truncateToolInputValue(input)
   let json = jsonStringify(truncated)
   if (json.length > TOOL_INPUT_MAX_JSON_CHARS) {
-    json = json.slice(0, TOOL_INPUT_MAX_JSON_CHARS) + '…[truncated]'
+    json = json.slice(0, TOOL_INPUT_MAX_JSON_CHARS) + '…[已截断]'
   }
   return json
 }
 
 /**
- * Maximum length for file extensions to be logged.
- * Extensions longer than this are considered potentially sensitive
- * (e.g., hash-based filenames like "key-hash-abcd-123-456") and
- * will be replaced with 'other'.
+ * 要记录的文件扩展名的最大长度。
+ * 比这更长的扩展名被认为可能是敏感的
+ * （例如基于哈希的文件名，如“key-hash-abcd-123-456”），
+ * 将被替换为 'other'。
  */
 const MAX_FILE_EXTENSION_LENGTH = 10
 
 /**
- * Extracts and sanitizes a file extension for analytics logging.
+ * 提取并清理用于分析日志的文件扩展名。
  *
- * Uses Node's path.extname for reliable cross-platform extension extraction.
- * Returns 'other' for extensions exceeding MAX_FILE_EXTENSION_LENGTH to avoid
- * logging potentially sensitive data (like hash-based filenames).
+ * 使用 Node 的 path.extname 进行可靠的跨平台扩展名提取。
+ * 对于超过 MAX_FILE_EXTENSION_LENGTH 的扩展名返回 'other'，以避免记录潜在敏感数据（如基于哈希的文件名）。
  *
- * @param filePath - The file path to extract the extension from
- * @returns The sanitized extension, 'other' for long extensions, or undefined if no extension
+ * @param filePath - 要提取扩展名的文件路径
+ * @returns 清理后的扩展名，长扩展名返回 'other'，如果没有扩展名则返回 undefined
  */
 export function getFileExtensionForAnalytics(
   filePath: string,
@@ -328,7 +317,7 @@ export function getFileExtensionForAnalytics(
     return undefined
   }
 
-  const extension = ext.slice(1) // remove leading dot
+  const extension = ext.slice(1) // 移除前导点
   if (extension.length > MAX_FILE_EXTENSION_LENGTH) {
     return 'other' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
   }
@@ -336,7 +325,7 @@ export function getFileExtensionForAnalytics(
   return extension as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
 }
 
-/** Allow list of commands we extract file extensions from. */
+/** 我们从中提取文件扩展名的允许命令列表。 */
 const FILE_COMMANDS = new Set([
   'rm',
   'mv',
@@ -357,17 +346,16 @@ const FILE_COMMANDS = new Set([
   'sed',
 ])
 
-/** Regex to split bash commands on compound operators (&&, ||, ;, |). */
+/** 用于拆分 bash 命令中的复合运算符（&&、||、;、|）的正则表达式。 */
 const COMPOUND_OPERATOR_REGEX = /\s*(?:&&|\|\||[;|])\s*/
 
-/** Regex to split on whitespace. */
+/** 用于按空白字符拆分的正则表达式。 */
 const WHITESPACE_REGEX = /\s+/
 
 /**
- * Extracts file extensions from a bash command for analytics.
- * Best-effort: splits on operators and whitespace, extracts extensions
- * from non-flag args of allowed commands. No heavy shell parsing needed
- * because grep patterns and sed scripts rarely resemble file extensions.
+ * 从 bash 命令中提取文件扩展名用于分析。
+ * 尽力而为：按运算符和空白字符分割，从允许命令的非标志参数中提取扩展名。
+ * 不需要复杂的 shell 解析，因为 grep 模式和 sed 脚本很少看起来像文件扩展名。
  */
 export function getFileExtensionsFromBashCommand(
   command: string,
@@ -412,7 +400,7 @@ export function getFileExtensionsFromBashCommand(
 }
 
 /**
- * Environment context metadata
+ * 环境上下文元数据
  */
 export type EnvContext = {
   platform: string
@@ -452,7 +440,7 @@ export type EnvContext = {
 }
 
 /**
- * Process metrics included with all analytics events.
+ * 包含在所有分析事件中的进程指标。
  */
 export type ProcessMetrics = {
   uptime: number
@@ -467,7 +455,7 @@ export type ProcessMetrics = {
 }
 
 /**
- * Core event metadata shared across all analytics systems
+ * 跨所有分析系统共享的核心事件元数据
  */
 export type EventMetadata = {
   model: string
@@ -483,33 +471,33 @@ export type EventMetadata = {
   sweBenchRunId: string
   sweBenchInstanceId: string
   sweBenchTaskId: string
-  // Swarm/team agent identification for analytics attribution
-  agentId?: string // CLAUDE_CODE_AGENT_ID (format: agentName@teamName) or subagent UUID
-  parentSessionId?: string // CLAUDE_CODE_PARENT_SESSION_ID (team lead's session)
-  agentType?: 'teammate' | 'subagent' | 'standalone' // Distinguishes swarm teammates, Agent tool subagents, and standalone agents
-  teamName?: string // Team name for swarm agents (from env var or AsyncLocalStorage)
-  subscriptionType?: string // OAuth subscription tier (max, pro, enterprise, team)
-  rh?: string // Hashed repo remote URL (first 16 chars of SHA256), for joining with server-side data
-  kairosActive?: true // KAIROS assistant mode active (ant-only; set in main.tsx after gate check)
-  skillMode?: 'discovery' | 'coach' | 'discovery_and_coach' // Which skill surfacing mechanism(s) are gated on (ant-only; for BQ session segmentation)
-  observerMode?: 'backseat' | 'skillcoach' | 'both' // Which observer classifiers are gated on (ant-only; for BQ cohort splits on tengu_backseat_* events)
+  // 用于分析归因的 Swarm/团队代理标识
+  agentId?: string // CLAUDE_CODE_AGENT_ID（格式：agentName@teamName）或子代理 UUID
+  parentSessionId?: string // CLAUDE_CODE_PARENT_SESSION_ID（团队负责人的会话）
+  agentType?: 'teammate' | 'subagent' | 'standalone' // 区分群组成员、Agent 工具子代理和独立代理
+  teamName?: string // 群组代理的团队名称（来自环境变量或 AsyncLocalStorage）
+  subscriptionType?: string // OAuth 订阅层级（max, pro, enterprise, team）
+  rh?: string // 仓库远程 URL 的哈希值（SHA256 的前 16 个字符），用于与服务端数据关联
+  kairosActive?: true // KAIROS 助手模式激活（仅限 ant 内部；在 main.tsx 中门控检查后设置）
+  skillMode?: 'discovery' | 'coach' | 'discovery_and_coach' // 哪些技能展示机制被门控（仅限 ant 内部；用于 BQ 会话分段）
+  observerMode?: 'backseat' | 'skillcoach' | 'both' // 哪些观察者分类器被门控（仅限 ant 内部；用于 tengu_backseat_* 事件的 BQ 队列拆分）
 }
 
 /**
- * Options for enriching event metadata
+ * 丰富事件元数据的选项
  */
 export type EnrichMetadataOptions = {
-  // Model to use, falls back to getMainLoopModel() if not provided
+  // 使用的模型，如果未提供则回退到 getMainLoopModel()
   model?: unknown
-  // Explicit betas string (already joined)
+  // 显式的 betas 字符串（已连接）
   betas?: unknown
-  // Additional metadata to include (optional)
+  // 要包含的额外元数据（可选）
   additionalMetadata?: Record<string, unknown>
 }
 
 /**
- * Get agent identification for analytics.
- * Priority: AsyncLocalStorage context (subagents) > env vars (swarm teammates)
+ * 获取用于分析的代理标识。
+ * 优先级：AsyncLocalStorage 上下文（子代理）> 环境变量（群组成员）
  */
 function getAgentIdentification(): {
   agentId?: string
@@ -517,7 +505,7 @@ function getAgentIdentification(): {
   agentType?: 'teammate' | 'subagent' | 'standalone'
   teamName?: string
 } {
-  // Check AsyncLocalStorage first (for subagents running in same process)
+  // 首先检查 AsyncLocalStorage（用于在同一进程中运行的子代理）
   const agentContext = getAgentContext()
   if (agentContext) {
     const result: ReturnType<typeof getAgentIdentification> = {
@@ -531,12 +519,12 @@ function getAgentIdentification(): {
     return result
   }
 
-  // Fall back to swarm helpers (for swarm agents)
+  // 回退到群组辅助函数（用于群组代理）
   const agentId = getAgentId()
   const parentSessionId = getTeammateParentSessionId()
   const teamName = getTeamName()
   const isSwarmAgent = isTeammate()
-  // For standalone agents (have agent ID but not a teammate), set agentType to 'standalone'
+  // 对于独立代理（有代理 ID 但不是团队成员），将 agentType 设置为 'standalone'
   const agentType = isSwarmAgent
     ? ('teammate' as const)
     : agentId
@@ -551,7 +539,7 @@ function getAgentIdentification(): {
     }
   }
 
-  // Check bootstrap state for parent session ID (e.g., plan mode -> implementation)
+  // 检查引导状态的父会话 ID（例如计划模式 -> 实现）
   const stateParentSessionId = getParentSessionIdFromState()
   if (stateParentSessionId) {
     return { parentSessionId: stateParentSessionId }
@@ -561,7 +549,7 @@ function getAgentIdentification(): {
 }
 
 /**
- * Extract base version from full version string. "2.0.36-dev.20251107.t174150.sha2709699" → "2.0.36-dev"
+ * 从完整版本字符串中提取基础版本。“2.0.36-dev.20251107.t174150.sha2709699” → “2.0.36-dev”
  */
 const getVersionBase = memoize((): string | undefined => {
   const match = MACRO.VERSION.match(/^\d+\.\d+\.\d+(?:-[a-z]+)?/)
@@ -569,7 +557,7 @@ const getVersionBase = memoize((): string | undefined => {
 })
 
 /**
- * Builds the environment context object
+ * 构建环境上下文对象
  */
 const buildEnvContext = memoize(async (): Promise<EnvContext> => {
   const [packageManagers, runtimes, linuxDistroInfo, vcs] = await Promise.all([
@@ -581,9 +569,9 @@ const buildEnvContext = memoize(async (): Promise<EnvContext> => {
 
   return {
     platform: getHostPlatformForAnalytics(),
-    // Raw process.platform so freebsd/openbsd/aix/sunos are visible in BQ.
-    // getHostPlatformForAnalytics() buckets those into 'linux'; here we want
-    // the truth. CLAUDE_CODE_HOST_PLATFORM still overrides for container/remote.
+    // 原始的 process.platform，以便 freebsd/openbsd/aix/sunos 在 BQ 中可见。
+    // getHostPlatformForAnalytics() 将这些归类为 'linux'；这里我们需要真相。
+    // CLAUDE_CODE_HOST_PLATFORM 仍然覆盖容器/远程环境。
     platformRaw: process.env.CLAUDE_CODE_HOST_PLATFORM || process.platform,
     arch: env.arch,
     nodeVersion: env.nodeVersion,
@@ -599,7 +587,7 @@ const buildEnvContext = memoize(async (): Promise<EnvContext> => {
     ...(process.env.CLAUDE_CODE_REMOTE_ENVIRONMENT_TYPE && {
       remoteEnvironmentType: process.env.CLAUDE_CODE_REMOTE_ENVIRONMENT_TYPE,
     }),
-    // Gated by feature flag to prevent leaking "coworkerType" string in external builds
+    // 通过功能门控防止在外部构建中泄漏“coworkerType”字符串
     ...(feature('COWORKER_TYPE_TELEMETRY')
       ? process.env.CLAUDE_CODE_COWORKER_TYPE
         ? { coworkerType: process.env.CLAUDE_CODE_COWORKER_TYPE }
@@ -638,12 +626,12 @@ const buildEnvContext = memoize(async (): Promise<EnvContext> => {
 })
 
 // --
-// CPU% delta tracking — inherently process-global, same pattern as logBatch/flushTimer in datadog.ts
+// CPU% 增量跟踪 — 本质上是进程全局的，与 datadog.ts 中的 logBatch/flushTimer 模式相同
 let prevCpuUsage: NodeJS.CpuUsage | null = null
 let prevWallTimeMs: number | null = null
 
 /**
- * Builds process metrics object for all users.
+ * 为所有用户构建进程指标对象。
  */
 function buildProcessMetrics(): ProcessMetrics | undefined {
   try {
@@ -682,13 +670,12 @@ function buildProcessMetrics(): ProcessMetrics | undefined {
 }
 
 /**
- * Get core event metadata shared across all analytics systems.
+ * 获取跨所有分析系统共享的核心事件元数据。
  *
- * This function collects environment, runtime, and context information
- * that should be included with all analytics events.
+ * 此函数收集环境、运行时和上下文信息，这些信息应包含在所有分析事件中。
  *
- * @param options - Configuration options
- * @returns Promise resolving to enriched metadata object
+ * @param options - 配置选项
+ * @returns 解析为丰富元数据对象的 Promise
  */
 export async function getEventMetadata(
   options: EnrichMetadataOptions = {},
@@ -722,29 +709,28 @@ export async function getEventMetadata(
     sweBenchRunId: process.env.SWE_BENCH_RUN_ID || '',
     sweBenchInstanceId: process.env.SWE_BENCH_INSTANCE_ID || '',
     sweBenchTaskId: process.env.SWE_BENCH_TASK_ID || '',
-    // Swarm/team agent identification
-    // Priority: AsyncLocalStorage context (subagents) > env vars (swarm teammates)
+    // Swarm/团队代理标识
+    // 优先级：AsyncLocalStorage 上下文（子代理）> 环境变量（群组成员）
     ...getAgentIdentification(),
-    // Subscription tier for DAU-by-tier analytics
+    // 用于按层 DAU 分析的订阅层级
     ...(getSubscriptionType() && {
       subscriptionType: getSubscriptionType()!,
     }),
-    // Assistant mode tag — lives outside memoized buildEnvContext() because
-    // setKairosActive() runs at main.tsx:~1648, after the first event may
-    // have already fired and memoized the env. Read fresh per-event instead.
+    // 助手模式标签 — 位于记忆化的 buildEnvContext() 之外，因为
+    // setKairosActive() 在 main.tsx:~1648 中运行，可能在第一个事件已经触发
+    // 并记忆化环境之后。改为按事件新鲜读取。
     ...(feature('KAIROS') && getKairosActive()
       ? { kairosActive: true as const }
       : {}),
-    // Repo remote hash for joining with server-side repo bundle data
+    // 用于与服务端仓库捆绑数据关联的仓库远程哈希
     ...(repoRemoteHash && { rh: repoRemoteHash }),
   }
 
   return metadata
 }
 
-
 /**
- * Core event metadata for 1P event logging (snake_case format).
+ * 用于第一方事件日志记录的核心事件元数据（snake_case 格式）。
  */
 export type FirstPartyEventLoggingCoreMetadata = {
   session_id: string
@@ -758,7 +744,7 @@ export type FirstPartyEventLoggingCoreMetadata = {
   swe_bench_run_id?: string
   swe_bench_instance_id?: string
   swe_bench_task_id?: string
-  // Swarm/team agent identification
+  // Swarm/团队代理标识
   agent_id?: string
   parent_session_id?: string
   agent_type?: 'teammate' | 'subagent' | 'standalone'
@@ -766,32 +752,31 @@ export type FirstPartyEventLoggingCoreMetadata = {
 }
 
 /**
- * Complete event logging metadata format for 1P events.
+ * 用于第一方事件的完整事件日志记录元数据格式。
  */
 export type FirstPartyEventLoggingMetadata = {
   env: EnvironmentMetadata
   process?: string
-  // auth is a top-level field on ClaudeCodeInternalEvent (proto PublicApiAuth).
-  // account_id is intentionally omitted — only UUID fields are populated client-side.
+  // auth 是 ClaudeCodeInternalEvent 上的顶级字段（proto PublicApiAuth）。
+  // account_id 有意省略 — 仅客户端填充 UUID 字段。
   auth?: PublicApiAuth
-  // core fields correspond to the top level of ClaudeCodeInternalEvent.
-  // They get directly exported to their individual columns in the BigQuery tables
+  // core 字段对应于 ClaudeCodeInternalEvent 的顶级。
+  // 它们直接导出到 BigQuery 表中各自的列
   core: FirstPartyEventLoggingCoreMetadata
-  // additional fields are populated in the additional_metadata field of the
-  // ClaudeCodeInternalEvent proto. Includes but is not limited to information
-  // that differs by event type.
+  // additional 字段填充在 ClaudeCodeInternalEvent proto 的 additional_metadata 字段中。
+  // 包括但不限于因事件类型而异的信息。
   additional: Record<string, unknown>
 }
 
 /**
- * Convert metadata to 1P event logging format (snake_case fields).
+ * 将元数据转换为第一方事件日志记录格式（snake_case 字段）。
  *
- * The /api/event_logging/batch endpoint expects snake_case field names
- * for environment and core metadata.
+ * /api/event_logging/batch 端点期望环境和核心元数据使用 snake_case 字段名。
  *
- * @param metadata - Core event metadata
- * @param additionalMetadata - Additional metadata to include
- * @returns Metadata formatted for 1P event logging
+ * @param metadata - 核心事件元数据
+ * @param userMetadata - 用户元数据
+ * @param additionalMetadata - 要包含的额外元数据
+ * @returns 为第一方事件日志记录格式化的元数据
  */
 export function to1PEventFormat(
   metadata: EventMetadata,
@@ -808,15 +793,13 @@ export function to1PEventFormat(
     ...coreFields
   } = metadata
 
-  // Convert envContext to snake_case.
-  // IMPORTANT: env is typed as the proto-generated EnvironmentMetadata so that
-  // adding a field here that the proto doesn't define is a compile error. The
-  // generated toJSON() serializer silently drops unknown keys — a hand-written
-  // parallel type previously let #11318, #13924, #19448, and coworker_type all
-  // ship fields that never reached BQ.
-  // Adding a field? Update the monorepo proto first (go/cc-logging):
+  // 将 envContext 转换为 snake_case。
+  // 重要提示：env 的类型化为 proto 生成的 EnvironmentMetadata，以便
+  // 在此处添加一个 proto 未定义的字段会导致编译错误。生成的 toJSON() 序列化器会静默丢弃未知键 —
+  // 手写的平行类型之前让 #11318、#13924、#19448 和 coworker_type 都发送了从未到达 BQ 的字段。
+  // 添加字段？首先更新 monorepo proto（go/cc-logging）：
   //   event_schemas/.../claude_code/v1/claude_code_internal_event.proto
-  // then run `bun run generate:proto` here.
+  // 然后在此处运行 `bun run generate:proto`。
   const env: EnvironmentMetadata = {
     platform: envContext.platform,
     platform_raw: envContext.platformRaw,
@@ -839,7 +822,7 @@ export function to1PEventFormat(
     deployment_environment: envContext.deploymentEnvironment,
   }
 
-  // Add optional env fields
+  // 添加可选的环境字段
   if (envContext.remoteEnvironmentType) {
     env.remote_environment_type = envContext.remoteEnvironmentType
   }
@@ -890,7 +873,7 @@ export function to1PEventFormat(
     env.version_base = envContext.versionBase
   }
 
-  // Convert core fields to snake_case
+  // 将核心字段转换为 snake_case
   const core: FirstPartyEventLoggingCoreMetadata = {
     session_id: coreFields.sessionId,
     model: coreFields.model,
@@ -899,7 +882,7 @@ export function to1PEventFormat(
     client_type: coreFields.clientType,
   }
 
-  // Add other core fields
+  // 添加其他核心字段
   if (coreFields.betas) {
     core.betas = coreFields.betas
   }
@@ -918,7 +901,7 @@ export function to1PEventFormat(
   if (coreFields.sweBenchTaskId) {
     core.swe_bench_task_id = coreFields.sweBenchTaskId
   }
-  // Swarm/team agent identification
+  // Swarm/团队代理标识
   if (coreFields.agentId) {
     core.agent_id = coreFields.agentId
   }
@@ -932,12 +915,11 @@ export function to1PEventFormat(
     core.team_name = coreFields.teamName
   }
 
-  // Map userMetadata to output fields.
-  // Based on src/utils/user.ts getUser(), but with fields present in other
-  // parts of ClaudeCodeInternalEvent deduplicated.
-  // Convert camelCase GitHubActionsMetadata to snake_case for 1P API
-  // Note: github_actions_metadata is placed inside env (EnvironmentMetadata)
-  // rather than at the top level of ClaudeCodeInternalEvent
+  // 将 userMetadata 映射到输出字段。
+  // 基于 src/utils/user.ts getUser()，但字段在 ClaudeCodeInternalEvent 的其他部分中已被去重。
+  // 将 camelCase GitHubActionsMetadata 转换为 snake_case 用于第一方 API
+  // 注意：github_actions_metadata 放在 env（EnvironmentMetadata）内部，
+  // 而不是 ClaudeCodeInternalEvent 的顶级
   if (userMetadata.githubActionsMetadata) {
     const ghMeta = userMetadata.githubActionsMetadata
     env.github_actions_metadata = {

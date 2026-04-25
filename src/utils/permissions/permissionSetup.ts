@@ -81,63 +81,60 @@ import {
   permissionRuleValueToString,
 } from './permissionRuleParser.js'
 
-/**
- * Checks if a Bash permission rule is dangerous for auto mode.
- * A rule is dangerous if it would auto-allow commands that execute arbitrary code,
- * bypassing the classifier's safety evaluation.
- *
- * Dangerous patterns:
- * 1. Tool-level allow (Bash with no ruleContent) - allows ALL commands
- * 2. Prefix rules for script interpreters (python:*, node:*, etc.)
- * 3. Wildcard rules matching interpreters (python*, node*, etc.)
- */
+/** 检查 Bash 权限规则在自动模式下是否危险。
+如果一条规则会自动允许执行任意代码的命令，从而绕过分类器的安全评估，则该规则是危险的。
+
+危险模式：
+1. 工具级别允许（无 ruleContent 的 Bash）——允许所有命令
+2. 脚本解释器的前缀规则（python:*、node:* 等）
+3. 匹配解释器的通配符规则（python*、node* 等） */
 export function isDangerousBashPermission(
   toolName: string,
   ruleContent: string | undefined,
 ): boolean {
-  // Only check Bash rules
+  // 仅检查 Bash 规则
   if (toolName !== BASH_TOOL_NAME) {
     return false
   }
 
-  // Tool-level allow (Bash with no content, or Bash(*)) - allows ALL commands
+  // 工具级别允许（无内容的 Bash，或 Bash(*)）——允许所有命令
   if (ruleContent === undefined || ruleContent === '') {
     return true
   }
 
   const content = ruleContent.trim().toLowerCase()
 
-  // Standalone wildcard (*) matches everything
+  // 独立通配符 (*) 匹配所有内容
   if (content === '*') {
     return true
   }
 
-  // Check for dangerous patterns with prefix syntax (e.g., "python:*")
-  // or wildcard syntax (e.g., "python*")
+  // 检查前缀语法（如 "python:*"）或通配符语法（如
+  // "python*"）的危险模式
   for (const pattern of DANGEROUS_BASH_PATTERNS) {
     const lowerPattern = pattern.toLowerCase()
 
-    // Exact match to the pattern itself (e.g., "python" as a rule)
+    // 精确匹配模式本身（例如将 "python" 作为规则）
     if (content === lowerPattern) {
       return true
     }
 
-    // Prefix syntax: "python:*" allows any python command
+    // 前缀语法："python:*" 允许任何 python 命令
     if (content === `${lowerPattern}:*`) {
       return true
     }
 
-    // Wildcard at end: "python*" matches python, python3, etc.
+    // 末尾通配符："python*" 匹配 python、python3 等
     if (content === `${lowerPattern}*`) {
       return true
     }
 
-    // Wildcard with space: "python *" would match "python script.py"
+    // 带空格的通配符："python *" 会匹配 "python script.py"
     if (content === `${lowerPattern} *`) {
       return true
     }
 
-    // Check for patterns like "python -*" which would match "python -c 'code'"
+    // 检查类似 "python -*" 的模式，该模式会匹配 "python -c 'code'"
     if (content.startsWith(`${lowerPattern} -`) && content.endsWith('*')) {
       return true
     }
@@ -146,14 +143,10 @@ export function isDangerousBashPermission(
   return false
 }
 
-/**
- * Checks if a PowerShell permission rule is dangerous for auto mode.
- * A rule is dangerous if it would auto-allow commands that execute arbitrary
- * code (nested shells, Invoke-Expression, Start-Process, etc.), bypassing the
- * classifier's safety evaluation.
- *
- * PowerShell is case-insensitive, so rule content is lowercased before matching.
- */
+/** 检查 PowerShell 权限规则在自动模式下是否危险。
+如果一条规则会自动允许执行任意代码的命令（嵌套 shell、Invoke-Expression、Start-Process 等），从而绕过分类器的安全评估，则该规则是危险的。
+
+PowerShell 不区分大小写，因此规则内容在匹配前会转换为小写。 */
 export function isDangerousPowerShellPermission(
   toolName: string,
   ruleContent: string | undefined,
@@ -162,62 +155,62 @@ export function isDangerousPowerShellPermission(
     return false
   }
 
-  // Tool-level allow (PowerShell with no content, or PowerShell(*)) - allows ALL commands
+  // 工具级别允许（无内容的 PowerShell，或 PowerShell(*)）——允许所有命令
   if (ruleContent === undefined || ruleContent === '') {
     return true
   }
 
   const content = ruleContent.trim().toLowerCase()
 
-  // Standalone wildcard (*) matches everything
+  // 独立通配符 (*) 匹配所有内容
   if (content === '*') {
     return true
   }
 
-  // PS-specific cmdlet names. CROSS_PLATFORM_CODE_EXEC is shared with bash.
+  // PS 特定的 cmdlet 名称。CROSS_PLATFORM_CODE_EXEC 与 bash 共享。
   const patterns: readonly string[] = [
     ...CROSS_PLATFORM_CODE_EXEC,
-    // Nested PS + shells launchable from PS
+    // 嵌套 PS 及可从 PS 启动的 shell
     'pwsh',
     'powershell',
     'cmd',
     'wsl',
-    // String/scriptblock evaluators
+    // 字符串/脚本块求值器
     'iex',
     'invoke-expression',
     'icm',
     'invoke-command',
-    // Process spawners
+    // 进程生成器
     'start-process',
     'saps',
     'start',
     'start-job',
     'sajb',
-    'start-threadjob', // bundled PS 6.1+; takes -ScriptBlock like Start-Job
-    // Event/session code exec
+    'start-threadjob', // 捆绑的 PS 6.1+；接受 -ScriptBlock，类似于 Sta
+    // rt-Job 事件/会话代码执行
     'register-objectevent',
     'register-engineevent',
     'register-wmievent',
     'register-scheduledjob',
     'new-pssession',
-    'nsn', // alias
+    'nsn', // 别名
     'enter-pssession',
-    'etsn', // alias
-    // .NET escape hatches
+    'etsn', // 别名
+    // .NET 逃生出口
     'add-type', // Add-Type -TypeDefinition '<C#>' → P/Invoke
     'new-object', // New-Object -ComObject WScript.Shell → .Run()
   ]
 
   for (const pattern of patterns) {
-    // patterns stored lowercase; content lowercased above
+    // 模式以小写存储；内容已在上面转换为小写
     if (content === pattern) return true
     if (content === `${pattern}:*`) return true
     if (content === `${pattern}*`) return true
     if (content === `${pattern} *`) return true
     if (content.startsWith(`${pattern} -`) && content.endsWith('*')) return true
-    // .exe — goes on the FIRST word. `python` → `python.exe`.
-    // `npm run` → `npm.exe run` (npm.exe is the real Windows binary name).
-    // A rule like `PowerShell(npm.exe run:*)` needs to match `npm run`.
+    // .exe — 附加在第一个单词上。`python` → `python.exe`。`
+    // npm run` → `npm.exe run`（npm.exe 是真实的 Windows 二进制名称）
+    // 。像 `PowerShell(npm.exe run:*)` 这样的规则需要匹配 `npm run`。
     const sp = pattern.indexOf(' ')
     const exe =
       sp === -1
@@ -232,11 +225,8 @@ export function isDangerousPowerShellPermission(
   return false
 }
 
-/**
- * Checks if an Agent (sub-agent) permission rule is dangerous for auto mode.
- * Any Agent allow rule would auto-approve sub-agent spawns before the auto mode classifier
- * can evaluate the sub-agent's prompt, defeating delegation attack prevention.
- */
+/** 检查 Agent（子代理）权限规则在自动模式下是否危险。
+任何 Agent 允许规则都会在自动模式分类器评估子代理提示之前自动批准子代理的生成，从而破坏委托攻击防御。 */
 export function isDangerousTaskPermission(
   toolName: string,
   _ruleContent: string | undefined,
@@ -258,23 +248,20 @@ function formatPermissionSource(source: PermissionRuleSource): string {
 export type DangerousPermissionInfo = {
   ruleValue: PermissionRuleValue
   source: PermissionRuleSource
-  /** The permission rule formatted for display, e.g. "Bash(*)" or "Bash(python:*)" */
+  /** 格式化后用于显示的权限规则，例如 "Bash(*)" 或 "Bash(python:*)" */
   ruleDisplay: string
-  /** The source formatted for display, e.g. a file path or "--allowed-tools" */
+  /** 格式化后用于显示的来源，例如文件路径或 "--allowed-tools" */
   sourceDisplay: string
 }
 
-/**
- * Checks if a permission rule is dangerous for auto mode.
- * A rule is dangerous if it would auto-allow actions before the auto mode classifier
- * can evaluate them, bypassing safety checks.
- */
+/** 检查权限规则在自动模式下是否危险。
+如果一条规则会在自动模式分类器评估之前自动允许操作，从而绕过安全检查，则该规则是危险的。 */
 function isDangerousClassifierPermission(
   toolName: string,
   ruleContent: string | undefined,
 ): boolean {
   if (process.env.USER_TYPE === 'ant') {
-    // Tmux send-keys executes arbitrary shell, bypassing the classifier same as Bash(*)
+    // Tmux send-keys 执行任意 shell，与 Bash(*) 一样绕过分类器
     if (toolName === 'Tmux') return true
   }
   return (
@@ -284,21 +271,17 @@ function isDangerousClassifierPermission(
   )
 }
 
-/**
- * Finds all dangerous permissions from rules loaded from disk and CLI arguments.
- * Returns structured info about each dangerous permission found.
- *
- * Checks Bash permissions (wildcard/interpreter patterns), PowerShell permissions
- * (wildcard/iex/Start-Process patterns), and Agent permissions (any allow rule
- * bypasses the classifier's sub-agent evaluation).
- */
+/** 从磁盘和 CLI 参数加载的规则中查找所有危险权限。
+返回关于每个找到的危险权限的结构化信息。
+
+检查 Bash 权限（通配符/解释器模式）、PowerShell 权限（通配符/iex/Start-Process 模式）和 Agent 权限（任何允许规则都会绕过分类器的子代理评估）。 */
 export function findDangerousClassifierPermissions(
   rules: PermissionRule[],
   cliAllowedTools: string[],
 ): DangerousPermissionInfo[] {
   const dangerous: DangerousPermissionInfo[] = []
 
-  // Check rules loaded from settings
+  // 检查从设置加载的规则
   for (const rule of rules) {
     if (
       rule.ruleBehavior === 'allow' &&
@@ -319,9 +302,9 @@ export function findDangerousClassifierPermissions(
     }
   }
 
-  // Check CLI --allowed-tools arguments
+  // 检查 CLI --allowed-tools 参数
   for (const toolSpec of cliAllowedTools) {
-    // Parse tool spec: "Bash" or "Bash(pattern)" or "Agent" or "Agent(subagent_type)"
+    // 解析工具规范："Bash" 或 "Bash(pattern)" 或 "Agent" 或 "Agent(subagent_type)"
     const match = toolSpec.match(/^([^(]+)(?:\(([^)]*)\))?$/)
     if (match) {
       const toolName = match[1]!.trim()
@@ -341,13 +324,11 @@ export function findDangerousClassifierPermissions(
   return dangerous
 }
 
-/**
- * Checks if a Bash allow rule is overly broad (equivalent to YOLO mode).
- * Returns true for tool-level Bash allow rules with no content restriction,
- * which auto-allow every bash command.
- *
- * Matches: Bash, Bash(*), Bash() — all parse to { toolName: 'Bash' } with no ruleContent.
- */
+/** 检查 Bash 允许规则是否过于宽泛（等同于 YOLO 模式）。
+对于没有内容限制的工具级别 Bash 允许规则返回 true，
+这些规则会自动允许每个 bash 命令。
+
+匹配：Bash、Bash(*)、Bash() — 全部解析为 { toolName: 'Bash' } 且无 ruleContent。 */
 export function isOverlyBroadBashAllowRule(
   ruleValue: PermissionRuleValue,
 ): boolean {
@@ -356,12 +337,10 @@ export function isOverlyBroadBashAllowRule(
   )
 }
 
-/**
- * PowerShell equivalent of isOverlyBroadBashAllowRule.
- *
- * Matches: PowerShell, PowerShell(*), PowerShell() — all parse to
- * { toolName: 'PowerShell' } with no ruleContent.
- */
+/** isOverlyBroadBashAllowRule 的 PowerShell 等效方法。
+
+匹配：PowerShell、PowerShell(*)、PowerShell() — 全部解析为
+{ toolName: 'PowerShell' } 且无 ruleContent。 */
 export function isOverlyBroadPowerShellAllowRule(
   ruleValue: PermissionRuleValue,
 ): boolean {
@@ -371,11 +350,9 @@ export function isOverlyBroadPowerShellAllowRule(
   )
 }
 
-/**
- * Finds all overly broad Bash allow rules from settings and CLI arguments.
- * An overly broad rule allows ALL bash commands (e.g., Bash or Bash(*)),
- * which is effectively equivalent to YOLO/bypass-permissions mode.
- */
+/** 从设置和 CLI 参数中查找所有过于宽泛的 Bash 允许规则。
+过于宽泛的规则允许所有 bash 命令（例如 Bash 或 Bash(*)），
+这实际上等同于 YOLO/绕过权限模式。 */
 export function findOverlyBroadBashPermissions(
   rules: PermissionRule[],
   cliAllowedTools: string[],
@@ -411,9 +388,7 @@ export function findOverlyBroadBashPermissions(
   return overlyBroad
 }
 
-/**
- * PowerShell equivalent of findOverlyBroadBashPermissions.
- */
+/** findOverlyBroadBashPermissions 的 PowerShell 等效方法。 */
 export function findOverlyBroadPowerShellPermissions(
   rules: PermissionRule[],
   cliAllowedTools: string[],
@@ -449,10 +424,8 @@ export function findOverlyBroadPowerShellPermissions(
   return overlyBroad
 }
 
-/**
- * Type guard to check if a PermissionRuleSource is a valid PermissionUpdateDestination.
- * Sources like 'flagSettings', 'policySettings', and 'command' are not valid destinations.
- */
+/** 类型守卫，检查 PermissionRuleSource 是否为有效的 PermissionUpdateDestination。
+像 'flagSettings'、'policySettings' 和 'command' 这样的来源不是有效的目标。 */
 function isPermissionUpdateDestination(
   source: PermissionRuleSource,
 ): source is PermissionUpdateDestination {
@@ -465,21 +438,19 @@ function isPermissionUpdateDestination(
   ].includes(source)
 }
 
-/**
- * Removes dangerous permissions from the in-memory context, and optionally
- * persists the removal to settings files on disk.
- */
+/** 从内存上下文中移除危险权限，并可选地
+将移除操作持久化到磁盘上的设置文件中。 */
 export function removeDangerousPermissions(
   context: ToolPermissionContext,
   dangerousPermissions: DangerousPermissionInfo[],
 ): ToolPermissionContext {
-  // Group dangerous rules by their source (destination for updates)
+  // 按来源（更新的目标）对危险规则进行分组
   const rulesBySource = new Map<
     PermissionUpdateDestination,
     PermissionRuleValue[]
   >()
   for (const perm of dangerousPermissions) {
-    // Skip sources that can't be persisted (flagSettings, policySettings, command)
+    // 跳过无法持久化的来源（flagSettings、policySettings、command）
     if (!isPermissionUpdateDestination(perm.source)) {
       continue
     }
@@ -502,11 +473,9 @@ export function removeDangerousPermissions(
   return updatedContext
 }
 
-/**
- * Prepares a ToolPermissionContext for auto mode by stripping
- * dangerous permissions that would bypass the classifier.
- * Returns the cleaned context (with mode unchanged — caller sets the mode).
- */
+/** 为自动模式准备 ToolPermissionContext，通过剥离
+会绕过分类器的危险权限。
+返回清理后的上下文（模式不变——由调用者设置模式）。 */
 export function stripDangerousPermissionsForAutoMode(
   context: ToolPermissionContext,
 ): ToolPermissionContext {
@@ -535,10 +504,10 @@ export function stripDangerousPermissionsForAutoMode(
   }
   for (const permission of dangerousPermissions) {
     logForDebugging(
-      `Ignoring dangerous permission ${permission.ruleDisplay} from ${permission.sourceDisplay} (bypasses classifier)`,
+      `忽略来自 ${permission.sourceDisplay} 的危险权限 ${permission.ruleDisplay}（绕过分类器）`,
     )
   }
-  // Mirror removeDangerousPermissions' source filter so stash == what was actually removed.
+  // 镜像 removeDangerousPermissions 的源过滤器，使 stash 与实际移除的内容一致。
   const stripped: ToolPermissionRulesBySource = {}
   for (const perm of dangerousPermissions) {
     if (!isPermissionUpdateDestination(perm.source)) continue
@@ -552,12 +521,10 @@ export function stripDangerousPermissionsForAutoMode(
   }
 }
 
-/**
- * Restores dangerous allow rules previously stashed by
- * stripDangerousPermissionsForAutoMode. Called when leaving auto mode so that
- * the user's Bash(python:*), Agent(*), etc. rules work again in default mode.
- * Clears the stash so a second exit is a no-op.
- */
+/** 恢复之前由 stripDangerousPermissionsForAutoMode 暂存的危险允许规则。
+在离开自动模式时调用，以便用户的 Bash(python:*)、Agent(*) 等规则
+在默认模式下再次生效。
+清除暂存区，以便第二次退出时无操作。 */
 export function restoreDangerousPermissions(
   context: ToolPermissionContext,
 ): ToolPermissionContext {
@@ -578,28 +545,25 @@ export function restoreDangerousPermissions(
   return { ...result, strippedDangerousRules: undefined }
 }
 
-/**
- * Handles all state transitions when switching permission modes.
- * Centralises side-effects so that every activation path (CLI Shift+Tab,
- * SDK control messages, etc.) behaves identically.
- *
- * Currently handles:
- * - Plan mode enter/exit attachments (via handlePlanModeTransition)
- * - Auto mode activation: setAutoModeActive, stripDangerousPermissionsForAutoMode
- *
- * Returns the (possibly modified) context. Caller is responsible for setting
- * the mode on the returned context.
- *
- * @param fromMode The current permission mode
- * @param toMode The target permission mode
- * @param context The current tool permission context
- */
+/** 处理切换权限模式时的所有状态转换。
+集中处理副作用，使每个激活路径（CLI Shift+Tab、
+SDK 控制消息等）行为一致。
+
+当前处理：
+- Plan 模式进入/退出附件（通过 handlePlanModeTransition）
+- 自动模式激活：setAutoModeActive、stripDangerousPermissionsForAutoMode
+
+返回（可能已修改的）上下文。调用者负责在返回的上下文上设置模式。
+
+@param fromMode 当前权限模式
+@param toMode 目标权限模式
+@param context 当前工具权限上下文 */
 export function transitionPermissionMode(
   fromMode: string,
   toMode: string,
   context: ToolPermissionContext,
 ): ToolPermissionContext {
-  // plan→plan (SDK set_permission_mode) would wrongly hit the leave branch below
+  // plan→plan（SDK set_permission_mode）会错误地触发下面的离开分支
   if (fromMode === toMode) return context
 
   handlePlanModeTransition(fromMode, toMode)
@@ -614,19 +578,19 @@ export function transitionPermissionMode(
       return prepareContextForPlanMode(context)
     }
 
-    // Plan with auto active counts as using the classifier (for the leaving side).
-    // isAutoModeActive() is the authoritative signal — prePlanMode/strippedDangerousRules
-    // are unreliable proxies because auto can be deactivated mid-plan (non-opt-in
-    // entry, transitionPlanAutoMode) while those fields remain set/unset.
+    // 带有自动激活的 Plan 算作使用分类器（对于离开侧而言）。isAutoModeAct
+    // ive() 是权威信号——prePlanMode/strippedDangerousRules
+    // 是不可靠的代理，因为自动可能在 plan 中间被停用（非选择加入进入、transi
+    // tionPlanAutoMode），而这些字段可能仍处于设置/未设置状态。
     const fromUsesClassifier =
       fromMode === 'auto' ||
       (fromMode === 'plan' &&
         (autoModeStateModule?.isAutoModeActive() ?? false))
-    const toUsesClassifier = toMode === 'auto' // plan entry handled above
+    const toUsesClassifier = toMode === 'auto' // plan 进入已在上面处理
 
     if (toUsesClassifier && !fromUsesClassifier) {
       if (!isAutoModeGateEnabled()) {
-        throw new Error('Cannot transition to auto mode: gate is not enabled')
+        throw new Error('无法转换到自动模式：门控未启用')
       }
       autoModeStateModule?.setAutoModeActive(true)
       context = stripDangerousPermissionsForAutoMode(context)
@@ -637,7 +601,7 @@ export function transitionPermissionMode(
     }
   }
 
-  // Only spread if there's something to clear (preserves ref equality)
+  // 仅在需要清除某些内容时才展开（保持引用相等性）
   if (fromMode === 'plan' && toMode !== 'plan' && context.prePlanMode) {
     return { ...context, prePlanMode: undefined }
   }
@@ -645,12 +609,10 @@ export function transitionPermissionMode(
   return context
 }
 
-/**
- * Parse base tools specification from CLI
- * Handles both preset names (default, none) and custom tool lists
- */
+/** 从 CLI 解析基础工具规范
+处理预设名称（default、none）和自定义工具列表 */
 export function parseBaseToolsFromCLI(baseTools: string[]): string[] {
-  // Join all array elements and check if it's a single preset name
+  // 连接所有数组元素并检查是否为单个预设名称
   const joinedInput = baseTools.join(' ').trim()
   const preset = parseToolPreset(joinedInput)
 
@@ -658,15 +620,13 @@ export function parseBaseToolsFromCLI(baseTools: string[]): string[] {
     return getToolsForDefaultPreset()
   }
 
-  // Parse as a custom tool list using the same parsing logic as allowedTools/disallowedTools
+  // 使用与 allowedTools/disallowedTools 相同的解析逻辑解析为自定义工具列表
   const parsedTools = parseToolListFromCLI(baseTools)
 
   return parsedTools
 }
 
-/**
- * Check if processPwd is a symlink that resolves to originalCwd
- */
+/** 检查 processPwd 是否为解析到 originalCwd 的符号链接 */
 function isSymlinkTo({
   processPwd,
   originalCwd,
@@ -674,7 +634,7 @@ function isSymlinkTo({
   processPwd: string
   originalCwd: string
 }): boolean {
-  // Use safeResolvePath to check if processPwd is a symlink and get its resolved path
+  // 使用 safeResolvePath 检查 processPwd 是否为符号链接并获取其解析路径
   const { resolvedPath: resolvedProcessPwd, isSymlink: isProcessPwdSymlink } =
     safeResolvePath(getFsImplementation(), processPwd)
 
@@ -683,9 +643,7 @@ function isSymlinkTo({
     : false
 }
 
-/**
- * Safely convert CLI flags to a PermissionMode
- */
+/** 安全地将 CLI 标志转换为 PermissionMode */
 export function initialPermissionModeFromCLI({
   permissionModeCli,
   dangerouslySkipPermissions,
@@ -695,30 +653,30 @@ export function initialPermissionModeFromCLI({
 }): { mode: PermissionMode; notification?: string } {
   const settings = getSettings_DEPRECATED() || {}
 
-  // Check GrowthBook gate first - highest precedence
+  // 首先检查 GrowthBook 门控——优先级最高
   const growthBookDisableBypassPermissionsMode =
     checkStatsigFeatureGate_CACHED_MAY_BE_STALE(
       'tengu_disable_bypass_permissions_mode',
     )
 
-  // Then check settings - lower precedence
+  // 然后检查设置——优先级较低
   const settingsDisableBypassPermissionsMode =
     settings.permissions?.disableBypassPermissionsMode === 'disable'
 
-  // Statsig gate takes precedence over settings
+  // Statsig 门控优先于设置
   const disableBypassPermissionsMode =
     growthBookDisableBypassPermissionsMode ||
     settingsDisableBypassPermissionsMode
 
-  // Sync circuit-breaker check (cached GB read). Prevents the
-  // AutoModeOptInDialog from showing in showSetupScreens() when auto can't
-  // actually be entered. autoModeFlagCli still carries intent through to
-  // verifyAutoModeGateAccess, which notifies the user why.
+  // 同步断路器检查（缓存的 GB 读取）。防止 AutoModeOp
+  // tInDialog 在 showSetupScreens() 中显示，当自动模式
+  // 实际上无法进入时。autoModeFlagCli 仍然将意图传递到 verif
+  // yAutoModeGateAccess，后者会通知用户原因。
   const autoModeCircuitBrokenSync = feature('TRANSCRIPT_CLASSIFIER')
     ? getAutoModeEnabledStateIfCached() === 'disabled'
     : false
 
-  // Modes in order of priority
+  // 按优先级顺序排列的模式
   const orderedModes: PermissionMode[] = []
   let notification: string | undefined
 
@@ -730,7 +688,7 @@ export function initialPermissionModeFromCLI({
     if (feature('TRANSCRIPT_CLASSIFIER') && parsedMode === 'auto') {
       if (autoModeCircuitBrokenSync) {
         logForDebugging(
-          'auto mode circuit breaker active (cached) — falling back to default',
+          '自动模式断路器已激活（缓存）——回退到默认',
           { level: 'warn' },
         )
       } else {
@@ -742,26 +700,26 @@ export function initialPermissionModeFromCLI({
   }
   if (settings.permissions?.defaultMode) {
     const settingsMode = settings.permissions.defaultMode as PermissionMode
-    // CCR only supports acceptEdits and plan — ignore other defaultModes from
-    // settings (e.g. bypassPermissions would otherwise silently grant full
-    // access in a remote environment).
+    // CCR 仅支持 acceptEdits 和 plan——忽略设置中的其他
+    // defaultMode（例如 bypassPermissions 会在
+    // 远程环境中静默授予完全访问权限）。
     if (
       isEnvTruthy(process.env.CLAUDE_CODE_REMOTE) &&
       !['acceptEdits', 'plan', 'default'].includes(settingsMode)
     ) {
       logForDebugging(
-        `settings defaultMode "${settingsMode}" is not supported in CLAUDE_CODE_REMOTE — only acceptEdits and plan are allowed`,
+        `设置中的 defaultMode "${settingsMode}" 在 CLAUDE_CODE_REMOTE 中不受支持——仅允许 acceptEdits 和 plan`,
         { level: 'warn' },
       )
       logEvent('tengu_ccr_unsupported_default_mode_ignored', {
         mode: settingsMode as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       })
     }
-    // auto from settings requires the same gate check as from CLI
+    // 来自设置的自动模式需要与来自 CLI 相同的门控检查
     else if (feature('TRANSCRIPT_CLASSIFIER') && settingsMode === 'auto') {
       if (autoModeCircuitBrokenSync) {
         logForDebugging(
-          'auto mode circuit breaker active (cached) — falling back to default',
+          '自动模式断路器已激活（缓存）——回退到默认',
           { level: 'warn' },
         )
       } else {
@@ -777,21 +735,21 @@ export function initialPermissionModeFromCLI({
   for (const mode of orderedModes) {
     if (mode === 'bypassPermissions' && disableBypassPermissionsMode) {
       if (growthBookDisableBypassPermissionsMode) {
-        logForDebugging('bypassPermissions mode is disabled by Statsig gate', {
+        logForDebugging('bypassPermissions 模式已被 Statsig 门控禁用', {
           level: 'warn',
         })
         notification =
-          'Bypass permissions mode was disabled by your organization policy'
+          '绕过权限模式已被您的组织策略禁用'
       } else {
-        logForDebugging('bypassPermissions mode is disabled by settings', {
+        logForDebugging('bypassPermissions 模式已被设置禁用', {
           level: 'warn',
         })
-        notification = 'Bypass permissions mode was disabled by settings'
+        notification = '绕过权限模式已被设置禁用'
       }
-      continue // Skip this mode if it's disabled
+      continue // 如果此模式被禁用则跳过
     }
 
-    result = { mode, notification } // Use the first valid mode
+    result = { mode, notification } // 使用第一个有效模式
     break
   }
 
@@ -817,14 +775,14 @@ export function parseToolListFromCLI(tools: string[]): string[] {
 
   const result: string[] = []
 
-  // Process each string in the array
+  // 处理数组中的每个字符串
   for (const toolString of tools) {
     if (!toolString) continue
 
     let current = ''
     let isInParens = false
 
-    // Parse each character in the string
+    // 解析字符串中的每个字符
     for (const char of toolString) {
       switch (char) {
         case '(':
@@ -839,7 +797,7 @@ export function parseToolListFromCLI(tools: string[]): string[] {
           if (isInParens) {
             current += char
           } else {
-            // Comma separator - push current tool and start new one
+            // 逗号分隔符——推入当前工具并开始新工具
             if (current.trim()) {
               result.push(current.trim())
             }
@@ -850,7 +808,7 @@ export function parseToolListFromCLI(tools: string[]): string[] {
           if (isInParens) {
             current += char
           } else if (current.trim()) {
-            // Space separator - push current tool and start new one
+            // 空格分隔符——推入当前工具并开始新工具
             result.push(current.trim())
             current = ''
           }
@@ -860,7 +818,7 @@ export function parseToolListFromCLI(tools: string[]): string[] {
       }
     }
 
-    // Push any remaining tool
+    // 推入任何剩余的工具
     if (current.trim()) {
       result.push(current.trim())
     }
@@ -889,20 +847,20 @@ export async function initializeToolPermissionContext({
   dangerousPermissions: DangerousPermissionInfo[]
   overlyBroadBashPermissions: DangerousPermissionInfo[]
 }> {
-  // Parse comma-separated allowed and disallowed tools if provided
-  // Normalize legacy tool names (e.g., 'Task' → 'Agent') so that in-memory
-  // rule removal in stripDangerousPermissionsForAutoMode matches correctly.
+  // 解析逗号分隔的允许和禁止工具列表（如果提供）。规范化旧版工具名称（
+  // 例如 'Task' → 'Agent'），以便 stripDangerous
+  // PermissionsForAutoMode 中的内存规则移除能够正确匹配。
   const parsedAllowedToolsCli = parseToolListFromCLI(allowedToolsCli).map(
     rule => permissionRuleValueToString(permissionRuleValueFromString(rule)),
   )
   let parsedDisallowedToolsCli = parseToolListFromCLI(disallowedToolsCli)
 
-  // If base tools are specified, automatically deny all tools NOT in the base set
-  // We need to check if base tools were explicitly provided (not just empty default)
+  // 如果指定了基础工具集，则自动拒绝所有不在基础工具集中的工具。
+  // 我们需要检查基础工具集是否被显式提供（而不仅仅是空的默认值）。
   if (baseToolsCli && baseToolsCli.length > 0) {
     const baseToolsResult = parseBaseToolsFromCLI(baseToolsCli)
-    // Normalize legacy tool names (e.g., 'Task' → 'Agent') so user-provided
-    // base tool lists using old names still match canonical names.
+    // 规范化旧版工具名称（例如 'Task' → 'Agent'），以
+    // 便用户提供的使用旧名称的基础工具列表仍能匹配规范名称。
     const baseToolsSet = new Set(baseToolsResult.map(normalizeLegacyToolName))
     const allToolNames = getToolsForDefaultPreset()
     const toolsToDisallow = allToolNames.filter(tool => !baseToolsSet.has(tool))
@@ -914,7 +872,7 @@ export async function initializeToolPermissionContext({
     string,
     AdditionalWorkingDirectory
   >()
-  // process.env.PWD may be a symlink, while getOriginalCwd() uses the real path
+  // process.env.PWD 可能是一个符号链接，而 getOriginalCwd() 使用真实路径
   const processPwd = process.env.PWD
   if (
     processPwd &&
@@ -930,13 +888,13 @@ export async function initializeToolPermissionContext({
   const isBypassPermissionsModeAvailable = true
   const settings = getSettings_DEPRECATED() || {}
 
-  // Load all permission rules from disk
+  // 从磁盘加载所有权限规则
   const rulesFromDisk = loadAllPermissionRulesFromDisk()
 
-  // Ant-only: Detect overly broad shell allow rules for all modes.
-  // Bash(*) or PowerShell(*) are equivalent to YOLO mode for that shell.
-  // Skip in CCR/BYOC where --allowed-tools is the intended pre-approval mechanism.
-  // Variable name kept for return-field compat; contains both shells.
+  // 仅限 Ant：检测所有模式下过于宽泛的 shell 允许规则。Ba
+  // sh(*) 或 PowerShell(*) 等同于该 shell 的 YO
+  // LO 模式。在 CCR/BYOC 中跳过，其中 --allowed-tools 是预
+  // 期的预批准机制。变量名保留以保持返回字段兼容性；包含两种 shell。
   let overlyBroadBashPermissions: DangerousPermissionInfo[] = []
   if (
     process.env.USER_TYPE === 'ant' &&
@@ -952,9 +910,9 @@ export async function initializeToolPermissionContext({
     ]
   }
 
-  // Ant-only: Detect dangerous shell permissions for auto mode
-  // Dangerous permissions (like Bash(*), Bash(python:*), PowerShell(iex:*)) would auto-allow
-  // before the classifier can evaluate them, defeating the purpose of safer YOLO mode
+  // 仅限 Ant：检测自动模式下的危险 shell 权限。危
+  // 险权限（如 Bash(*)、Bash(python:*)、PowerShell(iex
+  // :*)) 会在分类器评估之前自动允许，从而破坏更安全的 YOLO 模式的目的。
   let dangerousPermissions: DangerousPermissionInfo[] = []
   if (feature('TRANSCRIPT_CLASSIFIER') && permissionMode === 'auto') {
     dangerousPermissions = findDangerousClassifierPermissions(
@@ -978,16 +936,16 @@ export async function initializeToolPermissionContext({
     rulesFromDisk,
   )
 
-  // Add directories from settings and --add-dir
+  // 从设置和 --add-dir 添加目录
   const allAdditionalDirectories = [
     ...(settings.permissions?.additionalDirectories || []),
     ...addDirs,
   ]
-  // Parallelize fs validation; apply updates serially (cumulative context).
-  // validateDirectoryForWorkspace only reads permissionContext to check if the
-  // dir is already covered — behavioral difference from parallelizing is benign
-  // (two overlapping --add-dirs both succeed instead of one being flagged
-  // alreadyInWorkingDirectory, which was silently skipped anyway).
+  // 并行化文件系统验证；串行应用更新（累积上下文）。validateDire
+  // ctoryForWorkspace 仅读取 permissionConte
+  // xt 来检查目录是否已被覆盖——与并行化的行为差异是良性的（两个重叠的 --
+  // add-dirs 都会成功，而不是其中一个被标记为 alreadyIn
+  // WorkingDirectory，后者本来也会被静默跳过）。
   const validationResults = await Promise.all(
     allAdditionalDirectories.map(dir =>
       validateDirectoryForWorkspace(dir, toolPermissionContext),
@@ -1004,10 +962,10 @@ export async function initializeToolPermissionContext({
       result.resultType !== 'alreadyInWorkingDirectory' &&
       result.resultType !== 'pathNotFound'
     ) {
-      // Warn for actual config mistakes (e.g. specifying a file instead of a
-      // directory). But if the directory doesn't exist anymore (e.g. someone
-      // was working under /tmp and it got cleared), silently skip. They'll get
-      // prompted again if they try to access it later.
+      // 对实际的配置错误发出警告（例如指定文件而不是目
+      // 录）。但如果目录不再存在（例如某人在 /tmp
+      // 下工作且该目录已被清除），则静默跳过。如果他们
+      // 稍后尝试访问，会再次收到提示。
       warnings.push(addDirHelpMessage(result))
     }
   }
@@ -1021,11 +979,11 @@ export async function initializeToolPermissionContext({
 }
 
 export type AutoModeGateCheckResult = {
-  // Transform function (not a pre-computed context) so callers can apply it
-  // inside setAppState(prev => ...) against the CURRENT context. Pre-computing
-  // the context here captured a stale snapshot: the async GrowthBook await
-  // below can be outrun by a mid-turn shift-tab, and returning
-  // { ...currentContext, ... } would overwrite the user's mode change.
+  // 返回转换函数（而非预计算的上下文），以便调用者可以在 setAppSta
+  // te(prev => ...) 内部针对当前上下文应用它。在此处预计算上下文
+  // 会捕获到过时的快照：下面的异步 GrowthBook await 可能会
+  // 被中途的 shift-tab 操作抢先，而返回 { ...
+  // currentContext, ... } 会覆盖用户的模式更改。
   updateContext: (ctx: ToolPermissionContext) => ToolPermissionContext
   notification?: string
 }
@@ -1038,13 +996,13 @@ export function getAutoModeUnavailableNotification(
   let base: string
   switch (reason) {
     case 'settings':
-      base = 'auto mode disabled by settings'
+      base = '自动模式已被设置禁用'
       break
     case 'circuit-breaker':
-      base = 'auto mode is unavailable for your plan'
+      base = '您的套餐不支持自动模式'
       break
     case 'model':
-      base = 'auto mode unavailable for this model'
+      base = '此模型不支持自动模式'
       break
   }
   return process.env.USER_TYPE === 'ant'
@@ -1052,50 +1010,44 @@ export function getAutoModeUnavailableNotification(
     : base
 }
 
-/**
- * Async check of auto mode availability.
- *
- * Returns a transform function (not a pre-computed context) that callers
- * apply inside setAppState(prev => ...) against the CURRENT context. This
- * prevents the async GrowthBook await from clobbering mid-turn mode changes
- * (e.g., user shift-tabs to acceptEdits while this check is in flight).
- *
- * The transform re-checks mode/prePlanMode against the fresh ctx to avoid
- * kicking the user out of a mode they've already left during the await.
- */
+/** 异步检查自动模式的可用性。
+
+返回一个转换函数（而非预计算的上下文），调用者在 setAppState(prev => ...) 内部针对当前上下文应用它。这可以防止异步的 GrowthBook await 覆盖中途的模式更改（例如，在此检查进行时用户 shift-tab 切换到 acceptEdits）。
+
+该转换函数会针对最新的 ctx 重新检查 mode/prePlanMode，以避免在 await 期间将用户踢出他们已经离开的模式。 */
 export async function verifyAutoModeGateAccess(
   currentContext: ToolPermissionContext,
-  // Runtime AppState.fastMode — passed from callers with AppState access so
-  // the disableFastMode circuit breaker reads current state, not stale
-  // settings.fastMode (which is intentionally sticky across /model auto-
-  // downgrades). Optional for callers without AppState (e.g. SDK init paths).
+  // 运行时 AppState.fastMode——由具有 AppState 访问权限的调
+  // 用者传入，以便 disableFastMode 断路器读取当前状态，而不是过时
+  // 的 settings.fastMode（后者有意在 /model auto 降级
+  // 时保持粘性）。对于没有 AppState 的调用者（例如 SDK 初始化路径）是可选的。
   fastMode?: boolean,
 ): Promise<AutoModeGateCheckResult> {
-  // Auto-mode config — runs in ALL builds (circuit breaker, carousel, kick-out)
-  // Fresh read of tengu_auto_mode_config.enabled — this async check runs once
-  // after GrowthBook initialization and is the authoritative source for
-  // isAutoModeAvailable. The sync startup path uses stale cache; this
-  // corrects it. Circuit breaker (enabled==='disabled') takes effect here.
+  // 自动模式配置——在所有构建中运行（断路器、轮播、踢出）。重新读取 teng
+  // u_auto_mode_config.enabled——此异步检查在 G
+  // rowthBook 初始化后运行一次，并且是 isAutoMode
+  // Available 的权威来源。同步启动路径使用过时缓存；此操作
+  // 纠正它。断路器（enabled==='disabled'）在此生效。
   const autoModeConfig = await getDynamicConfig_BLOCKS_ON_INIT<{
     enabled?: AutoModeEnabledState
     disableFastMode?: boolean
   }>('tengu_auto_mode_config', {})
   const enabledState = parseAutoModeEnabledState(autoModeConfig?.enabled)
   const disabledBySettings = isAutoModeDisabledBySettings()
-  // Treat settings-disable the same as GrowthBook 'disabled' for circuit-breaker
-  // semantics — blocks SDK/explicit re-entry via isAutoModeGateEnabled().
+  // 将设置禁用视为与 GrowthBook 的 'disabled' 相同，以实现断路器语义——
+  // 通过 isAutoModeGateEnabled() 阻止 SDK/显式重新进入。
   autoModeStateModule?.setAutoModeCircuitBroken(
     enabledState === 'disabled' || disabledBySettings,
   )
 
-  // Carousel availability: not circuit-broken, not disabled-by-settings,
-  // model supports it, disableFastMode breaker not firing, and (enabled or opted-in)
+  // 轮播可用性：未触发断路器、未被设置禁用、模型支持、dis
+  // ableFastMode 断路器未触发，并且（已启用或已选择加入）
   const mainModel = getMainLoopModel()
-  // Temp circuit breaker: tengu_auto_mode_config.disableFastMode blocks auto
-  // mode when fast mode is on. Checks runtime AppState.fastMode (if provided)
-  // and, for ants, model name '-fast' substring (ant-internal fast models
-  // like capybara-v2-fast[1m] encode speed in the model ID itself).
-  // Remove once auto+fast mode interaction is validated.
+  // 临时断路器：当快速模式开启时，tengu_auto_mode_config.dis
+  // ableFastMode 会阻止自动模式。检查运行时 AppState.fastMo
+  // de（如果提供），对于 ant，还检查模型名称中的 '-fast' 子字符串（
+  // ant 内部快速模型如 capybara-v2-fast[1m] 在模型
+  // ID 本身中编码了速度）。在自动+快速模式交互验证后移除。
   const disableFastModeBreakerFires =
     !!autoModeConfig?.disableFastMode &&
     (!!fastMode ||
@@ -1108,25 +1060,25 @@ export async function verifyAutoModeGateAccess(
     carouselAvailable =
       enabledState === 'enabled' || hasAutoModeOptInAnySource()
   }
-  // canEnterAuto gates explicit entry (--permission-mode auto, defaultMode: auto)
-  // — explicit entry IS an opt-in, so we only block on circuit breaker + settings + model
+  // canEnterAuto 控制显式进入（--permission-mode auto, def
+  // aultMode: auto）——显式进入本身就是选择加入，因此我们仅在断路器 + 设置 + 模型上阻止
   const canEnterAuto =
     enabledState !== 'disabled' && !disabledBySettings && modelSupported
   logForDebugging(
     `[auto-mode] verifyAutoModeGateAccess: enabledState=${enabledState} disabledBySettings=${disabledBySettings} model=${mainModel} modelSupported=${modelSupported} disableFastModeBreakerFires=${disableFastModeBreakerFires} carouselAvailable=${carouselAvailable} canEnterAuto=${canEnterAuto}`,
   )
 
-  // Capture CLI-flag intent now (doesn't depend on context).
+  // 立即捕获 CLI 标志意图（不依赖于上下文）。
   const autoModeFlagCli = autoModeStateModule?.getAutoModeFlagCli() ?? false
 
-  // Return a transform function that re-evaluates context-dependent conditions
-  // against the CURRENT context at setAppState time. The async GrowthBook
-  // results above (canEnterAuto, carouselAvailable, enabledState, reason) are
-  // closure-captured — those don't depend on context. But mode, prePlanMode,
-  // and isAutoModeAvailable checks MUST use the fresh ctx or a mid-await
-  // shift-tab gets reverted (or worse, the user stays in auto despite the
-  // circuit breaker if they entered auto DURING the await — which is possible
-  // because setAutoModeCircuitBroken above runs AFTER the await).
+  // 返回一个转换函数，该函数在 setAppState 时针对当前上下文重新评估依赖于上
+  // 下文的条件。上面的异步 GrowthBook 结果（canEnterAuto,
+  // carouselAvailable, enabledState, reason）
+  // 被闭包捕获——这些不依赖于上下文。但 mode、prePlanMode 和 isA
+  // utoModeAvailable 检查必须使用最新的 ctx，否则中途的 sh
+  // ift-tab 操作会被还原（或者更糟，如果用户在 await 期间进入了自动
+  // 模式——这是可能的，因为上面的 setAutoModeCircuitBroken
+  // 在 await 之后运行——则用户会留在自动模式中尽管断路器已触发）。
   const setAvailable = (
     ctx: ToolPermissionContext,
     available: boolean,
@@ -1145,36 +1097,36 @@ export async function verifyAutoModeGateAccess(
     return { updateContext: ctx => setAvailable(ctx, carouselAvailable) }
   }
 
-  // Gate is off or circuit-broken — determine reason (context-independent).
+  // 门控已关闭或断路器已触发——确定原因（与上下文无关）。
   let reason: AutoModeUnavailableReason
   if (disabledBySettings) {
     reason = 'settings'
-    logForDebugging('auto mode disabled: disableAutoMode in settings', {
+    logForDebugging('自动模式已禁用：设置中的 disableAutoMode', {
       level: 'warn',
     })
   } else if (enabledState === 'disabled') {
     reason = 'circuit-breaker'
     logForDebugging(
-      'auto mode disabled: tengu_auto_mode_config.enabled === "disabled" (circuit breaker)',
+      '自动模式已禁用：tengu_auto_mode_config.enabled === "disabled"（断路器）',
       { level: 'warn' },
     )
   } else {
     reason = 'model'
     logForDebugging(
-      `auto mode disabled: model ${getMainLoopModel()} does not support auto mode`,
+      `自动模式已禁用：模型 ${getMainLoopModel()} 不支持自动模式`,
       { level: 'warn' },
     )
   }
   const notification = getAutoModeUnavailableNotification(reason)
 
-  // Unified kick-out transform. Re-checks the FRESH ctx and only fires
-  // side effects (setAutoModeActive(false), setNeedsAutoModeExitAttachment)
-  // when the kick-out actually applies. This keeps autoModeActive in sync
-  // with toolPermissionContext.mode even if the user changed modes during
-  // the await: if they already left auto on their own, handleCycleMode
-  // already deactivated the classifier and we don't fire again; if they
-  // ENTERED auto during the await (possible before setAutoModeCircuitBroken
-  // landed), we kick them out here.
+  // 统一的踢出转换。重新检查最新的 ctx，并且仅在踢出实际适用时触发副作用（
+  // setAutoModeActive(false), setNeedsAutoMo
+  // deExitAttachment）。这使 autoModeActive 与 t
+  // oolPermissionContext.mode 保持同步，即使用户在 aw
+  // ait 期间更改了模式：如果他们自己已经离开了自动模式，handleCyc
+  // leMode 已经停用了分类器，我们不会再次触发；如果他们在 await 期
+  // 间进入了自动模式（在 setAutoModeCircuitBroken 生效之前
+  // 可能发生），我们会在此处将他们踢出。
   const kickOutOfAutoIfNeeded = (
     ctx: ToolPermissionContext,
   ): ToolPermissionContext => {
@@ -1182,8 +1134,8 @@ export async function verifyAutoModeGateAccess(
     logForDebugging(
       `[auto-mode] kickOutOfAutoIfNeeded applying: ctx.mode=${ctx.mode} ctx.prePlanMode=${ctx.prePlanMode} reason=${reason}`,
     )
-    // Plan mode with auto active: either from prePlanMode='auto' (entered
-    // from auto) or from opt-in (strippedDangerousRules present).
+    // 自动模式激活的计划模式：来自 prePlanMode='auto'（从自动模式进入
+    // ）或来自选择加入（存在 strippedDangerousRules）。
     const inPlanWithAutoActive =
       ctx.mode === 'plan' &&
       (ctx.prePlanMode === 'auto' || !!ctx.strippedDangerousRules)
@@ -1202,8 +1154,8 @@ export async function verifyAutoModeGateAccess(
         isAutoModeAvailable: false,
       }
     }
-    // Plan with auto active: deactivate auto, restore permissions, defuse
-    // prePlanMode so ExitPlanMode goes to default.
+    // 自动模式激活的计划：停用自动模式，恢复权限，解除 prePlanMode
+    // 以便 ExitPlanMode 转到默认模式。
     autoModeStateModule?.setAutoModeActive(false)
     setNeedsAutoModeExitAttachment(true)
     return {
@@ -1213,12 +1165,12 @@ export async function verifyAutoModeGateAccess(
     }
   }
 
-  // Notification decisions use the stale context — that's OK: we're deciding
-  // WHETHER to notify based on what the user WAS doing when this check started.
-  // (Side effects and mode mutation are decided inside the transform above,
-  // against the fresh ctx.)
+  // 通知决策使用过时的上下文——这没问题：我们根据
+  // 用户在此检查开始时正在做什么来决定是否通知。（副
+  // 作用和模式突变在上面的转换中，针对最新的 c
+  // tx 决定。）
   const wasInAuto = currentContext.mode === 'auto'
-  // Auto was used during plan: entered from auto or opt-in auto active
+  // 计划期间使用了自动模式：从自动模式进入或选择加入自动模式激活
   const autoActiveDuringPlan =
     currentContext.mode === 'plan' &&
     (currentContext.prePlanMode === 'auto' ||
@@ -1226,30 +1178,28 @@ export async function verifyAutoModeGateAccess(
   const wantedAuto = wasInAuto || autoActiveDuringPlan || autoModeFlagCli
 
   if (!wantedAuto) {
-    // User didn't want auto at call time — no notification. But still apply
-    // the full kick-out transform: if they shift-tabbed INTO auto during the
-    // await (before setAutoModeCircuitBroken landed), we need to evict them.
+    // 用户在调用时不需要自动模式——不通知。但仍应用完整的踢出转换：如果他们在
+    // await 期间 shift-tab 进入了自动模式（在 setAuto
+    // ModeCircuitBroken 生效之前），我们需要将他们驱逐出去。
     return { updateContext: kickOutOfAutoIfNeeded }
   }
 
   if (wasInAuto || autoActiveDuringPlan) {
-    // User was in auto or had auto active during plan — kick out + notify.
+    // 用户在自动模式中或在计划期间激活了自动模式——踢出并通知。
     return { updateContext: kickOutOfAutoIfNeeded, notification }
   }
 
-  // autoModeFlagCli only: defaultMode was auto but sync check rejected it.
-  // Suppress notification if isAutoModeAvailable is already false (already
-  // notified on a prior check; prevents repeat notifications on successive
-  // unsupported-model switches).
+  // 仅 autoModeFlagCli：defaultMode 是 aut
+  // o 但同步检查拒绝了它。如果 isAutoModeAvailable
+  // 已经为 false，则抑制通知（在先前的检查中已经通知过；防止在连续不
+  // 支持的模型切换时重复通知）。
   return {
     updateContext: kickOutOfAutoIfNeeded,
     notification: currentContext.isAutoModeAvailable ? notification : undefined,
   }
 }
 
-/**
- * Core logic to check if bypassPermissions should be disabled based on Statsig gate
- */
+/** 检查是否应根据 Statsig 门控禁用 bypassPermissions 的核心逻辑 */
 export function shouldDisableBypassPermissions(): Promise<boolean> {
   return checkSecurityRestrictionGate('tengu_disable_bypass_permissions_mode')
 }
@@ -1264,18 +1214,12 @@ function isAutoModeDisabledBySettings(): boolean {
   )
 }
 
-/**
- * Checks if auto mode can be entered: circuit breaker is not active and settings
- * have not disabled it. Synchronous.
- */
+/** 检查是否可以进入自动模式：断路器未激活且设置未禁用它。同步。 */
 export function isAutoModeGateEnabled(): boolean {
   return true
 }
 
-/**
- * Returns the reason auto mode is currently unavailable, or null if available.
- * Synchronous — uses state populated by verifyAutoModeGateAccess.
- */
+/** 返回自动模式当前不可用的原因，如果可用则返回 null。同步——使用由 verifyAutoModeGateAccess 填充的状态。 */
 export function getAutoModeUnavailableReason(): AutoModeUnavailableReason | null {
   if (isAutoModeDisabledBySettings()) return 'settings'
   if (autoModeStateModule?.isAutoModeCircuitBroken() ?? false) {
@@ -1285,14 +1229,11 @@ export function getAutoModeUnavailableReason(): AutoModeUnavailableReason | null
   return null
 }
 
-/**
- * The `enabled` field in the tengu_auto_mode_config GrowthBook JSON config.
- * Controls auto mode availability in UI surfaces (CLI, IDE, Desktop).
- * - 'enabled': auto mode is available in the shift-tab carousel (or equivalent)
- * - 'disabled': auto mode is fully unavailable — circuit breaker for incident response
- * - 'opt-in': auto mode is available only if the user has explicitly opted in
- *   (via --enable-auto-mode in CLI, or a settings toggle in IDE/Desktop)
- */
+/** tengu_auto_mode_config GrowthBook JSON 配置中的 `enabled` 字段。控制 UI 界面（CLI、IDE、Desktop）中的自动模式可用性。
+- 'enabled'：自动模式在 shift-tab 轮播（或等效功能）中可用
+- 'disabled'：自动模式完全不可用——用于事件响应的断路器
+- 'opt-in'：仅当用户显式选择加入时自动模式才可用
+  （通过 CLI 中的 --enable-auto-mode，或 IDE/Desktop 中的设置开关） */
 export type AutoModeEnabledState = 'enabled' | 'disabled' | 'opt-in'
 
 const AUTO_MODE_ENABLED_DEFAULT: AutoModeEnabledState = feature(
@@ -1308,12 +1249,7 @@ function parseAutoModeEnabledState(value: unknown): AutoModeEnabledState {
   return AUTO_MODE_ENABLED_DEFAULT
 }
 
-/**
- * Reads the `enabled` field from tengu_auto_mode_config (cached, may be stale).
- * Defaults to 'disabled' if GrowthBook is unavailable or the field is unset.
- * Other surfaces (IDE, Desktop) should call this to decide whether to surface
- * auto mode in their mode pickers.
- */
+/** 从 tengu_auto_mode_config 读取 `enabled` 字段（已缓存，可能已过时）。如果 GrowthBook 不可用或该字段未设置，则默认为 'disabled'。其他界面（IDE、Desktop）应调用此函数来决定是否在其模式选择器中显示自动模式。 */
 export function getAutoModeEnabledState(): AutoModeEnabledState {
   const config = getFeatureValue_CACHED_MAY_BE_STALE<{
     enabled?: AutoModeEnabledState
@@ -1323,13 +1259,7 @@ export function getAutoModeEnabledState(): AutoModeEnabledState {
 
 const NO_CACHED_AUTO_MODE_CONFIG = Symbol('no-cached-auto-mode-config')
 
-/**
- * Like getAutoModeEnabledState but returns undefined when no cached value
- * exists (cold start, before GrowthBook init). Used by the sync
- * circuit-breaker check in initialPermissionModeFromCLI, which must not
- * conflate "not yet fetched" with "fetched and disabled" — the former
- * defers to verifyAutoModeGateAccess, the latter blocks immediately.
- */
+/** 类似于 getAutoModeEnabledState，但在没有缓存值时返回 undefined（冷启动，在 GrowthBook 初始化之前）。由 initialPermissionModeFromCLI 中的同步断路器检查使用，该检查不能将“尚未获取”与“已获取并已禁用”混淆——前者推迟到 verifyAutoModeGateAccess，后者立即阻止。 */
 export function getAutoModeEnabledStateIfCached():
   | AutoModeEnabledState
   | undefined {
@@ -1340,23 +1270,15 @@ export function getAutoModeEnabledStateIfCached():
   return parseAutoModeEnabledState(config?.enabled)
 }
 
-/**
- * Returns true if the user has opted in to auto mode via any trusted mechanism:
- * - CLI flag (--enable-auto-mode / --permission-mode auto) — session-scoped
- *   availability request; the startup dialog in showSetupScreens enforces
- *   persistent consent before the REPL renders.
- * - skipAutoPermissionPrompt setting (persistent; set by accepting the opt-in
- *   dialog or by IDE/Desktop settings toggle)
- */
+/** 如果用户通过任何受信任的机制选择加入自动模式，则返回 true：
+- CLI 标志（--enable-auto-mode / --permission-mode auto）——会话范围的可用性请求；showSetupScreens 中的启动对话框在 REPL 渲染之前强制执行持久同意。
+- skipAutoPermissionPrompt 设置（持久性；通过接受选择加入对话框或 IDE/Desktop 设置开关设置） */
 export function hasAutoModeOptInAnySource(): boolean {
   if (autoModeStateModule?.getAutoModeFlagCli() ?? false) return true
   return hasAutoModeOptIn()
 }
 
-/**
- * Checks if bypassPermissions mode is currently disabled by Statsig gate or settings.
- * This is a synchronous version that uses cached Statsig values.
- */
+/** 检查 bypassPermissions 模式当前是否被 Statsig 门控或设置禁用。这是一个使用缓存 Statsig 值的同步版本。 */
 export function isBypassPermissionsModeDisabled(): boolean {
   const growthBookDisableBypassPermissionsMode =
     checkStatsigFeatureGate_CACHED_MAY_BE_STALE(
@@ -1372,9 +1294,7 @@ export function isBypassPermissionsModeDisabled(): boolean {
   )
 }
 
-/**
- * Creates an updated context with bypassPermissions disabled
- */
+/** 创建一个禁用了 bypassPermissions 的更新上下文 */
 export function createDisabledBypassPermissionsContext(
   currentContext: ToolPermissionContext,
 ): ToolPermissionContext {
@@ -1393,14 +1313,11 @@ export function createDisabledBypassPermissionsContext(
   }
 }
 
-/**
- * Asynchronously checks if the bypassPermissions mode should be disabled based on Statsig gate
- * and returns an updated toolPermissionContext if needed
- */
+/** 异步检查是否应根据 Statsig 门控禁用 bypassPermissions 模式，并在需要时返回更新的 toolPermissionContext */
 export async function checkAndDisableBypassPermissions(
   currentContext: ToolPermissionContext,
 ): Promise<void> {
-  // Only proceed if bypassPermissions mode is available
+  // 仅在 bypassPermissions 模式可用时继续
   if (!currentContext.isBypassPermissionsModeAvailable) {
     return
   }
@@ -1410,9 +1327,9 @@ export async function checkAndDisableBypassPermissions(
     return
   }
 
-  // Gate is enabled, need to disable bypassPermissions mode
+  // 门控已启用，需要禁用 bypassPermissions 模式
   logForDebugging(
-    'bypassPermissions mode is being disabled by Statsig gate (async check)',
+    'bypassPermissions 模式正在被 Statsig 门控禁用（异步检查）',
     { level: 'warn' },
   )
 
@@ -1427,11 +1344,7 @@ export function isDefaultPermissionModeAuto(): boolean {
   return false
 }
 
-/**
- * Whether plan mode should use auto mode semantics (classifier runs during
- * plan). True when the user has opted in to auto mode and the gate is enabled.
- * Evaluated at permission-check time so it's reactive to config changes.
- */
+/** 计划模式是否应使用自动模式语义（分类器在计划期间运行）。当用户已选择加入自动模式且门控已启用时为 true。在权限检查时评估，以便对配置更改做出响应。 */
 export function shouldPlanUseAutoMode(): boolean {
   if (feature('TRANSCRIPT_CLASSIFIER')) {
     return (
@@ -1443,11 +1356,7 @@ export function shouldPlanUseAutoMode(): boolean {
   return false
 }
 
-/**
- * Centralized plan-mode entry. Stashes the current mode as prePlanMode so
- * ExitPlanMode can restore it. When the user has opted in to auto mode,
- * auto semantics stay active during plan mode.
- */
+/** 集中化的计划模式入口。将当前模式存储为 prePlanMode，以便 ExitPlanMode 可以恢复它。当用户已选择加入自动模式时，自动语义在计划模式期间保持激活。 */
 export function prepareContextForPlanMode(
   context: ToolPermissionContext,
 ): ToolPermissionContext {
@@ -1475,26 +1384,20 @@ export function prepareContextForPlanMode(
     }
   }
   logForDebugging(
-    `[prepareContextForPlanMode] plain plan entry, prePlanMode=${currentMode}`,
+    `[prepareContextForPlanMode] 普通计划入口，prePlanMode=${currentMode}`,
     { level: 'info' },
   )
   return { ...context, prePlanMode: currentMode }
 }
 
-/**
- * Reconciles auto-mode state during plan mode after a settings change.
- * Compares desired state (shouldPlanUseAutoMode) against actual state
- * (isAutoModeActive) and activates/deactivates auto accordingly. No-op when
- * not in plan mode. Called from applySettingsChange so that toggling
- * useAutoModeDuringPlan mid-plan takes effect immediately.
- */
+/** 在设置更改后，协调计划模式期间的自动模式状态。比较期望状态（shouldPlanUseAutoMode）与实际状态（isAutoModeActive），并相应地激活/停用自动模式。当不在计划模式时无操作。从 applySettingsChange 调用，以便在计划中途切换 useAutoModeDuringPlan 立即生效。 */
 export function transitionPlanAutoMode(
   context: ToolPermissionContext,
 ): ToolPermissionContext {
   if (!feature('TRANSCRIPT_CLASSIFIER')) return context
   if (context.mode !== 'plan') return context
-  // Mirror prepareContextForPlanMode's entry-time exclusion — never activate
-  // auto mid-plan when the user entered from a dangerous mode.
+  // 镜像 prepareContextForPlanMode 的入口排除逻
+  // 辑——当用户从危险模式进入时，绝不在计划中途激活自动模式。
   if (context.prePlanMode === 'bypassPermissions') {
     return context
   }
@@ -1503,9 +1406,9 @@ export function transitionPlanAutoMode(
   const have = autoModeStateModule?.isAutoModeActive() ?? false
 
   if (want && have) {
-    // syncPermissionRulesFromDisk (called before us in applySettingsChange)
-    // re-adds dangerous rules from disk without touching strippedDangerousRules.
-    // Re-strip so the classifier isn't bypassed by prefix-rule allow matches.
+    // syncPermissionRulesFromDisk（在 applySetti
+    // ngsChange 中在我们之前调用）会从磁盘重新添加危险规则，而不触及 stripp
+    // edDangerousRules。重新剥离，以便分类器不会被前缀规则允许匹配绕过。
     return stripDangerousPermissionsForAutoMode(context)
   }
   if (!want && !have) return context

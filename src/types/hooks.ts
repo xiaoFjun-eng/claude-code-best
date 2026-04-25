@@ -23,8 +23,7 @@ export function isHookEvent(value: string): value is HookEvent {
   return HOOK_EVENTS.includes(value as HookEvent)
 }
 
-// Prompt elicitation protocol types. The `prompt` key acts as discriminator
-// (mirroring the {async:true} pattern), with the id as its value.
+// 提示获取协议类型。`prompt` 键充当鉴别器（与 {async:true} 模式相对应），其值为 id。
 export const promptRequestSchema = lazySchema(() =>
   z.object({
     prompt: z.string(), // request id

@@ -1,15 +1,11 @@
-// Leaf config module — intentionally minimal imports so UI components
-// can read the auto-dream enabled state without dragging in the forked
-// agent / task registry / message builder chain that autoDream.ts pulls in.
+// Leaf 配置模块 — 有意保持最小化导入，以便 U
+// I 组件无需引入 autoDream.ts 所依赖的分
+// 支代理/任务注册表/消息构建链，即可读取自动梦境启用状态。
 
 import { getInitialSettings } from '../../utils/settings/settings.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../analytics/growthbook.js'
 
-/**
- * Whether background memory consolidation should run. User setting
- * (autoDreamEnabled in settings.json) overrides the GrowthBook default
- * when explicitly set; otherwise falls through to tengu_onyx_plover.
- */
+/** 是否应运行后台记忆整合。用户设置（settings.json 中的 autoDreamEnabled）在显式设置时会覆盖 GrowthBook 默认值；否则回退至 tengu_onyx_plover。 */
 export function isAutoDreamEnabled(): boolean {
   const setting = getInitialSettings().autoDreamEnabled
   if (setting !== undefined) return setting

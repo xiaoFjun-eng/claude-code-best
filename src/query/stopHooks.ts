@@ -145,11 +145,17 @@ export async function* handleStopHooks(
     ) {
       // 在交互式和非交互式模式下即发即弃。对于 -p/SDK，
       // print.ts 在刷新响应后但在 gracefulShutdownSync 之前排空进行中的 promise（参见 drainPendingExtraction）。
+      /**
+       * 动态记忆缓存
+       */
       void extractMemoriesModule!.executeExtractMemories(
         stopHookContext,
         toolUseContext.appendSystemMessage as ((msg: import('../types/message.js').SystemMessage) => void) | undefined,
       )
     }
+    /**
+     * AutoDream执行。各种记忆缓存合并。
+     */
     if (!toolUseContext.agentId && !poorMode) {
       void executeAutoDream(stopHookContext, toolUseContext.appendSystemMessage)
     }

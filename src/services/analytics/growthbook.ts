@@ -410,7 +410,7 @@ const LOCAL_GATE_DEFAULTS: Record<string, unknown> = {
   // ── P1: 依赖 API 的功能 ───────────────────────────────────
   tengu_session_memory: true, // 会话内存（跨会话持久化）
   tengu_passport_quail: true, // 自动内存提取
-  tengu_moth_copse: true, // 跳过内存索引，使用预取的内存
+  tengu_moth_copse: false, // 跳过内存索引，使用预取的内存
   tengu_coral_fern: true, // “搜索过往上下文”部分
   tengu_chomp_inflection: true, // 提示建议
   tengu_hive_evidence: true, // 验证代理

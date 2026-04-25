@@ -4,14 +4,14 @@ import { Box, Dialog, Link, Text } from '@anthropic/ink'
 import { updateSettingsForSource } from '../utils/settings/settings.js'
 import { Select } from './CustomSelect/index.js'
 
-// NOTE: This copy is legally reviewed — do not modify without Legal team approval.
+// 注意：此文案已经过法务审核 — 未经法务团队批准不得修改。
 export const AUTO_MODE_DESCRIPTION =
-  "Auto mode lets Claude handle permission prompts automatically — Claude checks each tool call for risky actions and prompt injection before executing. Actions Claude identifies as safe are executed, while actions Claude identifies as risky are blocked and Claude may try a different approach. Ideal for long-running tasks. Sessions are slightly more expensive. Claude can make mistakes that allow harmful commands to run, it's recommended to only use in isolated environments. Shift+Tab to change mode."
+  '自动模式让 Claude 自动处理权限提示 — Claude 在执行每个工具调用前会检查是否存在风险操作和提示注入。Claude 判定为安全的操作将被执行，判定为有风险的操作将被阻止，Claude 可能会尝试不同的方法。适用于长时间运行的任务。会话成本略高。Claude 可能会出错，导致有害命令运行，建议仅在隔离环境中使用。按 Shift+Tab 可更改模式。'
 
 type Props = {
   onAccept(): void
   onDecline(): void
-  // Startup gate: decline exits the process, so relabel accordingly.
+  // 启动时门控：拒绝会退出进程，因此相应地重新标记按钮。
   declineExits?: boolean
 }
 
@@ -52,7 +52,7 @@ export function AutoModeOptInDialog({
   }
 
   return (
-    <Dialog title="Enable auto mode?" color="warning" onCancel={onDecline}>
+    <Dialog title="启用自动模式？" color="warning" onCancel={onDecline}>
       <Box flexDirection="column" gap={1}>
         <Text>{AUTO_MODE_DESCRIPTION}</Text>
 
@@ -64,14 +64,14 @@ export function AutoModeOptInDialog({
           ...((process.env.USER_TYPE as string) !== 'ant'
             ? [
                 {
-                  label: 'Yes, and make it my default mode',
+                  label: '是，并将其设为我的默认模式',
                   value: 'accept-default' as const,
                 },
               ]
             : []),
-          { label: 'Yes, enable auto mode', value: 'accept' as const },
+          { label: '是，启用自动模式', value: 'accept' as const },
           {
-            label: declineExits ? 'No, exit' : 'No, go back',
+            label: declineExits ? '否，退出' : '否，返回',
             value: 'decline' as const,
           },
         ]}

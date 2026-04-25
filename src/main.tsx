@@ -4131,7 +4131,7 @@ ${formattedErrors}
 				if (!isBareMode()) {
 					startDeferredPrefetches();
 					void import("./utils/backgroundHousekeeping.js").then((m) =>
-						m.startBackgroundHousekeeping(),
+						m.startBackgroundHousekeeping(),//初始化自动记忆AutoMemory和记忆整合AutoDream功能
 					);
 					if (process.env.USER_TYPE === "ant") {
 						void import("./utils/sdkHeapDumpMonitor.js").then((m) =>

@@ -2192,7 +2192,9 @@ async function getRelevantMemoryAttachments(
   return [{ type: 'relevant_memories' as const, memories }]
 }
 
-/** 扫描消息中过去的相关内存附件。返回已展示路径的集合（用于选择器去重）和累计字节数（用于会话总限制）。扫描消息而非在 toolUseContext 中跟踪意味着压缩会自然地重置两者——旧附件已从压缩后的记录中消失，因此重新展示再次有效。 */
+/** 扫描消息中过去的相关内存附件。返回已展示路径的集合（用于选择器去重）和累计字节数（用于会话总限制）。
+ * 扫描消息而非在 toolUseContext 中跟踪意味着压缩会自然地重置两者——旧附件已从压缩后的记录中消失，
+ * 因此重新展示再次有效。 */
 export function collectSurfacedMemories(messages: ReadonlyArray<Message>): {
   paths: Set<string>
   totalBytes: number
@@ -2263,15 +2265,21 @@ export async function readMemoriesForSurfacing(
 export function memoryHeader(path: string, mtimeMs: number): string {
   const staleness = memoryFreshnessText(mtimeMs)
   return staleness
-    ? `${staleness}
-
-内存：${path}：`
+    ? `${staleness}\n\n内存：${path}：`
     : `内存（保存于 ${memoryAge(mtimeMs)}）：${path}：`
 }
 
-/** 内存相关性选择器的预取句柄。该 promise 每用户轮次启动一次，在主模型流式处理和工具执行时运行。在收集点（工具执行后），调用者读取 settledAt 以消费就绪结果或跳过并重试下一次迭代——预取永远不会阻塞轮次。
-
-可释放：query.ts 使用 `using` 绑定，因此 [Symbol.dispose] 在所有生成器退出路径（返回、抛出、.return() 闭包）上触发——中止进行中的请求并发出终端遥测，而无需在 while 循环内的约 13 个返回点进行插桩。 */
+/**
+* 内存相关性选择器预取句柄。该 Promise 仅在
+每个用户回合启动一次，并在主模型流和工具执行期间运行。
+* 在收集点（工具执行后），调用者读取 SettleAt 以
+* 执行“如果就绪则消耗”或“跳过并重试下一次迭代”——预取永远不会
+* 阻塞回合。
+* 可释放：query.ts 使用 `using` 绑定，因此 [Symbol.dispose] 会在所有
+生成器退出路径（return、throw、.return() 闭包）上触发——中止
+* 正在进行的请求并发出终端遥测数据，而不会对
+* while 循环内的约 13 个返回点进行插桩。
+*/
 export type MemoryPrefetch = {
   promise: Promise<Attachment[]>
   /** 由 promise.finally() 设置。在 promise 完成前为 null。 */
@@ -2282,7 +2290,8 @@ export type MemoryPrefetch = {
 }
 
 /** 启动相关内存搜索作为异步预取。
-从消息中提取最后一个真实的用户提示（跳过 isMeta 系统注入）并启动非阻塞搜索。返回一个带有完成状态跟踪的 Disposable 句柄。在 query.ts 中使用 `using` 绑定。 */
+从消息中提取最后一个真实的用户提示（跳过 isMeta 系统注入）并启动非阻塞搜索。
+返回一个带有完成状态跟踪的 Disposable 句柄。在 query.ts 中使用 `using` 绑定。 */
 export function startRelevantMemoryPrefetch(
   messages: ReadonlyArray<Message>,
   toolUseContext: ToolUseContext,
@@ -2310,7 +2319,7 @@ export function startRelevantMemoryPrefetch(
   if (!input || !/\s/.test(input.trim())) {
     return undefined
   }
-
+  //获取已经发送给大模型的“记忆”文件清单。
   const surfaced = collectSurfacedMemories(messages)
   if (surfaced.totalBytes >= RELEVANT_MEMORIES_CONFIG.MAX_SESSION_BYTES) {
     return undefined

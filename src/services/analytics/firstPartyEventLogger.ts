@@ -25,9 +25,9 @@ import { getEventMetadata } from './metadata.js'
 import { isSinkKilled } from './sinkKillswitch.js'
 
 /**
- * Configuration for sampling individual event types.
- * Each event name maps to an object containing sample_rate (0-1).
- * Events not in the config are logged at 100% rate.
+ * 对各种事件类型的采样配置。
+ * 每个事件名称映射到一个包含 sample_rate（0-1）的对象。
+ * 不在配置中的事件以 100% 的速率记录。
  */
 export type EventSamplingConfig = {
   [eventName: string]: {
@@ -37,8 +37,8 @@ export type EventSamplingConfig = {
 
 const EVENT_SAMPLING_CONFIG_NAME = 'tengu_event_sampling_config'
 /**
- * Get the event sampling configuration from GrowthBook.
- * Uses cached value if available, updates cache in background.
+ * 从 GrowthBook 获取事件采样配置。
+ * 如果可用则使用缓存值，在后台更新缓存。
  */
 export function getEventSamplingConfig(): EventSamplingConfig {
   return getDynamicConfig_CACHED_MAY_BE_STALE<EventSamplingConfig>(
@@ -48,39 +48,39 @@ export function getEventSamplingConfig(): EventSamplingConfig {
 }
 
 /**
- * Determine if an event should be sampled based on its sample rate.
- * Returns the sample rate if sampled, null if not sampled.
+ * 根据事件采样率确定是否应对事件进行采样。
+ * 如果事件应该被采样，则返回采样率；如果应该被丢弃，则返回 null。
  *
- * @param eventName - Name of the event to check
- * @returns The sample_rate if event should be logged, null if it should be dropped
+ * @param eventName - 要检查的事件名称
+ * @returns 如果应记录事件则返回 sample_rate，如果应丢弃则返回 null
  */
 export function shouldSampleEvent(eventName: string): number | null {
   const config = getEventSamplingConfig()
   const eventConfig = config[eventName]
 
-  // If no config for this event, log at 100% rate (no sampling)
+  // 如果该事件没有配置，则按 100% 速率记录（不采样）
   if (!eventConfig) {
     return null
   }
 
   const sampleRate = eventConfig.sample_rate
 
-  // Validate sample rate is in valid range
+  // 验证采样率在有效范围内
   if (typeof sampleRate !== 'number' || sampleRate < 0 || sampleRate > 1) {
     return null
   }
 
-  // Sample rate of 1 means log everything (no need to add metadata)
+  // 采样率为 1 表示记录所有事件（无需添加元数据）
   if (sampleRate >= 1) {
     return null
   }
 
-  // Sample rate of 0 means drop everything
+  // 采样率为 0 表示丢弃所有事件
   if (sampleRate <= 0) {
     return 0
   }
 
-  // Randomly decide whether to sample this event
+  // 随机决定是否对此事件进行采样
   return Math.random() < sampleRate ? sampleRate : 0
 }
 
@@ -101,17 +101,16 @@ function getBatchConfig(): BatchConfig {
   )
 }
 
-// Module-local state for event logging (not exposed globally)
+// 事件日志记录的模块级状态（不全局暴露）
 let firstPartyEventLogger: ReturnType<typeof logs.getLogger> | null = null
 let firstPartyEventLoggerProvider: LoggerProvider | null = null
-// Last batch config used to construct the provider — used by
-// reinitialize1PEventLoggingIfConfigChanged to decide whether a rebuild is
-// needed when GrowthBook refreshes.
+// 用于构造提供者的上一个批处理配置 — 由 reinitialize1PEventLoggingIfConfigChanged 使用，
+// 以判断当 GrowthBook 刷新时是否需要重建。
 let lastBatchConfig: BatchConfig | null = null
+
 /**
- * Flush and shutdown the 1P event logger.
- * This should be called as the final step before process exit to ensure
- * all events (including late ones from API responses) are exported.
+ * 刷新并关闭第一方事件日志记录器。
+ * 这应该在进程退出前的最后一步调用，以确保所有事件（包括来自 API 响应的延迟事件）都被导出。
  */
 export async function shutdown1PEventLogging(): Promise<void> {
   if (!firstPartyEventLoggerProvider) {
@@ -120,38 +119,38 @@ export async function shutdown1PEventLogging(): Promise<void> {
   try {
     await firstPartyEventLoggerProvider.shutdown()
     if (process.env.USER_TYPE === 'ant') {
-      logForDebugging('1P event logging: final shutdown complete')
+      logForDebugging('第一方事件日志记录：最终关闭完成')
     }
   } catch {
-    // Ignore shutdown errors
+    // 忽略关闭错误
   }
 }
 
 /**
- * Check if 1P event logging is enabled.
- * Respects the same opt-outs as other analytics sinks:
- * - Test environment
- * - Third-party cloud providers (Bedrock/Vertex)
- * - Global telemetry opt-outs
- * - Non-essential traffic disabled
+ * 检查第一方事件日志记录是否启用。
+ * 遵循与其他分析接收器相同的退出机制：
+ * - 测试环境
+ * - 第三方云提供商（Bedrock/Vertex）
+ * - 全局遥测退出
+ * - 非必要流量禁用
  *
- * Note: Unlike BigQuery metrics, event logging does NOT check organization-level
- * metrics opt-out via API. It follows the same pattern as Statsig event logging.
+ * 注意：与 BigQuery 指标不同，事件日志记录不通过 API 检查组织级别的指标退出。
+ * 它遵循与 Statsig 事件日志记录相同的模式。
  */
 export function is1PEventLoggingEnabled(): boolean {
-  // Respect standard analytics opt-outs
+  // 遵循标准的分析退出机制
   return !isAnalyticsDisabled()
 }
 
 /**
- * Log a 1st-party event for internal analytics (async version).
- * Events are batched and exported to /api/event_logging/batch
+ * 记录第一方事件用于内部分析（异步版本）。
+ * 事件将被批处理并导出到 /api/event_logging/batch
  *
- * This enriches the event with core metadata (model, session, env context, etc.)
- * at log time, similar to logEventToStatsig.
+ * 此函数在记录时使用核心元数据（模型、会话、环境上下文等）丰富事件，
+ * 类似于 logEventToStatsig。
  *
- * @param eventName - Name of the event (e.g., 'tengu_api_query')
- * @param metadata - Additional metadata for the event (intentionally no strings, to avoid accidentally logging code/filepaths)
+ * @param eventName - 事件名称（例如 'tengu_api_query'）
+ * @param metadata - 事件的额外元数据（故意不使用字符串，以避免意外记录代码/文件路径）
  */
 async function logEventTo1PAsync(
   firstPartyEventLogger: Logger,
@@ -159,38 +158,38 @@ async function logEventTo1PAsync(
   metadata: Record<string, number | boolean | undefined> = {},
 ): Promise<void> {
   try {
-    // Enrich with core metadata at log time (similar to Statsig pattern)
+    // 在记录时使用核心元数据丰富事件（类似于 Statsig 的模式）
     const coreMetadata = await getEventMetadata({
       model: metadata.model,
       betas: metadata.betas,
     })
 
-    // Build attributes - OTel supports nested objects natively via AnyValueMap
-    // Cast through unknown since our nested objects are structurally compatible
-    // with AnyValue but TS doesn't recognize it due to missing index signatures
+    // 构建属性 - OTel 通过 AnyValueMap 原生支持嵌套对象
+    // 通过 unknown 进行转换，因为我们的嵌套对象在结构上是兼容的
+    // 但由于缺少索引签名，TypeScript 无法识别
     const attributes = {
       event_name: eventName,
       event_id: randomUUID(),
-      // Pass objects directly - no JSON serialization needed
+      // 直接传递对象 - 无需 JSON 序列化
       core_metadata: coreMetadata,
       user_metadata: getCoreUserData(true),
       event_metadata: metadata,
     } as unknown as AnyValueMap
 
-    // Add user_id if available
+    // 如果可用，添加 user_id
     const userId = getOrCreateUserID()
     if (userId) {
       attributes.user_id = userId
     }
 
-    // Debug logging when debug mode is enabled
+    // 启用调试模式时的调试日志记录
     if (process.env.USER_TYPE === 'ant') {
       logForDebugging(
-        `[ANT-ONLY] 1P event: ${eventName} ${jsonStringify(metadata, null, 0)}`,
+        `[仅限 ANT] 第一方事件：${eventName} ${jsonStringify(metadata, null, 0)}`,
       )
     }
 
-    // Emit log record
+    // 发出日志记录
     firstPartyEventLogger.emit({
       body: eventName,
       attributes,
@@ -202,16 +201,16 @@ async function logEventTo1PAsync(
     if (process.env.USER_TYPE === 'ant') {
       logError(e as Error)
     }
-    // swallow
+    // 静默处理
   }
 }
 
 /**
- * Log a 1st-party event for internal analytics.
- * Events are batched and exported to /api/event_logging/batch
+ * 记录第一方事件用于内部分析。
+ * 事件将被批处理并导出到 /api/event_logging/batch
  *
- * @param eventName - Name of the event (e.g., 'tengu_api_query')
- * @param metadata - Additional metadata for the event (intentionally no strings, to avoid accidentally logging code/filepaths)
+ * @param eventName - 事件名称（例如 'tengu_api_query'）
+ * @param metadata - 事件的额外元数据（故意不使用字符串，以避免意外记录代码/文件路径）
  */
 export function logEventTo1P(
   eventName: string,
@@ -225,12 +224,12 @@ export function logEventTo1P(
     return
   }
 
-  // Fire and forget - don't block on metadata enrichment
+  // 即发即弃 — 不阻塞等待元数据丰富
   void logEventTo1PAsync(firstPartyEventLogger, eventName, metadata)
 }
 
 /**
- * GrowthBook experiment event data for logging
+ * 用于日志记录的 GrowthBook 实验事件数据
  */
 export type GrowthBookExperimentData = {
   experimentId: string
@@ -239,18 +238,18 @@ export type GrowthBookExperimentData = {
   experimentMetadata?: Record<string, unknown>
 }
 
-// api.anthropic.com only serves the "production" GrowthBook environment
-// (see starling/starling/cli/cli.py DEFAULT_ENVIRONMENTS). Staging and
-// development environments are not exported to the prod API.
+// api.anthropic.com 只服务于 "production" GrowthBook 环境
+// （参见 starling/starling/cli/cli.py 中的 DEFAULT_ENVIRONMENTS）。
+// 暂存和开发环境不会导出到生产 API。
 function getEnvironmentForGrowthBook(): string {
   return 'production'
 }
 
 /**
- * Log a GrowthBook experiment assignment event to 1P.
- * Events are batched and exported to /api/event_logging/batch
+ * 记录 GrowthBook 实验分配事件到第一方事件系统。
+ * 事件将被批处理并导出到 /api/event_logging/batch
  *
- * @param data - GrowthBook experiment assignment data
+ * @param data - GrowthBook 实验分配数据
  */
 export function logGrowthBookExperimentTo1P(
   data: GrowthBookExperimentData,
@@ -266,7 +265,7 @@ export function logGrowthBookExperimentTo1P(
   const userId = getOrCreateUserID()
   const { accountUuid, organizationUuid } = getCoreUserData(true)
 
-  // Build attributes for GrowthbookExperimentEvent
+  // 为 GrowthbookExperimentEvent 构建属性
   const attributes = {
     event_type: 'GrowthbookExperimentEvent',
     event_id: randomUUID(),
@@ -287,7 +286,7 @@ export function logGrowthBookExperimentTo1P(
 
   if (process.env.USER_TYPE === 'ant') {
     logForDebugging(
-      `[ANT-ONLY] 1P GrowthBook experiment: ${data.experimentId} variation=${data.variationId}`,
+      `[仅限 ANT] 第一方 GrowthBook 实验：${data.experimentId} 变体=${data.variationId}`,
     )
   }
 
@@ -302,12 +301,12 @@ const DEFAULT_MAX_EXPORT_BATCH_SIZE = 200
 const DEFAULT_MAX_QUEUE_SIZE = 8192
 
 /**
- * Initialize 1P event logging infrastructure.
- * This creates a separate LoggerProvider for internal event logging,
- * independent of customer OTLP telemetry.
+ * 初始化第一方事件日志记录基础设施。
+ * 这会为内部事件日志记录创建一个独立的 LoggerProvider，
+ * 独立于客户的 OTLP 遥测。
  *
- * This uses its own minimal resource configuration with just the attributes
- * we need for internal analytics (service name, version, platform info).
+ * 它使用自己最小的资源配置，仅包含内部分析所需的属性
+ * （服务名称、版本、平台信息）。
  */
 export function initialize1PEventLogging(): void {
   profileCheckpoint('1p_event_logging_start')
@@ -315,13 +314,13 @@ export function initialize1PEventLogging(): void {
 
   if (!enabled) {
     if (process.env.USER_TYPE === 'ant') {
-      logForDebugging('1P event logging not enabled')
+      logForDebugging('第一方事件日志记录未启用')
     }
     return
   }
 
-  // Fetch batch processor configuration from GrowthBook dynamic config
-  // Uses cached value if available, refreshes in background
+  // 从 GrowthBook 动态配置中获取批处理处理器配置
+  // 如果可用则使用缓存值，在后台刷新
   const batchConfig = getBatchConfig()
   lastBatchConfig = batchConfig
   profileCheckpoint('1p_event_after_growthbook_config')
@@ -339,14 +338,14 @@ export function initialize1PEventLogging(): void {
 
   const maxQueueSize = batchConfig.maxQueueSize || DEFAULT_MAX_QUEUE_SIZE
 
-  // Build our own resource for 1P event logging with minimal attributes
+  // 为第一方事件日志记录构建我们自己的资源，使用最小属性
   const platform = getPlatform()
   const attributes: Record<string, string> = {
     [ATTR_SERVICE_NAME]: 'claude-code',
     [ATTR_SERVICE_VERSION]: MACRO.VERSION,
   }
 
-  // Add WSL-specific attributes if running on WSL
+  // 如果在 WSL 上运行，添加 WSL 特定属性
   if (platform === 'wsl') {
     const wslVersion = getWslVersion()
     if (wslVersion) {
@@ -356,10 +355,9 @@ export function initialize1PEventLogging(): void {
 
   const resource = resourceFromAttributes(attributes)
 
-  // Create a new LoggerProvider with the EventLoggingExporter
-  // NOTE: This is kept separate from customer telemetry logs to ensure
-  // internal events don't leak to customer endpoints and vice versa.
-  // We don't register this globally - it's only used for internal event logging.
+  // 创建一个带有 EventLoggingExporter 的新 LoggerProvider
+  // 注意：这保持与客户遥测日志分离，以确保内部事件不会泄漏到客户端点，反之亦然。
+  // 我们不会将其全局注册 — 它仅用于内部事件日志记录。
   const eventLoggingExporter = new FirstPartyEventLoggingExporter({
     maxBatchSize: maxExportBatchSize,
     skipAuth: batchConfig.skipAuth,
@@ -379,10 +377,9 @@ export function initialize1PEventLogging(): void {
     ],
   })
 
-  // Initialize event logger from our internal provider (NOT from global API)
-  // IMPORTANT: We must get the logger from our local provider, not logs.getLogger()
-  // because logs.getLogger() returns a logger from the global provider, which is
-  // separate and used for customer telemetry.
+  // 从我们的内部提供者初始化事件日志记录器（而不是从全局 API）
+  // 重要提示：我们必须从本地提供者获取日志记录器，而不是 logs.getLogger()
+  // 因为 logs.getLogger() 返回的是来自全局提供者的日志记录器，该提供者是分离的，用于客户遥测。
   firstPartyEventLogger = firstPartyEventLoggerProvider.getLogger(
     'com.anthropic.claude_code.events',
     MACRO.VERSION,
@@ -390,20 +387,15 @@ export function initialize1PEventLogging(): void {
 }
 
 /**
- * Rebuild the 1P event logging pipeline if the batch config changed.
- * Register this with onGrowthBookRefresh so long-running sessions pick up
- * changes to batch size, delay, endpoint, etc.
+ * 如果批处理配置发生变化，重建第一方事件日志记录管道。
+ * 使用 onGrowthBookRefresh 注册此函数，以便长时间运行的会话能够获取批处理大小、延迟、端点等更改。
  *
- * Event-loss safety:
- * 1. Null the logger first — concurrent logEventTo1P() calls hit the
- *    !firstPartyEventLogger guard and bail during the swap window. This drops
- *    a handful of events but prevents emitting to a draining provider.
- * 2. forceFlush() drains the old BatchLogRecordProcessor buffer to the
- *    exporter. Export failures go to disk at getCurrentBatchFilePath() which
- *    is keyed by module-level BATCH_UUID + sessionId — unchanged across
- *    reinit — so the NEW exporter's disk-backed retry picks them up.
- * 3. Swap to new provider/logger; old provider shutdown runs in background
- *    (buffer already drained, just cleanup).
+ * 事件丢失安全性：
+ * 1. 首先将日志记录器置为 null — 并发的 logEventTo1P() 调用会命中 !firstPartyEventLogger 守卫并在交换窗口期间退出。
+ *    这会丢弃少量事件，但可以防止向正在排空的提供者发送事件。
+ * 2. forceFlush() 将旧的 BatchLogRecordProcessor 缓冲区排空到导出器。导出失败会写入磁盘，路径由模块级的 BATCH_UUID + sessionId 决定 — 在重新初始化期间保持不变
+ *    — 因此新导出器的磁盘后备重试会拾取它们。
+ * 3. 切换到新的提供者/日志记录器；旧的提供者关闭在后台运行（缓冲区已排空，仅进行清理）。
  */
 export async function reinitialize1PEventLoggingIfConfigChanged(): Promise<void> {
   if (!is1PEventLoggingEnabled() || !firstPartyEventLoggerProvider) {
@@ -418,7 +410,7 @@ export async function reinitialize1PEventLoggingIfConfigChanged(): Promise<void>
 
   if (process.env.USER_TYPE === 'ant') {
     logForDebugging(
-      `1P event logging: ${BATCH_CONFIG_NAME} changed, reinitializing`,
+      `第一方事件日志记录：${BATCH_CONFIG_NAME} 已更改，正在重新初始化`,
     )
   }
 
@@ -429,17 +421,15 @@ export async function reinitialize1PEventLoggingIfConfigChanged(): Promise<void>
   try {
     await oldProvider.forceFlush()
   } catch {
-    // Export failures are already on disk; new exporter will retry them.
+    // 导出失败已写入磁盘；新的导出器将重试它们。
   }
 
   firstPartyEventLoggerProvider = null
   try {
     initialize1PEventLogging()
   } catch (e) {
-    // Restore so the next GrowthBook refresh can retry. oldProvider was
-    // only forceFlush()'d, not shut down — it's still functional. Without
-    // this, both stay null and the !firstPartyEventLoggerProvider gate at
-    // the top makes recovery impossible.
+    // 恢复状态，以便下次 GrowthBook 刷新时可以重试。oldProvider 仅被 forceFlush()，
+    // 并未关闭 — 它仍然可用。没有这个恢复，两者都保持为 null，顶部的 !firstPartyEventLoggerProvider 门控将使恢复不可能。
     firstPartyEventLoggerProvider = oldProvider
     firstPartyEventLogger = oldLogger
     logError(e)

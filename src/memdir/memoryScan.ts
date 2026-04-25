@@ -1,8 +1,6 @@
-/**
- * Memory-directory scanning primitives. Split out of findRelevantMemories.ts
- * so extractMemories can import the scan without pulling in sideQuery and
- * the API-client chain (which closed a cycle through memdir.ts — #25372).
- */
+/** 内存目录扫描原语。从 findRelevantMemories.ts 中拆分出来，
+以便 extractMemories 可以导入扫描功能，而无需引入 sideQuery 和
+API 客户端链（该链通过 memdir.ts 形成了一个循环 — #25372）。 */
 
 import { readdir } from 'fs/promises'
 import { basename, join } from 'path'
@@ -21,17 +19,15 @@ export type MemoryHeader = {
 const MAX_MEMORY_FILES = 200
 const FRONTMATTER_MAX_LINES = 30
 
-/**
- * Scan a memory directory for .md files, read their frontmatter, and return
- * a header list sorted newest-first (capped at MAX_MEMORY_FILES). Shared by
- * findRelevantMemories (query-time recall) and extractMemories (pre-injects
- * the listing so the extraction agent doesn't spend a turn on `ls`).
- *
- * Single-pass: readFileInRange stats internally and returns mtimeMs, so we
- * read-then-sort rather than stat-sort-read. For the common case (N ≤ 200)
- * this halves syscalls vs a separate stat round; for large N we read a few
- * extra small files but still avoid the double-stat on the surviving 200.
- */
+/** 扫描内存目录中的 .md 文件，读取其 frontmatter，并返回
+按最新优先排序的标题列表（上限为 MAX_MEMORY_FILES）。由
+findRelevantMemories（查询时召回）和 extractMemories（预注入
+列表，使提取代理无需花费一个回合执行 `ls`）共享。
+
+单次遍历：readFileInRange 内部进行 stat 并返回 mtimeMs，因此我们
+采用先读取后排序的方式，而非 stat-排序-读取。对于常见情况（N ≤ 200），
+这比单独的 stat 轮询减少了一半的系统调用；对于较大的 N，我们会多读取
+少量小文件，但仍避免了在最终保留的 200 个文件上进行双重 stat。 */
 export async function scanMemoryFiles(
   memoryDir: string,
   signal: AbortSignal,
@@ -76,11 +72,9 @@ export async function scanMemoryFiles(
   }
 }
 
-/**
- * Format memory headers as a text manifest: one line per file with
- * [type] filename (timestamp): description. Used by both the recall
- * selector prompt and the extraction-agent prompt.
- */
+/** 将内存标题格式化为文本清单：每个文件一行，格式为
+[类型] 文件名 (时间戳): 描述。由召回选择器提示和
+提取代理提示共同使用。 */
 export function formatMemoryManifest(memories: MemoryHeader[]): string {
   return memories
     .map(m => {

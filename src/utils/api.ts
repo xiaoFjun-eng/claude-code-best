@@ -290,31 +290,30 @@ export function logAPIPrefix(systemPrompt: SystemPrompt): void {
       : '') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   })
 }
-
 /**
- * Split system prompt blocks by content type for API matching and cache control.
- * See https://console.statsig.com/4aF3Ewatb6xPVpCwxb5nA3/dynamic_configs/claude_cli_system_prompt_prefixes
+ * 根据内容类型拆分系统提示块，用于 API 匹配和缓存控制。
+ * 参见 https://console.statsig.com/4aF3Ewatb6xPVpCwxb5nA3/dynamic_configs/claude_cli_system_prompt_prefixes
  *
- * Behavior depends on feature flags and options:
+ * 行为取决于功能标志和选项：
  *
- * 1. MCP tools present (skipGlobalCacheForSystemPrompt=true):
- *    Returns up to 3 blocks with org-level caching (no global cache on system prompt):
- *    - Attribution header (cacheScope=null)
- *    - System prompt prefix (cacheScope='org')
- *    - Everything else concatenated (cacheScope='org')
+ * 1. 存在 MCP 工具（skipGlobalCacheForSystemPrompt=true）：
+ *    返回最多 3 个块，使用组织级缓存（系统提示上没有全局缓存）：
+ *    - 归因头部（cacheScope=null）
+ *    - 系统提示前缀（cacheScope='org'）
+ *    - 其他所有内容拼接（cacheScope='org'）
  *
- * 2. Global cache mode with boundary marker (1P only, boundary found):
- *    Returns up to 4 blocks:
- *    - Attribution header (cacheScope=null)
- *    - System prompt prefix (cacheScope=null)
- *    - Static content before boundary (cacheScope='global')
- *    - Dynamic content after boundary (cacheScope=null)
+ * 2. 带边界标记的全局缓存模式（仅限第一方，找到边界）：
+ *    返回最多 4 个块：
+ *    - 归因头部（cacheScope=null）
+ *    - 系统提示前缀（cacheScope=null）
+ *    - 边界前的静态内容（cacheScope='global'）
+ *    - 边界后的动态内容（cacheScope=null）
  *
- * 3. Default mode (3P providers, or boundary missing):
- *    Returns up to 3 blocks with org-level caching:
- *    - Attribution header (cacheScope=null)
- *    - System prompt prefix (cacheScope='org')
- *    - Everything else concatenated (cacheScope='org')
+ * 3. 默认模式（第三方提供者，或边界缺失）：
+ *    返回最多 3 个块，使用组织级缓存：
+ *    - 归因头部（cacheScope=null）
+ *    - 系统提示前缀（cacheScope='org'）
+ *    - 其他所有内容拼接（cacheScope='org'）
  */
 export function splitSysPromptPrefix(
   systemPrompt: SystemPrompt,

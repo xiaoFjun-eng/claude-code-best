@@ -7,15 +7,13 @@
 
 import { isEnvTruthy } from '../../utils/envUtils.js'
 import { isTelemetryDisabled } from '../../utils/privacyLevel.js'
-
 /**
- * Check if analytics operations should be disabled
- *
- * Analytics is disabled in the following cases:
- * - Test environment (NODE_ENV === 'test')
- * - Third-party cloud providers (Bedrock/Vertex)
- * - Privacy level is no-telemetry or essential-traffic
- */
+检查是否应禁用分析操作*
+* 在以下情况下，分析功能将被禁用：
+* - 测试环境（NODE_ENV 等于 'test'）
+* - 第三方云服务提供商（Bedrock/Vertex）
+* - 隐私级别为“不收集数据”或“关键流量”
+* */
 export function isAnalyticsDisabled(): boolean {
   return (
     process.env.NODE_ENV === 'test' ||

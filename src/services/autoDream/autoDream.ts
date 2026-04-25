@@ -208,12 +208,7 @@ export function initAutoDream(): void {
       const transcriptDir = getProjectDir(getOriginalCwd())
       // 工具约束说明放在 `extra` 中，而不是共享的提示正文中 —
       // 手动 /dream 在主循环中以正常权限运行，放在那里会产生误导。
-      const extra = `
-
-**本次运行的工具约束：** Bash 仅限于只读命令（\`ls\`、\`find\`、\`grep\`、\`cat\`、\`stat\`、\`wc\`、\`head\`、\`tail\` 等）。任何写入、重定向到文件或修改状态的操作都将被拒绝。请以此为指导规划探索 — 不需要探测。
-
-自上次整合以来的会话（${sessionIds.length}）：
-${sessionIds.map(id => `- ${id}`).join('\n')}`
+      const extra = `\n\n**本次运行的工具约束：** Bash 仅限于只读命令（\`ls\`、\`find\`、\`grep\`、\`cat\`、\`stat\`、\`wc\`、\`head\`、\`tail\` 等）。任何写入、重定向到文件或修改状态的操作都将被拒绝。请以此为指导规划探索 — 不需要探测。\n\n自上次整合以来的会话（${sessionIds.length}）：\n${sessionIds.map(id => `- ${id}`).join('\n')}`
       const prompt = buildConsolidationPrompt(memoryRoot, transcriptDir, extra)
 
       const result = await runForkedAgent({

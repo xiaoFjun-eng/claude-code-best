@@ -313,21 +313,23 @@ async function* queryLoop(
   }
   const budgetTracker = feature('TOKEN_BUDGET') ? createBudgetTracker() : null
 
-  // 跨压缩边界的 task_budget.remaining 跟踪。在第一次压缩触发前未定义
-  // — 当上下文未压缩时，服务器可以看到完整历史记录，并自行处理从 {total} 开始的倒计时
-  // （参见 api/api/sampling/prompt/renderer.py:292）。压缩后，服务器只看到摘要，
-  // 会低估消费量；remaining 告诉它被摘要掉的压缩前最终窗口。跨多次压缩累积：
-  // 每次减去该压缩触发点的最终上下文。循环本地（不在 State 上），以避免触及 7 个继续站点。
+  // task_budget.remaining 跟踪跨压缩边界的剩余预算。
+  // 在首次压缩触发之前，此值未定义——当上下文未压缩时，服务器可以看到完整的历史记录，
+  // 并自行处理来自 {total} 的倒计时（参见 api/api/sampling/prompt/renderer.py:292）。
+  // 压缩后，服务器只能看到汇总信息，因此会低估支出；剩余预算值告诉服务器压缩前的最终窗口，
+  // 该窗口已被汇总。多次压缩的累加：每次压缩都会减去该压缩触发点的最终上下文。
+  // 循环局部变量（不在状态中）以避免访问 7 个继续站点。
   let taskBudgetRemaining: number | undefined = undefined
 
-  // 在入口处一次性快照不可变的 env/statsig/会话状态。有关包含哪些内容以及为什么故意排除
-  // feature() 门控的详细信息，请参见 QueryConfig。
+  // 在入口处对不可变的环境/统计信息/会话状态进行快照。
+  // 请参阅 QueryConfig 以了解包含的内容以及为何有意排除 feature() 门。
   const config = buildQueryConfig()
 
-  // 每个用户轮次触发一次 — 提示在循环迭代之间是不变的，
-  // 因此每次迭代触发会让 sideQuery 问同一个问题 N 次。
-  // 消费点轮询 settledAt（从不阻塞）。`using` 在所有生成器退出路径上释放
-  // — 有关释放/遥测语义，请参见 MemoryPrefetch。
+  // 每个用户回合触发一次——提示信息在循环迭代中保持不变，
+  // 因此每次迭代触发都会向 sideQuery 询问相同的问题 N 次。
+  // 消费已解决的轮询点（永不阻塞）。`using` 会在生成器退出路径上释放内存——有关释放/遥测语义，
+  // 请参阅 MemoryPrefetch。
+  //获取相关记忆文件清单。并通过大模型筛选，但是使用地方在后续接收完这轮消息后，调用pendingMemoryPrefetch.promise获取结果。
   using pendingMemoryPrefetch = startRelevantMemoryPrefetch(
     state.messages,
     state.toolUseContext,
@@ -992,6 +994,7 @@ async function* queryLoop(
     }
 
     // 在模型响应完成后执行后采样钩子
+    // session Memory存储
     if (assistantMessages.length > 0) {
       void executePostSamplingHooks(
         [...messagesForQuery, ...assistantMessages],
@@ -1244,6 +1247,7 @@ async function* queryLoop(
         return { reason: 'completed' }
       }
 
+      //自动缓存处理   autoDream执行。
       const stopHookResult = yield* handleStopHooks(
         messagesForQuery,
         assistantMessages,

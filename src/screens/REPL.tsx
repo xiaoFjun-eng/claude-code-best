@@ -2698,12 +2698,8 @@ export function REPL({
     if (!reason) return;
     if (SandboxManager.isSandboxRequired()) {
       process.stderr.write(
-        `
-错误：需要沙盒但不可用：${reason}
-` +
-          `  sandbox.failIfUnavailable 已设置——拒绝在没有可用沙盒的情况下启动。
-
-`,
+        `\n错误：需要沙盒但不可用：${reason}\n` +
+          `  sandbox.failIfUnavailable 已设置——拒绝在没有可用沙盒的情况下启动。\n\n`,
       );
       gracefulShutdownSync(1, 'other');
       return;
@@ -2725,9 +2721,7 @@ export function REPL({
     // 如果启用了沙盒（setting.sandbox 已定义），则初始化管理器
     SandboxManager.initialize(sandboxAskCallback).catch(err => {
       // 初始化/验证失败 - 显示错误并退出
-      process.stderr.write(`
-❌ 沙盒错误：${errorMessage(err)}
-`);
+      process.stderr.write(`\n❌ 沙盒错误：${errorMessage(err)}\n`);
       gracefulShutdownSync(1, 'other');
     });
   }
@@ -2772,7 +2766,7 @@ export function REPL({
   }, [setToolPermissionContext]);
 
   const canUseTool = useCanUseTool(setToolUseConfirmQueue, setToolPermissionContext);
-
+  //llm向用户提问的回调函数，会先进promptQueue队列，用户同意会调用resolve函数，拒绝会调用reject函数
   const requestPrompt = useCallback(
     (title: string, toolInputSummary?: string | null) =>
       (request: PromptRequest): Promise<PromptResponse> =>

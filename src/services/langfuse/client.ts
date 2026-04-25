@@ -21,7 +21,7 @@ export function getLangfuseProcessor(): LangfuseSpanProcessor | null {
 export function initLangfuse(): boolean {
   if (processor !== null) return true
   if (!isLangfuseEnabled()) {
-    logForDebugging('[langfuse] No keys configured, running in no-op mode')
+    logForDebugging('[langfuse] 未配置密钥，以无操作模式运行')
     return false
   }
 
@@ -47,10 +47,10 @@ export function initLangfuse(): boolean {
 
     setLangfuseTracerProvider(provider)
 
-    logForDebugging('[langfuse] Initialized with LangfuseSpanProcessor')
+    logForDebugging('[langfuse] 已使用 LangfuseSpanProcessor 初始化')
     return true
   } catch (e) {
-    logForDebugging(`[langfuse] Init failed: ${e}`, { level: 'error' })
+    logForDebugging(`[langfuse] 初始化失败：${e}`, { level: 'error' })
     processor = null
     provider = null
     return false
@@ -65,8 +65,8 @@ export async function shutdownLangfuse(): Promise<void> {
     }
     processor = null
     provider = null
-    logForDebugging('[langfuse] Shutdown complete')
+    logForDebugging('[langfuse] 关闭完成')
   } catch (e) {
-    logForDebugging(`[langfuse] Shutdown error: ${e}`, { level: 'error' })
+    logForDebugging(`[langfuse] 关闭错误：${e}`, { level: 'error' })
   }
 }

@@ -1,10 +1,10 @@
 # CLAUDE.md
 
-此文件为在此代码仓库中工作的 Claude Code（claude.ai/code）提供指导。
+此文件为在此代码仓库中工作的 Claude Code（claude.ai/code）及其他 AI 编程助手提供指导。
 
 ## 项目概述
 
-这是 Anthropic 官方 Claude Code CLI 工具的**逆向工程/反编译**版本。目标是恢复核心功能，同时精简次要能力。许多模块是桩代码或通过功能开关关闭。TypeScript 严格模式已启用（见“使用此代码库”部分的 tsc 要求）。
+这是 Anthropic 官方 Claude Code CLI 工具的**逆向工程/反编译**版本。目标是恢复核心功能，同时精简次要能力。许多模块是桩代码或通过功能开关关闭。TypeScript 严格模式已启用 —— **`bunx tsc --noEmit` 必须零错误通过**。
 
 ## Git 提交信息规范
 
@@ -43,9 +43,9 @@ bun run build
 bun run build:vite
 
 # 测试
-bun test                  # 运行所有测试（3175 个测试 / 207 个文件 / 0 失败）
+bun test                                    # 运行所有测试
 bun test src/utils/__tests__/hash.test.ts   # 运行单个文件
-bun test --coverage       # 附带覆盖率报告
+bun test --coverage                         # 附带覆盖率报告
 
 # 代码检查与格式化（Biome）
 bun run lint              # 仅检查
@@ -60,7 +60,6 @@ bun run check:unused
 
 # 完整检查（类型检查 + 代码检查 + 测试）—— 完成任何任务后运行
 bun run test:all
-
 bun run typecheck
 
 # 远程控制服务器
@@ -77,7 +76,9 @@ bun run docs:dev
 ### 运行时与构建
 
 - **运行时**: Bun（不是 Node.js）。所有导入、构建和执行都使用 Bun API。
-- **构建**: `build.ts` 执行 `Bun.build()` 并设置 `splitting: true`，入口点为 `src/entrypoints/cli.tsx`，输出 `dist/cli.js` 和分块文件。构建默认启用 19 个功能（见下方“功能开关”部分）。构建后自动将 `import.meta.require` 替换为 Node.js 兼容版本（产物可在 bun/node 下运行）。
+- **构建**: `build.ts` 执行 `Bun.build()` 并设置 `splitting: true`，入口点为 `src/entrypoints/cli.tsx`，输出 `dist/cli.js` 和分块文件。构建默认启用 19 个功能（见下方“功能开关”部分）。构建后自动将 `import.meta.require` 替换为 Node.js 兼容版本（产物可在 bun/node 下运行）。构建时会自动将 `vendor/audio-capture/` 和 `src/utils/vendor/ripgrep/` 复制到 `dist/vendor/` 下。
+- **构建（Vite）**: `vite.config.ts` + `scripts/post-build.ts`，chunk 输出到 `dist/chunks/`。post-build 同样复制 vendor 文件到 `dist/vendor/`。
+- **Vendor 路径解析**: 构建后 chunk 文件位于 `dist/` 或 `dist/chunks/` 下，vendor 二进制在 `dist/vendor/`。`src/utils/ripgrep.ts` 和 `packages/audio-capture-napi/src/index.ts` 均通过 `import.meta.url` 路径中 `lastIndexOf('dist')` 定位 dist 根目录，再拼接 `vendor/` 子路径，确保不同构建产物层级下路径一致。
 - **开发模式**: `scripts/dev.ts` 通过 Bun `-d` 标志注入 `MACRO.*` 定义，运行 `src/entrypoints/cli.tsx`。默认启用全部功能。
 - **模块系统**: ESM（`"type": "module"`），TSX 使用 `react-jsx` 转换。
 - **Monorepo**: Bun workspaces — 15 个 workspace 包 + `packages/` 中通过 `workspace:*` 解析的若干辅助目录。
@@ -87,15 +88,15 @@ bun run docs:dev
 
 ### 入口与启动
 
-1. **`src/entrypoints/cli.tsx`**（373 行）— 真正的入口点。`main()` 函数按优先级处理多条快速路径：
+1. **`src/entrypoints/cli.tsx`** — 真正的入口点。`main()` 函数按优先级处理多条快速路径：
    - `--version` / `-v` — 零模块加载
-   - `--dump-system-prompt` — 功能开关控制（DUMP_SYSTEM_PROMPT）
+   - `--dump-system-prompt` — 功能门控 (DUMP_SYSTEM_PROMPT)
    - `--claude-in-chrome-mcp` / `--chrome-native-host`
    - `--computer-use-mcp` — 独立 MCP 服务器模式
-   - `--daemon-worker=<kind>` — 功能开关控制（DAEMON）
-   - `remote-control` / `rc` / `remote` / `sync` / `bridge` — 功能开关控制（BRIDGE_MODE）
-   - `daemon [子命令]` — 功能开关控制（DAEMON）
-   - `ps` / `logs` / `attach` / `kill` / `--bg` — 功能开关控制（BG_SESSIONS）
+   - `--daemon-worker=<kind>` — 功能门控 (DAEMON)
+   - `remote-control` / `rc` / `remote` / `sync` / `bridge` — 功能门控 (BRIDGE_MODE)
+   - `daemon [子命令]` — 功能门控 (DAEMON)
+   - `ps` / `logs` / `attach` / `kill` / `--bg` — 功能门控 (BG_SESSIONS)
    - `new` / `list` / `reply` — 模板任务命令
    - `environment-runner` / `self-hosted-runner` — BYOC runner
    - `--tmux` + `--worktree` 组合
@@ -118,15 +119,16 @@ bun run docs:dev
 ### 工具系统
 
 - **`src/Tool.ts`** — 工具接口定义（`Tool` 类型）和实用函数（`findToolByName`、`toolMatchesName`）。
-- **`src/tools.ts`**（392 行）— 工具注册表。组装工具列表；工具从 `@claude-code-best/builtin-tools` 包导入。部分工具通过 `feature()` 标志或 `process.env.USER_TYPE` 条件加载。
+- **`src/tools.ts`** — 工具注册表。组装工具列表；工具从 `@claude-code-best/builtin-tools` 包导入。部分工具通过 `feature()` 标志或 `process.env.USER_TYPE` 条件加载。
 - **`packages/builtin-tools/src/tools/`** — 59 个子目录（含 shared/testing 等工具目录），通过 `@claude-code-best/builtin-tools` 包导出。主要分类：
-  - **文件操作**: FileEditTool、FileReadTool、FileWriteTool、GlobTool、GrepTool
-  - **Shell/执行**: BashTool、PowerShellTool、REPLTool
-  - **代理系统**: AgentTool、TaskCreateTool、TaskUpdateTool、TaskListTool、TaskGetTool
-  - **规划**: EnterPlanModeTool、ExitPlanModeV2Tool、VerifyPlanExecutionTool
-  - **Web/MCP**: WebFetchTool、WebSearchTool、MCPTool、McpAuthTool
-  - **调度**: CronCreateTool、CronDeleteTool、CronListTool
-  - **其他**: LSPTool、ConfigTool、SkillTool、EnterWorktreeTool、ExitWorktreeTool 等
+  - **文件操作**: FileEditTool, FileReadTool, FileWriteTool, GlobTool, GrepTool
+  - **Shell/执行**: BashTool, PowerShellTool, REPLTool
+  - **代理系统**: AgentTool, TaskCreateTool, TaskUpdateTool, TaskListTool, TaskGetTool
+  - **规划**: EnterPlanModeTool, ExitPlanModeV2Tool, VerifyPlanExecutionTool
+  - **Web/MCP**: WebFetchTool, WebSearchTool, MCPTool, McpAuthTool
+  - **调度**: CronCreateTool, CronDeleteTool, CronListTool
+  - **其他**: LSPTool, ConfigTool, SkillTool, EnterWorktreeTool, ExitWorktreeTool 等
+- **`src/tools/shared/`** / **`packages/builtin-tools/src/tools/shared/`** — 工具共享函数。
 
 ### UI 层（Ink）
 
@@ -138,7 +140,7 @@ bun run docs:dev
   - `PromptInput/` — 用户输入处理
   - `permissions/` — 工具权限批准 UI
   - `design-system/` — 可复用 UI 组件（Dialog、FuzzyPicker、ProgressBar、ThemeProvider 等）
-- 组件使用 React Compiler 运行时（`react/compiler-runtime`）— 反编译输出中到处包含 `_c()` 记忆化调用。
+- 组件使用 React Compiler 运行时（`react/compiler-runtime`）— 反编译输出中广泛包含 `_c()` 记忆化调用。
 
 ### 状态管理
 
@@ -171,14 +173,14 @@ bun run docs:dev
 | `packages/audio-capture-napi/` | 原生音频捕获（已恢复） |
 | `packages/color-diff-napi/` | 颜色差异计算（完整实现，11 个测试） |
 | `packages/image-processor-napi/` | 图像处理（已恢复） |
-| `packages/modifiers-napi/` | 键盘修饰键检测（桩代码） |
-| `packages/url-handler-napi/` | URL scheme 处理（桩代码） |
+| `packages/modifiers-napi/` | 键盘修饰键检测（macOS FFI 实现） |
+| `packages/url-handler-napi/` | URL scheme 处理（环境变量 + CLI 参数读取） |
 
 ### 桥接 / 远程控制
 
-- **`src/bridge/`**（约 38 个文件）— 远程控制 / 桥接模式。由 `BRIDGE_MODE` 功能开关控制。包含桥接 API、会话管理、JWT 认证、消息传输、权限回调等。入口：`bridgeMain.ts`。
+- **`src/bridge/`** — 远程控制 / 桥接模式。由 `BRIDGE_MODE` 功能门控控制。包含桥接 API、会话管理、JWT 认证、消息传输、权限回调等。入口：`bridgeMain.ts`。
 - **`packages/remote-control-server/`** — 自托管 RCS，支持 Docker 部署，含 Web UI 控制面板（React 19 + Vite + Radix UI）。支持 ACP 代理通过 acp-link 接入（ACP WebSocket 处理器、中继处理器、SSE 事件流）。通过 `bun run rcs` 启动。
-- CLI 快速路径：`claude remote-control` / `claude rc` / `claude bridge`。
+- CLI 快速路径: `claude remote-control` / `claude rc` / `claude bridge`。
 - 详见 `docs/features/remote-control-self-hosting.md`。
 
 ### ACP 协议（代理客户端协议）
@@ -190,7 +192,7 @@ bun run docs:dev
 
 ### 守护进程模式
 
-- **`src/daemon/`** — 守护进程模式（长驻 supervisor）。由 `DAEMON` 功能开关控制。包含 `main.ts`（入口）和 `workerRegistry.ts`（worker 管理）。
+- **`src/daemon/`** — 守护进程模式（长驻 supervisor）。由 `DAEMON` 功能门控控制。包含 `main.ts`（入口）和 `workerRegistry.ts`（worker 管理）。
 
 ### 上下文与系统提示
 
@@ -218,7 +220,30 @@ bun run docs:dev
 
 ### 多 API 兼容层
 
-支持 OpenAI、Gemini、Grok 三种第三方 API，通过 `/login` 命令配置，均采用流适配器模式转为 Anthropic 内部格式。详见各兼容层的 docs 文档。
+所有兼容层均采用流适配器模式：将第三方 API 格式转为 Anthropic 内部格式，下游代码完全不改。通过 `/login` 命令配置。
+
+#### OpenAI 兼容层
+
+通过 `CLAUDE_CODE_USE_OPENAI=1` 启用，支持 Ollama/DeepSeek/vLLM 等任意 OpenAI Chat Completions 协议端点。含 DeepSeek thinking mode 支持。
+
+- **`src/services/api/openai/`** — 客户端、消息/工具转换、流适配、模型映射
+- 关键环境变量：`CLAUDE_CODE_USE_OPENAI`、`OPENAI_API_KEY`、`OPENAI_BASE_URL`、`OPENAI_MODEL`
+
+#### Gemini 兼容层
+
+通过 `CLAUDE_CODE_USE_GEMINI=1` 启用。独立环境变量体系。
+
+- **`src/services/api/gemini/`** — 客户端、模型映射、类型定义
+- 关键环境变量：`GEMINI_API_KEY`（必填）、`GEMINI_MODEL`（直接指定）、`GEMINI_DEFAULT_SONNET_MODEL`/`GEMINI_DEFAULT_OPUS_MODEL`（按能力映射）
+- 模型映射优先级：`GEMINI_MODEL` > `GEMINI_DEFAULT_*_MODEL` > `ANTHROPIC_DEFAULT_*_MODEL`（已废弃）> 原样返回
+
+#### Grok 兼容层
+
+通过 `CLAUDE_CODE_USE_GROK=1` 启用。自定义模型映射支持 xAI Grok API。
+
+- **`src/services/api/grok/`** — 客户端、模型映射
+
+详见各兼容层的文档。
 
 ### 穷鬼模式（预算模式）
 
@@ -231,13 +256,13 @@ bun run docs:dev
 | 模块 | 状态 |
 |--------|--------|
 | Computer Use（`@ant/*`） | 已恢复 — macOS + Windows + Linux（后端完整度不一） |
-| `*-napi` 包 | `audio-capture-napi`、`image-processor-napi` 已恢复；`color-diff-napi` 完整；`modifiers-napi`、`url-handler-napi` 仍为桩代码 |
+| `*-napi` 包 | 全部已恢复/实现：`audio-capture-napi`、`image-processor-napi` 已恢复；`color-diff-napi` 完整；`modifiers-napi`（macOS FFI）；`url-handler-napi`（环境变量+CLI） |
 | 语音模式 | 已恢复 — 一键通语音输入（需 Anthropic OAuth） |
 | OpenAI/Gemini/Grok 兼容层 | 已恢复 |
 | 远程控制服务器 | 已恢复 — 自托管 RCS + Web UI |
 | 分析 / GrowthBook / Sentry | 空实现 |
-| Magic Docs / LSP 服务器 | 已移除 |
-| 插件 / 市场 | 已移除 |
+| Magic Docs / LSP 服务器 | 已恢复 — Magic Docs 自动更新 + LSP 服务器管理器 |
+| 插件 / 市场 | 已恢复 — 插件安装/卸载/启用/禁用 + 市场浏览 |
 | MCP OAuth | 简化版 |
 
 ### 关键类型文件
@@ -250,7 +275,6 @@ bun run docs:dev
 ## 测试
 
 - **框架**: `bun:test`（内置断言 + mock）
-- **当前状态**: 3175 个测试 / 207 个文件 / 0 失败
 - **单元测试**: 就近放置于 `src/**/__tests__/`，文件名 `<模块>.test.ts`
 - **集成测试**: `tests/integration/` — 4 个文件（cli-arguments、context-build、message-pipeline、tool-chain）
 - **共享 mock/fixture**: `tests/mocks/`（api-responses、file-system、fixtures/）
@@ -284,7 +308,7 @@ mock.module("src/utils/debug.ts", debugMock);
 项目使用 TypeScript 严格模式，**tsc 必须零错误**。每次修改后运行：
 
 ```bash
-bun run typecheck          # 等价于 bun run typecheck
+bun run typecheck
 ```
 
 **类型规范**：

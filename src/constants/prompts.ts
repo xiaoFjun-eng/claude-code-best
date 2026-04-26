@@ -594,16 +594,6 @@ ${CYBER_RISK_INSTRUCTION}`,
       'summarize_tool_results',
       () => SUMMARIZE_TOOL_RESULTS_SECTION,
     ),
-    // 数值长度锚点 — 研究显示相较定性「要简洁」约减 1.2% 输出 token。先仅 ant 以衡量质量影响。
-    ...(process.env.USER_TYPE === 'ant'
-      ? [
-          systemPromptSection(
-            'numeric_length_anchors',
-            () =>
-              '长度限制：工具调用之间的文字不超过约 25 个英文词（或相当长度）。最终回复不超过约 100 个英文词，除非任务需要更细说明。',
-          ),
-        ]
-      : []),
     ...(feature('TOKEN_BUDGET')
       ? [
           // 无条件缓存 — 「当用户指定…」的措辞在无预算生效时为 no-op。曾为 DANGEROUS_uncached

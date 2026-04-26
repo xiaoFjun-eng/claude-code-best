@@ -109,6 +109,10 @@ export async function getAnthropicClient({
       : {}),
     // SDK 使用者可以为其应用/库进行标识，以便进行后端分析
     ...(clientApp ? { 'x-client-app': clientApp } : {}),
+    // SSH auth proxy nonce — tunneled API requests must carry this header
+    ...(process.env.ANTHROPIC_AUTH_NONCE
+      ? { 'x-auth-nonce': process.env.ANTHROPIC_AUTH_NONCE }
+      : {}),
   }
 
   // 记录 API 客户端配置以供 HFI 调试

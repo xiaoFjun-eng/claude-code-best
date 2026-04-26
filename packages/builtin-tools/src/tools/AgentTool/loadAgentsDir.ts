@@ -383,6 +383,7 @@ export const getAgentDefinitionsWithOverrides = memoize(
 
 export function clearAgentDefinitionsCache(): void {
   getAgentDefinitionsWithOverrides.cache.clear?.()
+  loadMarkdownFilesForSubdir.cache?.clear?.()
   clearPluginAgentCache()
 }
 

@@ -273,18 +273,6 @@ export const FileEditTool = buildTool({
     }
 
     const readTimestamp = toolUseContext.readFileState.get(fullFilePath)
-    if (!readTimestamp || readTimestamp.isPartialView) {
-      return {
-        result: false,
-        behavior: 'ask',
-        message:
-          '文件尚未读取。在写入之前请先读取它。',
-        meta: {
-          isFilePathAbsolute: String(isAbsolute(file_path)),
-        },
-        errorCode: 6,
-      }
-    }
 
     // 检查文件是否存在并获取其最后修改时间
     if (readTimestamp) {

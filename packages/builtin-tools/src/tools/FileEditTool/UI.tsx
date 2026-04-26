@@ -186,14 +186,6 @@ export function renderToolUseErrorMessage(
     extractTag(result, 'tool_use_error')
   ) {
     const errorMessage = extractTag(result, 'tool_use_error')
-    // 为预期行为显示不那么令人担忧的消息
-    if (errorMessage?.includes('文件尚未读取')) {
-      return (
-        <MessageResponse>
-          <Text dimColor>File must be read first</Text>
-        </MessageResponse>
-      )
-    }
     if (errorMessage?.includes(FILE_NOT_FOUND_CWD_NOTE)) {
       return (
         <MessageResponse>

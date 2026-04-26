@@ -796,6 +796,10 @@ export async function getAttachments(
         !options?.skipSkillDiscovery
           ? [
               maybe('skill_discovery', async () => {
+                if (suppressNextDiscovery) {
+                  suppressNextDiscovery = false
+                  return []
+                }
                 const result = await skillSearchModules.prefetch.getTurnZeroSkillDiscovery(
                   input,
                   messages ?? [],
@@ -2528,27 +2532,55 @@ const sentSkillNames = new Map<string, Set<string>>()
 export function resetSentSkillNames(): void {
   sentSkillNames.clear()
   suppressNext = false
+  suppressNextDiscovery = false
 }
 
-/** 抑制下一次技能列表注入。由 conversationRecovery 在 --resume 时调用，当记录中已存在 skill_listing 附件时。
-
-`sentSkillNames` 是模块作用域——进程本地。每个 `claude -p` 衍生进程开始时都有一个空的 Map，因此如果没有此机制，每次恢复都会重新注入完整的约 600 令牌列表，即使它已在前一个进程的对话中。这在每次 --resume 时都会出现；对于频繁重启的守护进程尤其明显。
-
-权衡：会话之间添加的技能直到下一个非恢复会话才会被通知。可以接受——skill_listing 从未旨在覆盖跨进程增量，并且代理仍然可以调用它们（无论怎样，它们都在 Skill 工具的运行时注册表中）。 */
+/**
+ * Suppress the next skill-listing injection. Called by conversationRecovery
+ * on --resume when a skill_listing attachment already exists in the
+ * transcript.
+ *
+ * `sentSkillNames` is module-scope — process-local. Each `claude -p` spawn
+ * starts with an empty Map, so without this every resume re-injects the
+ * full ~600-token listing even though it's already in the conversation from
+ * the prior process. Shows up on every --resume; particularly loud for
+ * daemons that respawn frequently.
+ *
+ * Trade-off: skills added between sessions won't be announced until the
+ * next non-resume session. Acceptable — skill_listing was never meant to
+ * cover cross-process deltas, and the agent can still call them (they're
+ * in the Skill tool's runtime registry regardless).
+ */
 export function suppressNextSkillListing(): void {
   suppressNext = true
 }
 let suppressNext = false
 
-// 当技能搜索启用且过滤后（捆绑 + MCP）的列表超过此数
-// 量时，回退到仅捆绑。保护 MCP 重度用户（100+ 服
-// 务器）免受截断，同时为典型设置保持第 0 轮次保证。
+/**
+ * Suppress the next skill-discovery injection on resume. Same rationale as
+ * suppressNextSkillListing: skill_discovery attachments are not persisted to
+ * transcript for non-ant users, so the prior process's discovery result is
+ * already in the conversation history the model sees. Re-generating it would
+ * inject duplicate content and bust the prompt cache prefix.
+ */
+export function suppressNextSkillDiscovery(): void {
+  suppressNextDiscovery = true
+}
+let suppressNextDiscovery = false
+
+// When skill-search is enabled and the filtered (bundled + MCP) listing exceeds
+// this count, fall back to bundled-only. Protects MCP-heavy users (100+ servers)
+// from truncation while keeping the turn-0 guarantee for typical setups.
 const FILTERED_LISTING_MAX = 30
 
-/** 将技能过滤为仅捆绑（Anthropic 策划）+ MCP（用户连接）。
-在技能搜索启用时使用，以解决子代理的第 0 轮次间隙：这些来源规模小、有意图信号，且不会触及截断预算。用户/项目/插件技能（长尾——200+）通过发现机制处理。
-
-如果捆绑+mcp 超过 FILTERED_LISTING_MAX，则回退到仅捆绑。 */
+/**
+ * Filter skills to bundled (Anthropic-curated) + MCP (user-connected) only.
+ * Used when skill-search is enabled to resolve the turn-0 gap for subagents:
+ * these sources are small, intent-signaled, and won't hit the truncation budget.
+ * User/project/plugin skills (the long tail — 200+) go through discovery instead.
+ *
+ * Falls back to bundled-only if bundled+mcp exceeds FILTERED_LISTING_MAX.
+ */
 export function filterToBundledAndMcp(commands: Command[]): Command[] {
   const filtered = commands.filter(
     cmd => cmd.loadedFrom === 'bundled' || cmd.loadedFrom === 'mcp',

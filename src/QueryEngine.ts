@@ -86,9 +86,13 @@ import {
 
 // 惰性加载：MessageSelector.tsx 仅在查询时进行消息过滤时才需要拉取 React/ink
 /* eslint-disable @typescript-eslint/no-require-imports */
-const messageSelector =
-  (): typeof import('src/components/MessageSelector.js') =>
-    require('src/components/MessageSelector.js')
+const messageSelector = (): typeof import('src/components/MessageSelector.js') | null => {
+  try {
+    return require('src/components/MessageSelector.js')
+  } catch {
+    return null
+  }
+}
 
 import {
   localCommandOutputToSDKAssistantMessage,
@@ -449,14 +453,15 @@ export class QueryEngine {
       }
     }
 
-    // 根据用户输入处理（必要时）更新 ToolPermissionContext
+    // Filter messages that should be acknowledged after transcript
+    const _selector = messageSelector()
     const replayableMessages = messagesFromUserInput.filter(
       msg =>
         (msg.type === 'user' &&
-          !msg.isMeta && // 跳过合成的警告消息
-          !msg.toolUseResult && // 跳过工具结果（它们将通过查询确认）
-          messageSelector().selectableUserMessagesFilter(msg)) || // 跳过非用户撰写的消息（任务通知等）
-        (msg.type === 'system' && msg.subtype === 'compact_boundary'), // 始终确认紧凑边界
+          !msg.isMeta && // Skip synthetic caveat messages
+          !msg.toolUseResult && // Skip tool results (they'll be acked from query)
+          (_selector?.selectableUserMessagesFilter(msg) ?? true)) || // Skip non-user-authored messages (task notifications, etc.)
+        (msg.type === 'system' && msg.subtype === 'compact_boundary'), // Always ack compact boundaries
     )
     const messagesToAck = replayUserMessages ? replayableMessages : []
 
@@ -627,8 +632,10 @@ export class QueryEngine {
     }
 
     if (fileHistoryEnabled() && persistSession) {
+      const _sel = messageSelector()
+      const _filter = _sel?.selectableUserMessagesFilter ?? ((_msg: unknown) => true)
       messagesFromUserInput
-        .filter(messageSelector().selectableUserMessagesFilter)
+        .filter(_filter)
         .forEach(message => {
           void fileHistoryMakeSnapshot(
             (updater: (prev: FileHistoryState) => FileHistoryState) => {

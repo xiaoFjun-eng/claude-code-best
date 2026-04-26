@@ -864,6 +864,10 @@ export const SettingsSchema = lazySchema(() =>
               .boolean()
               .optional()
               .describe('启用语音模式（按住说话听写）'),
+            voiceProvider: z
+              .enum(['anthropic', 'doubao'])
+              .optional()
+              .describe('Voice STT backend: "anthropic" (default) or "doubao" (Doubao ASR)'),
           }
         : {}),
       ...(feature('KAIROS')

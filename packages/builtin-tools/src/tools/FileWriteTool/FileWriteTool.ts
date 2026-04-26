@@ -196,25 +196,18 @@ export const FileWriteTool = buildTool({
     }
 
     const readTimestamp = toolUseContext.readFileState.get(fullFilePath)
-    if (!readTimestamp || readTimestamp.isPartialView) {
-      return {
-        result: false,
-        message:
-          '文件尚未被读取。在写入前请先读取它。',
-        errorCode: 2,
-      }
-    }
 
-    // 复用上述 stat 中的 mtime —— 避免通过 getFileModificationTime
-    // 进行冗余的 statSync。上面的 readTimestamp 防护确保当文件存在时
-    // 始终会执行此代码块。
-    const lastWriteTime = Math.floor(fileMtimeMs)
-    if (lastWriteTime > readTimestamp.timestamp) {
-      return {
-        result: false,
-        message:
-          '文件自读取后已被修改，可能是用户或 linter 所为。在尝试写入前请重新读取。',
-        errorCode: 3,
+    // Reuse mtime from the stat above — avoids a redundant statSync via
+    // getFileModificationTime.
+    if (readTimestamp) {
+      const lastWriteTime = Math.floor(fileMtimeMs)
+      if (lastWriteTime > readTimestamp.timestamp) {
+        return {
+          result: false,
+          message:
+            'File has been modified since read, either by the user or by a linter. Read it again before attempting to write it.',
+          errorCode: 3,
+        }
       }
     }
 

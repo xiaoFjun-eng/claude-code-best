@@ -223,11 +223,7 @@ type State = {
   // 缓存编辑 beta 头部的粘性锁定。一旦缓存微压缩首次启用，
   // 持续发送该头部，以便会话中期的 GrowthBook/设置切换不会破坏提示缓存。
   cacheEditingHeaderLatched: boolean | null
-  // 清除先前工具循环中思考内容的粘性锁定。当距离上次 API 调用超过 1 小时时触发
-  // （确认缓存未命中 —— 保留思考内容对缓存命中没有好处）。一旦锁定，保持开启，
-  // 以免新预热且清除思考内容的缓存因切换回 keep:'all' 而被破坏。
-  thinkingClearLatched: boolean | null
-  // 当前提示 ID（UUID），用于关联用户提示与后续的 OTel 事件
+  // Current prompt ID (UUID) correlating a user prompt with subsequent OTel events
   promptId: string | null
   // 主对话链（非子代理）的最后一次 API 请求 ID。
   // 在主会话查询每次成功 API 响应后更新。
@@ -401,8 +397,7 @@ function getInitialState(): State {
     afkModeHeaderLatched: null,
     fastModeHeaderLatched: null,
     cacheEditingHeaderLatched: null,
-    thinkingClearLatched: null,
-    // 当前提示 ID
+    // Current prompt ID
     promptId: null,
     lastMainRequestId: undefined,
     lastApiCompletionTimestamp: null,
@@ -1693,14 +1688,6 @@ export function setCacheEditingHeaderLatched(v: boolean): void {
   STATE.cacheEditingHeaderLatched = v
 }
 
-export function getThinkingClearLatched(): boolean | null {
-  return STATE.thinkingClearLatched
-}
-
-export function setThinkingClearLatched(v: boolean): void {
-  STATE.thinkingClearLatched = v
-}
-
 /**
  * 重置 beta 头部锁定为 null。在 /clear 和 /compact 上调用，以便新的对话获得新的头部评估。
  */
@@ -1708,7 +1695,6 @@ export function clearBetaHeaderLatches(): void {
   STATE.afkModeHeaderLatched = null
   STATE.fastModeHeaderLatched = null
   STATE.cacheEditingHeaderLatched = null
-  STATE.thinkingClearLatched = null
 }
 
 export function getPromptId(): string | null {

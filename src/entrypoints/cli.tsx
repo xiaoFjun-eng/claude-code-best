@@ -163,12 +163,17 @@ async function main(): Promise<void> {
     return
   }
 
-  // `--daemon-worker=<kind>` 的快速路径（内部 —— 由监
-  // 督进程生成）。必须在守护进程子命令检查之前：每个工作进程单独生成，因此
-  // 对性能敏感。此层不调用 enableConfigs()，没有分析接收器
-  // —— 工作进程是精简的。如果某种工作进程需要配置/认证（助手会需要），它在
-  // 其 run() 函数内部调用它们。
-  if (feature('DAEMON') && (args[0] === '--daemon-worker' || args[0]?.startsWith('--daemon-worker='))) {
+  // Fast-path for `--daemon-worker=<kind>` (internal — supervisor spawns this).
+  // Must come before the daemon subcommand check: spawned per-worker, so
+  // perf-sensitive. No enableConfigs(), no analytics sinks at this layer —
+  // workers are lean. If a worker kind needs configs/auth (assistant will),
+  // it calls them inside its run() fn.
+  if (args[0] === '--daemon-worker' || args[0]?.startsWith('--daemon-worker=')) {
+    if (!feature('DAEMON')) {
+      console.error('Error: --daemon-worker requires DAEMON feature to be enabled. Set FEATURE_DAEMON=1 or add DAEMON to DEFAULT_BUILD_FEATURES.')
+      process.exitCode = 1
+      return
+    }
     const kind = args[0] === '--daemon-worker' ? args[1] : args[0].split('=')[1]
     const { runDaemonWorker } = await import('../daemon/workerRegistry.js')
     await runDaemonWorker(kind)

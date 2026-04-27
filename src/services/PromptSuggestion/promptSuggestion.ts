@@ -305,17 +305,15 @@ export async function generateSuggestion(
     decisionReason: { type: 'other' as const, reason: 'suggestion only' },
   })
 
-  // DO NOT override any API parameter that differs from the parent request.
-  // The fork piggybacks on the main thread's prompt cache by sending identical
-  // cache-key params. The billing cache key includes more than just
-  // system/tools/model/messages/thinking — empirically, setting effortValue
-  // or maxOutputTokens on the fork (even via output_config or getAppState)
-  // busts cache. PR #18143 tried effort:'low' and caused a 45x spike in cache
-  // writes (92.7% → 61% hit rate). The only safe overrides are:
-  //   - abortController (not sent to API)
-  //   - skipTranscript (client-side only)
-  //   - skipCacheWrite (controls cache_control markers, not the cache key)
-  //   - canUseTool (client-side permission check)
+// 请勿覆盖任何与父请求不同的 API 参数。
+// fork 通过发送相同的缓存键参数，复用了主线程的提示缓存。计费缓存键不仅包含 system/tools/model/messages/thinking ——
+// 实际测试表明，在 fork 上设置 effortValue 或 maxOutputTokens（即使通过 output_config 或 getAppState）会破坏缓存。
+// PR #18143 曾尝试设置 effort:'low'，导致缓存写入量激增 45 倍（命中率从 92.7% 降至 61%）。
+// 唯一安全的覆盖项是：
+//   - abortController（不发送给 API）
+//   - skipTranscript（仅客户端）
+//   - skipCacheWrite（控制 cache_control 标记，不影响缓存键）
+//   - canUseTool（客户端权限检查）
   const result = await runForkedAgent({
     promptMessages: [createUserMessage({ content: prompt })],
     cacheSafeParams, // Don't override tools/thinking settings - busts cache

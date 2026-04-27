@@ -17,9 +17,9 @@ export function getAPIProvider(): APIProvider {
   if (modelType === 'gemini') return 'gemini'
   if (modelType === 'grok') return 'grok'
 
-  if (isEnvTruthy(process.env.CLAUDE_CODE_USE_BEDROCK)) return 'bedrock'
-  if (isEnvTruthy(process.env.CLAUDE_CODE_USE_VERTEX)) return 'vertex'
-  if (isEnvTruthy(process.env.CLAUDE_CODE_USE_FOUNDRY)) return 'foundry'
+  if (isEnvTruthy(process.env.CLAUDE_CODE_USE_BEDROCK)) return 'bedrock' //亚马逊平台
+  if (isEnvTruthy(process.env.CLAUDE_CODE_USE_VERTEX)) return 'vertex' //Google平台
+  if (isEnvTruthy(process.env.CLAUDE_CODE_USE_FOUNDRY)) return 'foundry' //微软平台
 
   if (isEnvTruthy(process.env.CLAUDE_CODE_USE_OPENAI)) return 'openai'
   if (isEnvTruthy(process.env.CLAUDE_CODE_USE_GEMINI)) return 'gemini'

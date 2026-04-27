@@ -351,12 +351,12 @@ async function* queryLoop(
       turnCount,
     } = state
 
-    // 技能发现预取 — 每次迭代（使用 findWritePivot 守卫，在非写入迭代时提前返回）。
-    // 发现在模型流式传输和工具执行时运行；在工具后与内存预取消费一起等待。
-    // 替换了在 getAttachmentMessages 内部运行的阻塞 assistant_turn 路径
-    //（生产环境中 97% 的调用未找到任何内容）。第 0 轮用户输入发现仍在
-    // userInputAttachments 中阻塞 — 这是唯一一个没有先前工作可以隐藏的信号。
-    const pendingSkillPrefetch = skillPrefetch?.startSkillDiscoveryPrefetch(
+    // 技能发现预取——每次迭代（使用 findWritePivot 守卫，在非写入迭代中提前返回）。
+    // 发现过程在模型流和工具执行期间运行；等待工具执行完毕后，内存预取消耗也随之进行。
+    // 它取代了 getAttachmentMessages 内部阻塞的 assistant_turn 路径
+    // （在生产环境中，97% 的此类调用未找到任何内容）。
+    // Turn-0 用户输入发现仍然阻塞在 userInputAttachments 中——这是唯一一个没有先前工作可以隐藏的信号。
+    const pendingSkillPrefetch = skillPrefetch?.startSkillDiscoveryPrefetch(//技能发现预取操作
       null,
       messages,
       toolUseContext,
@@ -371,7 +371,9 @@ async function* queryLoop(
       headlessProfilerCheckpoint('query_started')
     }
 
-    // 初始化或递增查询跟踪链
+    // 初始化或递增查询跟踪链，是**“一次对话查询链路”的追踪信息**，
+    // 用来把同一次用户请求触发的多轮 query() 调用、工具调用、hooks、压缩(compact) 
+    // 以及 fork 出来的子 agent 查询关联到同一条链上，并记录它在链路中的层级深度。
     const queryTracking = toolUseContext.queryTracking
       ? {
           chainId: toolUseContext.queryTracking.chainId,
@@ -389,7 +391,7 @@ async function* queryLoop(
       ...toolUseContext,
       queryTracking,
     }
-
+    //compact线之前的内容不再进入发送给模型的消息清单。
     let messagesForQuery = [...getMessagesAfterCompactBoundary(messages)]
 
     let tracking = autoCompactTracking
@@ -400,6 +402,7 @@ async function* queryLoop(
     // 当 contentReplacementState 未定义时（功能关闭），无操作。
     // 仅对在恢复时会读回记录的查询源进行持久化：agentId 路由到旁链文件（AgentTool 恢复）
     // 或会话文件（/resume）。临时的 runForkedAgent 调用者（agent_summary 等）不持久化。
+    //**对工具查询结果的长度做限制，超长就使用预览+真实内容路径。超长内容会存入本地磁盘。**
     const persistReplacements =
       querySource.startsWith('agent:') ||
       querySource.startsWith('repl_main_thread')
@@ -438,6 +441,8 @@ async function* queryLoop(
 
     // 在 autocompact 之前应用 microcompact
     queryCheckpoint('query_microcompact_start')
+    //删减旧的tool_result内容。方式：1.通过本地替换（保留最近5个）
+    // 。2.通过缓存修改（已注册的、可压缩的工具结果数量超过10个，保留最近5个）。
     const microcompactResult = await deps.microcompact(
       messagesForQuery,
       toolUseContext,
@@ -447,6 +452,7 @@ async function* queryLoop(
     // 对于缓存的 microcompact（缓存编辑），延迟边界消息直到 API 响应之后，
     // 以便使用实际的 cache_deleted_input_tokens。
     // 通过 feature() 门控，以便从外部构建中消除该字符串。
+    //记录删除的情况，方便后续与assistant usage进行计算。
     const pendingCacheEdits = feature('CACHED_MICROCOMPACT')
       ? microcompactResult.compactionInfo?.pendingCacheEdits
       : undefined
@@ -547,7 +553,7 @@ async function* queryLoop(
       }
 
       const postCompactMessages = buildPostCompactMessages(compactionResult)
-
+      //*把压缩信息推送出去，更新历史message列表，方便下一次取消息时，从最新的分割线开始取。
       for (const message of postCompactMessages) {
         yield message
       }
@@ -579,6 +585,7 @@ async function* queryLoop(
 
     queryCheckpoint('query_setup_start')
     const useStreamingToolExecution = config.gates.streamingToolExecution
+    //是否使用流式工具执行，不要只靠 stop_reason === 'tool_use'，而要在流里看到 tool_use 块再驱动循环。
     let streamingToolExecutor = useStreamingToolExecution
       ? new StreamingToolExecutor(
           toolUseContext.options.tools,
@@ -589,10 +596,11 @@ async function* queryLoop(
 
     const appState = toolUseContext.getAppState()
     const permissionMode = appState.toolPermissionContext.mode
+    //根据运行模式和当前模型，获取当前要使用的模型。(具体怎么切换，没有看懂。)
     let currentModel = getRuntimeMainLoopModel({
-      permissionMode,
+      permissionMode,//运行的模式，包括auto、plan、bypassPermissions、acceptEdits、dontAsk。
       mainLoopModel: toolUseContext.options.mainLoopModel,
-      exceeds200kTokens:
+      exceeds200kTokens://当前是否已经超过200k token的限制。
         permissionMode === 'plan' &&
         doesMostRecentAssistantMessageExceed200k(messagesForQuery),
     })
@@ -635,6 +643,7 @@ async function* queryLoop(
     // 每轮提升一次媒体恢复门控。保留（在流循环内部）和恢复（之后）必须一致；
     // CACHED_MAY_BE_STALE 可以在 5-30 秒的流期间翻转，保留而不恢复会丢失消息。
     // PTL 不提升，因为它的保留是无门控的 — 它早于实验，已经是控制臂基线。
+    //是否开启媒体恢复式压缩功能，只在模型调用报错413的时候使用。
     const mediaRecoveryEnabled =
       reactiveCompact?.isReactiveCompactEnabled() ?? false
     if (
@@ -642,10 +651,13 @@ async function* queryLoop(
       querySource !== 'compact' &&
       querySource !== 'session_memory' &&
       !(
-        reactiveCompact?.isReactiveCompactEnabled() && isAutoCompactEnabled()
+        reactiveCompact?.isReactiveCompactEnabled() && isAutoCompactEnabled()//有自己的413（超长）错误处理机制。
       ) &&
-      !collapseOwnsIt
+      !collapseOwnsIt //有自己的413（超长）错误处理机制。
     ) {
+      //没有开启自动压缩，也不是子Agent的时候，需要判断现在的token使用情况是否超过了blocking limit。
+      //如果超过了blocking limit，就返回提示过长错误。
+      //留了余量给用户手动‘/compact’压缩。
       const { isAtBlockingLimit } = calculateTokenWarningState(
         tokenCountWithEstimation(messagesForQuery) - snipTokensFreed,
         toolUseContext.options.mainLoopModel,
@@ -705,7 +717,7 @@ async function* queryLoop(
               queryTracking,
               effortValue: appState.effortValue,
               advisorModel: appState.advisorModel,
-              skipCacheWrite,
+              skipCacheWrite, //是否跳过本次缓存写入。forAgent在借用主Agent缓存的时候使用它。可以避免在fork的时候污染服务器的Agent缓存。
               agentId: toolUseContext.agentId,
               addNotification: toolUseContext.addNotification,
               ...(params.taskBudget && {
@@ -1136,6 +1148,7 @@ async function* queryLoop(
           }
 
           const postCompactMessages = buildPostCompactMessages(compacted)
+          //把压缩信息插入到历史消息中。
           for (const msg of postCompactMessages) {
             yield msg
           }
@@ -1391,7 +1404,7 @@ async function* queryLoop(
     }
     queryCheckpoint('query_tool_execution_end')
 
-    // 在工具批处理完成后生成工具使用摘要 — 传递给下一次递归调用
+    // 在工具批处理完成后生成工具使用摘要 — 传递给下一次递归调用。把本轮“用了哪些工具、输入输出是什么、以及最后一段 assistant 文本上下文”的信息，传递给下一次递归调用。
     let nextPendingToolUseSummary:
       | Promise<ToolUseSummaryMessage | null>
       | undefined
@@ -1573,6 +1586,7 @@ async function* queryLoop(
     // 如果尚未解决，则跳过（零等待）并在下一次迭代重试 — 预取在轮次结束前有多少次循环迭代就有多少次机会。
     // readFileState（跨迭代累积）会过滤模型已经读取/写入/编辑过的记忆
     // — 包括在更早迭代中，而每轮的 toolUseBlocks 数组会错过这些。
+    //取之前通过startRelevantMemoryPrefetch()获取的“记忆”文件清单。
     if (
       pendingMemoryPrefetch &&
       pendingMemoryPrefetch.settledAt !== null &&
@@ -1593,6 +1607,7 @@ async function* queryLoop(
 
     // 注入预取的技能发现。collectSkillDiscoveryPrefetch 发出 hidden_by_main_turn
     // — 当预取在此点之前已解析时为 true（在轮次持续 2-30 秒的情况下，AKI@250ms / Haiku@573ms 时 >98%）。
+    //取之前通过skillPrefetch?.startSkillDiscoveryPrefetch()获取的“技能”文件清单。
     if (skillPrefetch && pendingSkillPrefetch) {
       const skillAttachments =
         await skillPrefetch.collectSkillDiscoveryPrefetch(pendingSkillPrefetch)

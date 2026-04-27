@@ -289,12 +289,11 @@ function isProjectDirPath(absolutePath: string): boolean {
     normalizedPath === projectDir || normalizedPath.startsWith(projectDir + sep)
   )
 }
-
 /**
- * Checks if the scratchpad directory feature is enabled.
- * The scratchpad is a per-session directory for Claude to write temporary files.
- * Controlled by the tengu_scratch Statsig gate.
- */
+* 检查暂存目录功能是否已启用。
+* 暂存目录是 Claude 为每个会话设置的临时文件写入目录。
+* 由 tengu_scratch Statsig 门控控制。
+*/
 export function isScratchpadEnabled(): boolean {
   return checkStatsigFeatureGate_CACHED_MAY_BE_STALE('tengu_scratch')
 }
@@ -378,9 +377,9 @@ export function getProjectTempDir(): string {
 }
 
 /**
- * Returns the scratchpad directory path for the current session.
- * Path format: /tmp/claude-{uid}/{sanitized-cwd}/{sessionId}/scratchpad/
- */
+* 返回当前会话的临时文件夹目录路径。
+* 路径格式：/tmp/claude-{uid}/{sanitized-cwd}/{sessionId}/scratchpad/
+*/
 export function getScratchpadDir(): string {
   return join(getProjectTempDir(), getSessionId(), 'scratchpad')
 }

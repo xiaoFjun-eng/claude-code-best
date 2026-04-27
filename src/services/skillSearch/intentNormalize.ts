@@ -1,39 +1,37 @@
 /**
- * Intent Normalization Layer for Skill Search
+ * 技能搜索的意图归一化层
  *
- * Problem: TF-IDF bag-of-words loses meaning when the user query is in Chinese
- * and most skill descriptions are English. CJK bi-grams get DF=1 (language
- * mismatch, not true rarity), producing IDF values that promote spurious
- * matches like `prompt-optimizer` for `帮我优化代码的性能`.
+ * 问题：当用户查询是中文而大多数技能描述是英文时，TF-IDF 的词袋模型会丢失语义。
+ * CJK 二元组会得到 DF=1（语言不匹配，而非真正的罕见性），产生的 IDF 值会促进虚假匹配，
+ * 例如 `帮我优化代码的性能` 匹配到 `prompt-optimizer`。
  *
- * Fix: Before handing the query to `searchSkills()`, ask Haiku to normalize it
- * into 3-6 English task/object keywords. Concatenate the normalized form with
- * the original so TF-IDF sees both — English keywords carry real matching
- * signal, the original text stays as a fallback.
+ * 解决方案：在将查询传递给 `searchSkills()` 之前，要求 Haiku 将其归一化为 3-6 个英文任务/对象关键词。
+ * 将归一化后的形式与原始查询拼接，这样 TF-IDF 就能同时看到两者 —— 英文关键词提供真正的匹配信号，
+ * 原始文本则作为回退保留。
  *
- * Design:
- * - Turn-zero only (blocking on user input): one Haiku call per session-unique
- *   query. Not called in inter-turn prefetch (which repeats per tool loop).
- * - Process-level cache: identical queries within a session reuse the result.
- * - Graceful fallback: Haiku failure / timeout / empty → return original query.
- * - ASCII-only fast path: queries without CJK characters skip the LLM entirely.
- * - Feature-flagged: `SKILL_SEARCH_INTENT_ENABLED=1` to opt in.
+ * 设计：
+ * - 仅在第零轮（阻塞等待用户输入）：每个会话唯一的查询调用一次 Haiku。
+ *   不会在轮次间的预取中调用（预取会在每个工具循环中重复执行）。
+ * - 进程级缓存：会话内相同的查询复用结果。
+ * - 优雅回退：Haiku 失败/超时/返回空 → 返回原始查询。
+ * - ASCII 快速路径：不包含 CJK 字符的查询完全跳过 LLM。
+ * - 功能门控：设置 `SKILL_SEARCH_INTENT_ENABLED=1` 来选择加入。
  */
 
-import { queryHaiku } from '../api/claude.js'
+import { queryHaiku } from '../api/claude.ts'
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
 import { logForDebugging } from '../../utils/debug.js'
 
-const INTENT_SYSTEM_PROMPT = `You are a query normalizer for a skill-search index.
+const INTENT_SYSTEM_PROMPT = `你是一个用于技能搜索索引的查询归一化器。
 
-Given a user's natural-language request (often Chinese, possibly long), extract 3-6 English keywords that capture:
-1. TASK VERB (optimize, review, debug, refactor, test, deploy, analyze, write, audit, design, research, cleanup, implement)
-2. OBJECT (code, prompt, test, UI, API, database, documentation, performance, security, architecture)
-3. CONTEXT/DOMAIN when clear (frontend, backend, mobile, python, go, rust, typescript)
+给定用户的自然语言请求（通常是中文，可能较长），提取 3-6 个英文关键词，涵盖：
+1. 任务动词（optimize, review, debug, refactor, test, deploy, analyze, write, audit, design, research, cleanup, implement）
+2. 对象（code, prompt, test, UI, API, database, documentation, performance, security, architecture）
+3. 当明确时的上下文/领域（frontend, backend, mobile, python, go, rust, typescript）
 
-Output ONLY space-separated lowercase English keywords. No prose, no JSON, no punctuation, no code fences.
+仅输出空格分隔的小写英文关键词。不要输出说明文字、JSON、标点符号、代码块标记。
 
-Examples:
+示例：
 - "帮我优化代码的性能" -> optimize code performance refactor
 - "研究当前代码的实现然后分析优化思路" -> analyze code research refactor architecture
 - "优化 prompt 的表达" -> optimize prompt refine writing
@@ -42,7 +40,7 @@ Examples:
 - "重构这个模块的代码" -> refactor code modularize
 - "帮我写个 Go 单元测试" -> write test golang unit
 
-Output ONLY keywords. Nothing else.`
+只输出关键词，不输出其他内容。`
 
 const DEFAULT_TIMEOUT_MS = 6_000
 const MAX_QUERY_CHARS = 500
@@ -61,9 +59,9 @@ export function clearIntentNormalizeCache(): void {
 }
 
 /**
- * Normalize a user query so TF-IDF sees English task keywords.
- * Returns `<original> <keywords>` on success, or the original string on any
- * failure path. Never throws.
+ * 归一化用户查询，使 TF-IDF 能够识别英文任务关键词。
+ * 成功时返回 `<原始查询> <关键词>`，任何失败路径下返回原始字符串。
+ * 绝不抛出异常。
  */
 export async function normalizeQueryIntent(query: string): Promise<string> {
   const trimmed = query.trim()

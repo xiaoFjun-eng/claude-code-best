@@ -9,13 +9,13 @@ const inputSchema = lazySchema(() =>
     message_ids: z
       .array(z.string())
       .describe(
-        'IDs of the messages to snip from history. Snipped messages are replaced with a short summary.',
+        '从历史记录中裁剪的消息ID。裁剪后的消息会被替换为简短摘要。',
       ),
     reason: z
       .string()
       .optional()
       .describe(
-        'Why these messages are being snipped. Used in the summary replacement.',
+        '这些消息被裁剪的原因。用于替换摘要中。',
       ),
   }),
 )
@@ -26,7 +26,7 @@ type SnipOutput = { snipped_count: number; summary: string }
 
 export const SnipTool = buildTool({
   name: SNIP_TOOL_NAME,
-  searchHint: 'snip trim history remove old messages compact context',
+  searchHint: '裁剪 修剪 历史记录 移除旧消息 压缩上下文',
   maxResultSizeChars: 5_000,
   strict: true,
 
@@ -35,20 +35,10 @@ export const SnipTool = buildTool({
   },
 
   async description() {
-    return 'Snip messages from conversation history to free up context'
+    return '从对话历史中裁剪消息以释放上下文空间'
   },
   async prompt() {
-    return `Snip messages from your conversation history to free up context window space. Snipped messages are replaced with a compact summary so you retain awareness of what happened without the full content.
-
-Use this when:
-- Your context is getting full and you need to make room
-- Earlier messages contain large tool outputs you no longer need in full
-- You want to compact a long exploration sequence into a summary
-
-Guidelines:
-- Only snip messages you're confident you won't need verbatim again
-- The summary replacement preserves key facts (file paths, decisions, errors found)
-- You cannot un-snip — the original content is gone from context`
+    return `从对话历史中裁剪消息以释放上下文窗口空间。裁剪后的消息会被替换为紧凑摘要，这样你无需完整内容也能了解发生了什么。\n\n在以下情况使用：\n- 上下文快满了，需要腾出空间\n- 较早的消息包含不再需要完整保留的大型工具输出\n- 你想将较长的探索序列压缩成摘要\n\n使用指南：\n- 只裁剪你确信不再需要逐字查看的消息\n- 替换摘要会保留关键事实（文件路径、决策、发现的错误）\n- 裁剪操作不可逆——原始内容将从上下文中移除`
   },
 
   isConcurrencySafe() {
@@ -64,7 +54,7 @@ Guidelines:
 
   renderToolUseMessage(input: Partial<SnipInput>) {
     const count = input.message_ids?.length ?? 0
-    return `Snip: ${count} message${count !== 1 ? 's' : ''}`
+    return `裁剪：${count} 条消息${count !== 1 ? 's' : ''}`
   },
 
   mapToolResultToToolResultBlockParam(
@@ -74,18 +64,18 @@ Guidelines:
     return {
       tool_use_id: toolUseID,
       type: 'tool_result',
-      content: `Snipped ${content.snipped_count} messages. Summary: ${content.summary}`,
+      content: `已裁剪 ${content.snipped_count} 条消息。摘要：${content.summary}`,
     }
   },
 
   async call(input: SnipInput) {
-    // Snip implementation is handled by the query engine's projection system.
-    // The tool call itself records the intent; the query engine intercepts
-    // snip tool results and adjusts its message projection accordingly.
+    // 裁剪实现由查询引擎的投影系统处理。工
+    // 具调用本身记录意图；查询引擎拦截裁
+    // 剪工具结果并相应调整其消息投影。
     return {
       data: {
         snipped_count: input.message_ids.length,
-        summary: input.reason ?? `Snipped ${input.message_ids.length} messages`,
+        summary: input.reason ?? `已裁剪 ${input.message_ids.length} 条消息`,
       },
     }
   },

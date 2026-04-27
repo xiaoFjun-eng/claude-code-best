@@ -4705,7 +4705,7 @@ export function createSystemAPIErrorMessage(
 }
 
 /**
- * Checks if a message is a compact boundary marker
+ * 检查消息是否为紧凑（压缩）边界标记
  */
 export function isCompactBoundaryMessage(
   message: Message | NormalizedMessage,
@@ -4731,21 +4731,19 @@ export function findLastCompactBoundaryIndex<
 }
 
 /**
- * Returns messages from the last compact boundary onward (including the boundary).
- * If no boundary exists, returns all messages.
+ * 返回从最后一个 compact 边界开始（包含边界）的消息。
+ * 如果不存在边界，则返回所有消息。
  *
- * Also filters snipped messages by default (when HISTORY_SNIP is enabled) —
- * the REPL keeps full history for UI scrollback, so model-facing paths need
- * both compact-slice AND snip-filter applied. Pass `{ includeSnipped: true }`
- * to opt out (e.g., REPL.tsx fullscreen compact handler which preserves
- * snipped messages in scrollback).
+ * 默认情况下还会过滤掉 snipped 消息（当 HISTORY_SNIP 启用时）——
+ * REPL 会保留完整历史以供 UI 滚动回溯，因此面向模型（model-facing）的路径需要同时应用 compact 切片和 snip 过滤。
+ * 传入 `{ includeSnipped: true }` 可选择退出此行为（例如 REPL.tsx 的全屏 compact 处理程序，它会保留滚动回溯中的 snipped 消息）。
  *
- * Note: The boundary itself is a system message and will be filtered by normalizeMessagesForAPI.
+ * 注意：边界本身是一条系统消息，会被 normalizeMessagesForAPI 过滤掉。
  */
 export function getMessagesAfterCompactBoundary<
   T extends Message | NormalizedMessage,
 >(messages: T[], options?: { includeSnipped?: boolean }): T[] {
-  const boundaryIndex = findLastCompactBoundaryIndex(messages)
+  const boundaryIndex = findLastCompactBoundaryIndex(messages)//找到最后一个压缩边界。找不到就返回-1
   const sliced = boundaryIndex === -1 ? messages : messages.slice(boundaryIndex)
   if (!options?.includeSnipped && feature('HISTORY_SNIP')) {
     /* eslint-disable @typescript-eslint/no-require-imports */

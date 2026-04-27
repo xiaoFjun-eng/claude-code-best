@@ -736,6 +736,7 @@ export async function enforceToolResultBudget(
   let messagesOverBudget = 0
 
   for (const candidates of candidatesByMessage) {
+    //已经替换，已经发给模型，新消息（主要就是处理新消息）
     const { mustReapply, frozen, fresh } = partitionByPriorDecision(
       candidates,
       state,

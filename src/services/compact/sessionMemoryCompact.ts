@@ -1,6 +1,4 @@
-/**
- * EXPERIMENT: Session memory compaction
- */
+/** 实验：会话内存压缩 */
 
 import type { AgentId } from '../../types/ids.js'
 import type { HookResultMessage, Message } from '../../types/message.js'
@@ -41,36 +39,32 @@ import {
 import { estimateMessageTokens } from './microCompact.js'
 import { getCompactUserSummaryMessage } from './prompt.js'
 
-/**
- * Configuration for session memory compaction thresholds
- */
+/** 会话内存压缩阈值的配置 */
 export type SessionMemoryCompactConfig = {
-  /** Minimum tokens to preserve after compaction */
+  /** 压缩后保留的最小 token 数 */
   minTokens: number
-  /** Minimum number of messages with text blocks to keep */
+  /** 保留的包含文本块消息的最小数量 */
   minTextBlockMessages: number
-  /** Maximum tokens to preserve after compaction (hard cap) */
+  /** 压缩后保留的最大 token 数（硬上限） */
   maxTokens: number
 }
 
-// Default configuration values (exported for use in tests)
+// 默认配置值（导出供测试使用）
 export const DEFAULT_SM_COMPACT_CONFIG: SessionMemoryCompactConfig = {
   minTokens: 10_000,
   minTextBlockMessages: 5,
   maxTokens: 40_000,
 }
 
-// Current configuration (starts with defaults)
+// 当前配置（从默认值开始）
 let smCompactConfig: SessionMemoryCompactConfig = {
   ...DEFAULT_SM_COMPACT_CONFIG,
 }
 
-// Track whether config has been initialized from remote
+// 跟踪配置是否已从远程初始化
 let configInitialized = false
 
-/**
- * Set the session memory compact configuration
- */
+/** 设置会话内存压缩配置 */
 export function setSessionMemoryCompactConfig(
   config: Partial<SessionMemoryCompactConfig>,
 ): void {
@@ -80,38 +74,32 @@ export function setSessionMemoryCompactConfig(
   }
 }
 
-/**
- * Get the current session memory compact configuration
- */
+/** 获取当前会话内存压缩配置 */
 export function getSessionMemoryCompactConfig(): SessionMemoryCompactConfig {
   return { ...smCompactConfig }
 }
 
-/**
- * Reset config state (useful for testing)
- */
+/** 重置配置状态（用于测试） */
 export function resetSessionMemoryCompactConfig(): void {
   smCompactConfig = { ...DEFAULT_SM_COMPACT_CONFIG }
   configInitialized = false
 }
 
-/**
- * Initialize configuration from remote config (GrowthBook).
- * Only fetches once per session - subsequent calls return immediately.
- */
+/** 从远程配置（GrowthBook）初始化配置。
+每个会话仅获取一次 - 后续调用立即返回。 */
 async function initSessionMemoryCompactConfig(): Promise<void> {
   if (configInitialized) {
     return
   }
   configInitialized = true
 
-  // Load config from GrowthBook, merging with defaults
+  // 从 GrowthBook 加载配置，并与默认值合并
   const remoteConfig = await getDynamicConfig_BLOCKS_ON_INIT<
     Partial<SessionMemoryCompactConfig>
   >('tengu_sm_compact_config', {})
 
-  // Only use remote values if they are explicitly set (positive numbers)
-  // This ensures sensible defaults aren't overridden by zero values
+  // 仅当远程值被显式设置（正数）时才使用它
+  // 们，这确保合理的默认值不会被零值覆盖
   const config: SessionMemoryCompactConfig = {
     minTokens:
       remoteConfig.minTokens && remoteConfig.minTokens > 0
@@ -129,9 +117,7 @@ async function initSessionMemoryCompactConfig(): Promise<void> {
   setSessionMemoryCompactConfig(config)
 }
 
-/**
- * Check if a message contains text blocks (text content for user/assistant interaction)
- */
+/** 检查消息是否包含文本块（用户/助手交互的文本内容） */
 export function hasTextBlocks(message: Message): boolean {
   if (message.type === 'assistant') {
     const content = message.message!.content
@@ -149,9 +135,7 @@ export function hasTextBlocks(message: Message): boolean {
   return false
 }
 
-/**
- * Check if a message contains tool_result blocks and return their tool_use_ids
- */
+/** 检查消息是否包含 tool_result 块并返回它们的 tool_use_id */
 function getToolResultIds(message: Message): string[] {
   if (message.type !== 'user') {
     return []
@@ -169,9 +153,7 @@ function getToolResultIds(message: Message): string[] {
   return ids
 }
 
-/**
- * Check if a message contains tool_use blocks with any of the given ids
- */
+/** 检查消息是否包含带有任何给定 ID 的 tool_use 块 */
 function hasToolUseWithIds(message: Message, toolUseIds: Set<string>): boolean {
   if (message.type !== 'assistant') {
     return false
@@ -185,50 +167,48 @@ function hasToolUseWithIds(message: Message, toolUseIds: Set<string>): boolean {
   )
 }
 
-/**
- * Adjust the start index to ensure we don't split tool_use/tool_result pairs
- * or thinking blocks that share the same message.id with kept assistant messages.
- *
- * If ANY message we're keeping contains tool_result blocks, we need to
- * include the preceding assistant message(s) that contain the matching tool_use blocks.
- *
- * Additionally, if ANY assistant message in the kept range has the same message.id
- * as a preceding assistant message (which may contain thinking blocks), we need to
- * include those messages so they can be properly merged by normalizeMessagesForAPI.
- *
- * This handles the case where streaming yields separate messages per content block
- * (thinking, tool_use, etc.) with the same message.id but different uuids. If the
- * startIndex lands on one of these streaming messages, we need to look at ALL kept
- * messages for tool_results, not just the first one.
- *
- * Example bug scenarios this fixes:
- *
- * Tool pair scenario:
- *   Session storage (before compaction):
- *     Index N:   assistant, message.id: X, content: [thinking]
- *     Index N+1: assistant, message.id: X, content: [tool_use: ORPHAN_ID]
- *     Index N+2: assistant, message.id: X, content: [tool_use: VALID_ID]
- *     Index N+3: user, content: [tool_result: ORPHAN_ID, tool_result: VALID_ID]
- *
- *   If startIndex = N+2:
- *     - Old code: checked only message N+2 for tool_results, found none, returned N+2
- *     - After slicing and normalizeMessagesForAPI merging by message.id:
- *       msg[1]: assistant with [tool_use: VALID_ID]  (ORPHAN tool_use was excluded!)
- *       msg[2]: user with [tool_result: ORPHAN_ID, tool_result: VALID_ID]
- *     - API error: orphan tool_result references non-existent tool_use
- *
- * Thinking block scenario:
- *   Session storage (before compaction):
- *     Index N:   assistant, message.id: X, content: [thinking]
- *     Index N+1: assistant, message.id: X, content: [tool_use: ID]
- *     Index N+2: user, content: [tool_result: ID]
- *
- *   If startIndex = N+1:
- *     - Without this fix: thinking block at N is excluded
- *     - After normalizeMessagesForAPI: thinking block is lost (no message to merge with)
- *
- *   Fixed code: detects that message N+1 has same message.id as N, adjusts to N.
- */
+/** 调整起始索引，以确保不会拆分 tool_use/tool_result 对
+或与保留的助手消息共享相同 message.id 的思考块。
+
+如果我们要保留的任何消息包含 tool_result 块，我们需要
+包含前面包含匹配 tool_use 块的助手消息。
+
+此外，如果保留范围内的任何助手消息与前面的助手消息具有相同的 message.id
+（该消息可能包含思考块），我们需要
+包含这些消息，以便它们可以被 normalizeMessagesForAPI 正确合并。
+
+这处理了流式传输为每个内容块（思考、tool_use 等）生成单独消息的情况，
+这些消息具有相同的 message.id 但不同的 uuid。如果
+startIndex 落在这条流式消息上，我们需要查看所有保留的
+消息中的 tool_results，而不仅仅是第一条。
+
+此修复解决的示例错误场景：
+
+工具对场景：
+  会话存储（压缩前）：
+    索引 N:   assistant, message.id: X, content: [thinking]
+    索引 N+1: assistant, message.id: X, content: [tool_use: ORPHAN_ID]
+    索引 N+2: assistant, message.id: X, content: [tool_use: VALID_ID]
+    索引 N+3: user, content: [tool_result: ORPHAN_ID, tool_result: VALID_ID]
+
+  如果 startIndex = N+2:
+    - 旧代码：仅检查消息 N+2 中的 tool_results，未找到，返回 N+2
+    - 切片后，normalizeMessagesForAPI 按 message.id 合并：
+      msg[1]: assistant with [tool_use: VALID_ID]  (ORPHAN tool_use 被排除！)
+      msg[2]: user with [tool_result: ORPHAN_ID, tool_result: VALID_ID]
+    - API 错误：孤立的 tool_result 引用了不存在的 tool_use
+
+思考块场景：
+  会话存储（压缩前）：
+    索引 N:   assistant, message.id: X, content: [thinking]
+    索引 N+1: assistant, message.id: X, content: [tool_use: ID]
+    索引 N+2: user, content: [tool_result: ID]
+
+  如果 startIndex = N+1:
+    - 没有此修复：索引 N 处的思考块被排除
+    - 在 normalizeMessagesForAPI 之后：思考块丢失（没有可合并的消息）
+
+  修复后的代码：检测到消息 N+1 与 N 具有相同的 message.id，调整为 N。 */
 export function adjustIndexToPreserveAPIInvariants(
   messages: Message[],
   startIndex: number,
@@ -239,15 +219,15 @@ export function adjustIndexToPreserveAPIInvariants(
 
   let adjustedIndex = startIndex
 
-  // Step 1: Handle tool_use/tool_result pairs
-  // Collect tool_result IDs from ALL messages in the kept range
+  // 步骤 1：处理 tool_use/tool_res
+  // ult 对 从保留范围内的所有消息中收集 tool_result ID
   const allToolResultIds: string[] = []
   for (let i = startIndex; i < messages.length; i++) {
     allToolResultIds.push(...getToolResultIds(messages[i]!))
   }
 
   if (allToolResultIds.length > 0) {
-    // Collect tool_use IDs already in the kept range
+    // 收集已在保留范围内的 tool_use ID
     const toolUseIdsInKeptRange = new Set<string>()
     for (let i = adjustedIndex; i < messages.length; i++) {
       const msg = messages[i]!
@@ -260,17 +240,17 @@ export function adjustIndexToPreserveAPIInvariants(
       }
     }
 
-    // Only look for tool_uses that are NOT already in the kept range
+    // 仅查找尚未在保留范围内的 tool_use
     const neededToolUseIds = new Set(
       allToolResultIds.filter(id => !toolUseIdsInKeptRange.has(id)),
     )
 
-    // Find the assistant message(s) with matching tool_use blocks
+    // 查找包含匹配 tool_use 块的助手消息
     for (let i = adjustedIndex - 1; i >= 0 && neededToolUseIds.size > 0; i--) {
       const message = messages[i]!
       if (hasToolUseWithIds(message, neededToolUseIds)) {
         adjustedIndex = i
-        // Remove found tool_use_ids from the set
+        // 从集合中移除已找到的 tool_use_id
         if (
           message.type === 'assistant' &&
           Array.isArray(message.message!.content)
@@ -285,8 +265,8 @@ export function adjustIndexToPreserveAPIInvariants(
     }
   }
 
-  // Step 2: Handle thinking blocks that share message.id with kept assistant messages
-  // Collect all message.ids from assistant messages in the kept range
+  // 步骤 2：处理与保留的助手消息共享 message.id 的思考块
+  // 从保留范围内的助手消息中收集所有 message.id
   const messageIdsInKeptRange = new Set<string>()
   for (let i = adjustedIndex; i < messages.length; i++) {
     const msg = messages[i]!
@@ -295,8 +275,8 @@ export function adjustIndexToPreserveAPIInvariants(
     }
   }
 
-  // Look backwards for assistant messages with the same message.id that are not in the kept range
-  // These may contain thinking blocks that need to be merged by normalizeMessagesForAPI
+  // 向后查找具有相同 message.id 但不在保留范围内的助手消息 这些消息可能
+  // 包含需要由 normalizeMessagesForAPI 合并的思考块
   for (let i = adjustedIndex - 1; i >= 0; i--) {
     const message = messages[i]!
     if (
@@ -304,8 +284,8 @@ export function adjustIndexToPreserveAPIInvariants(
       message.message!.id &&
       messageIdsInKeptRange.has(message.message!.id)
     ) {
-      // This message has the same message.id as one in the kept range
-      // Include it so thinking blocks can be properly merged
+      // 此消息与保留范围内的某条消息具有相同的 messa
+      // ge.id 包含它以便思考块可以被正确合并
       adjustedIndex = i
     }
   }
@@ -313,14 +293,12 @@ export function adjustIndexToPreserveAPIInvariants(
   return adjustedIndex
 }
 
-/**
- * Calculate the starting index for messages to keep after compaction.
- * Starts from lastSummarizedMessageId, then expands backwards to meet minimums:
- * - At least config.minTokens tokens
- * - At least config.minTextBlockMessages messages with text blocks
- * Stops expanding if config.maxTokens is reached.
- * Also ensures tool_use/tool_result pairs are not split.
- */
+/** 计算压缩后要保留的消息的起始索引。
+从 lastSummarizedMessageId 开始，然后向后扩展以满足最小值：
+- 至少 config.minTokens 个 token
+- 至少 config.minTextBlockMessages 个包含文本块的消息
+如果达到 config.maxTokens 则停止扩展。
+同时确保 tool_use/tool_result 对不会被拆分。 */
 export function calculateMessagesToKeepIndex(
   messages: Message[],
   lastSummarizedIndex: number,
@@ -331,13 +309,13 @@ export function calculateMessagesToKeepIndex(
 
   const config = getSessionMemoryCompactConfig()
 
-  // Start from the message after lastSummarizedIndex
-  // If lastSummarizedIndex is -1 (not found) or messages.length (no summarized id),
-  // we start with no messages kept
+  // 从 lastSummarizedIndex 之后的消息开始 如
+  // 果 lastSummarizedIndex 为 -1（未找到）或 messages.length（没有
+  // 已汇总的 ID），则从没有保留消息开始
   let startIndex =
     lastSummarizedIndex >= 0 ? lastSummarizedIndex + 1 : messages.length
 
-  // Calculate current tokens and text-block message count from startIndex to end
+  // 计算从 startIndex 到末尾的当前 token 数和文本块消息数
   let totalTokens = 0
   let textBlockMessageCount = 0
   for (let i = startIndex; i < messages.length; i++) {
@@ -348,12 +326,12 @@ export function calculateMessagesToKeepIndex(
     }
   }
 
-  // Check if we already hit the max cap
+  // 检查是否已达到最大上限
   if (totalTokens >= config.maxTokens) {
     return adjustIndexToPreserveAPIInvariants(messages, startIndex)
   }
 
-  // Check if we already meet both minimums
+  // 检查是否已满足两个最小值
   if (
     totalTokens >= config.minTokens &&
     textBlockMessageCount >= config.minTextBlockMessages
@@ -361,12 +339,12 @@ export function calculateMessagesToKeepIndex(
     return adjustIndexToPreserveAPIInvariants(messages, startIndex)
   }
 
-  // Expand backwards until we meet both minimums or hit max cap.
-  // Floor at the last boundary: the preserved-segment chain has a disk
-  // discontinuity there (att[0]→summary shortcut from dedup-skip), which
-  // would let the loader's tail→head walk bypass inner preserved messages
-  // and then prune them. Reactive compact already slices at the boundary
-  // via getMessagesAfterCompactBoundary; this is the same invariant.
+  // 向后扩展直到满足两个最小值或达到最大上限。下限为最后
+  // 一个边界：保留段链在那里存在磁盘不连续性（来自去重跳过的
+  // att[0]→summary 快捷方式），这会让加载器的
+  // tail→head 遍历绕过内部保留消息然后修剪它们。反应
+  // 式压缩已通过 getMessagesAfterCompac
+  // tBoundary 在该边界处切片；这是相同的不变量。
   const idx = messages.findLastIndex(m => isCompactBoundaryMessage(m))
   const floor = idx === -1 ? 0 : idx + 1
   for (let i = startIndex - 1; i >= floor; i--) {
@@ -378,12 +356,12 @@ export function calculateMessagesToKeepIndex(
     }
     startIndex = i
 
-    // Stop if we hit the max cap
+    // 如果达到最大上限则停止
     if (totalTokens >= config.maxTokens) {
       break
     }
 
-    // Stop if we meet both minimums
+    // 如果满足两个最小值则停止
     if (
       totalTokens >= config.minTokens &&
       textBlockMessageCount >= config.minTextBlockMessages
@@ -392,16 +370,14 @@ export function calculateMessagesToKeepIndex(
     }
   }
 
-  // Adjust for tool pairs
+  // 针对工具对进行调整
   return adjustIndexToPreserveAPIInvariants(messages, startIndex)
 }
 
-/**
- * Check if we should use session memory for compaction
- * Uses cached gate values to avoid blocking on Statsig initialization
- */
+/** 检查是否应使用会话内存进行压缩
+使用缓存的开关值以避免阻塞 Statsig 初始化 */
 export function shouldUseSessionMemoryCompaction(): boolean {
-  // Allow env var override for eval runs and testing
+  // 允许通过环境变量覆盖以用于评估运行和测试
   if (isEnvTruthy(process.env.ENABLE_CLAUDE_CODE_SM_COMPACT)) {
     return true
   }
@@ -419,7 +395,7 @@ export function shouldUseSessionMemoryCompaction(): boolean {
   )
   const shouldUse = sessionMemoryFlag && smCompactFlag
 
-  // Log flag states for debugging (ant-only to avoid noise in external logs)
+  // 记录开关状态以用于调试（仅限 ant 以避免外部日志中的噪音）
   if (process.env.USER_TYPE === 'ant') {
     logEvent('tengu_sm_compact_flag_check', {
       tengu_session_memory: sessionMemoryFlag,
@@ -431,9 +407,7 @@ export function shouldUseSessionMemoryCompaction(): boolean {
   return shouldUse
 }
 
-/**
- * Create a CompactionResult from session memory
- */
+/** 从会话内存创建 CompactionResult */
 function createCompactionResultFromSessionMemory(
   messages: Message[],
   sessionMemory: string,
@@ -456,8 +430,8 @@ function createCompactionResultFromSessionMemory(
     ].sort()
   }
 
-  // Truncate oversized sections to prevent session memory from consuming
-  // the entire post-compact token budget
+  // 截断过大的部分以防止会话内存消耗整个压缩
+  // 后的 token 预算
   const { truncatedContent, wasTruncated } =
     truncateSessionMemoryForCompact(sessionMemory)
 
@@ -470,7 +444,7 @@ function createCompactionResultFromSessionMemory(
 
   if (wasTruncated) {
     const memoryPath = getSessionMemoryPath()
-    summaryContent += `\n\nSome session memory sections were truncated for length. The full session memory can be viewed at: ${memoryPath}`
+    summaryContent += `\n\n某些会话内存部分因长度过长而被截断。完整的会话内存可在以下位置查看：${memoryPath}`
   }
 
   const summaryMessages = [
@@ -495,22 +469,20 @@ function createCompactionResultFromSessionMemory(
     hookResults,
     messagesToKeep,
     preCompactTokenCount,
-    // SM-compact has no compact-API-call, so postCompactTokenCount (kept for
-    // event continuity) and truePostCompactTokenCount converge to the same value.
+    // SM-compact 没有 compact-API-call，因此 postCompactToke
+    // nCount（为事件连续性保留）和 truePostCompactTokenCount 收敛到相同的值。
     postCompactTokenCount: estimateMessageTokens(summaryMessages),
     truePostCompactTokenCount: estimateMessageTokens(summaryMessages),
   }
 }
 
-/**
- * Try to use session memory for compaction instead of traditional compaction.
- * Returns null if session memory compaction cannot be used.
- *
- * Handles two scenarios:
- * 1. Normal case: lastSummarizedMessageId is set, keep only messages after that ID
- * 2. Resumed session: lastSummarizedMessageId is not set but session memory has content,
- *    keep all messages but use session memory as the summary
- */
+/** 尝试使用会话内存进行压缩，而不是传统的压缩。
+如果无法使用会话内存压缩，则返回 null。
+
+处理两种场景：
+1. 正常情况：设置了 lastSummarizedMessageId，仅保留该 ID 之后的消息
+2. 恢复的会话：未设置 lastSummarizedMessageId 但会话内存有内容，
+   保留所有消息但使用会话内存作为摘要 */
 export async function trySessionMemoryCompaction(
   messages: Message[],
   agentId?: AgentId,
@@ -520,23 +492,23 @@ export async function trySessionMemoryCompaction(
     return null
   }
 
-  // Initialize config from remote (only fetches once)
+  // 从远程初始化配置（仅获取一次）
   await initSessionMemoryCompactConfig()
 
-  // Wait for any in-progress session memory extraction to complete (with timeout)
+  // 等待任何正在进行的会话内存提取完成（带超时）
   await waitForSessionMemoryExtraction()
 
   const lastSummarizedMessageId = getLastSummarizedMessageId()
   const sessionMemory = await getSessionMemoryContent()
 
-  // No session memory file exists at all
+  // 会话内存文件根本不存在
   if (!sessionMemory) {
     logEvent('tengu_sm_compact_no_session_memory', {})
     return null
   }
 
-  // Session memory exists but matches the template (no actual content extracted)
-  // Fall back to legacy compact behavior
+  // 会话内存存在但与模板匹配（未提取到实际内容
+  // ）回退到传统压缩行为
   if (await isSessionMemoryEmpty(sessionMemory)) {
     logEvent('tengu_sm_compact_empty_template', {})
     return null
@@ -546,46 +518,46 @@ export async function trySessionMemoryCompaction(
     let lastSummarizedIndex: number
 
     if (lastSummarizedMessageId) {
-      // Normal case: we know exactly which messages have been summarized
+      // 正常情况：我们确切知道哪些消息已被汇总
       lastSummarizedIndex = messages.findIndex(
         msg => msg.uuid === lastSummarizedMessageId,
       )
 
       if (lastSummarizedIndex === -1) {
-        // The summarized message ID doesn't exist in current messages
-        // This can happen if messages were modified - fall back to legacy compact
-        // since we can't determine the boundary between summarized and unsummarized messages
+        // 汇总的消息 ID 在当前消息中不存在
+        // 如果消息被修改，可能会发生这种情况 - 回退到
+        // 传统压缩，因为我们无法确定已汇总和未汇总消息之间的边界
         logEvent('tengu_sm_compact_summarized_id_not_found', {})
         return null
       }
     } else {
-      // Resumed session case: session memory has content but we don't know the boundary
-      // Set lastSummarizedIndex to last message so startIndex becomes messages.length (no messages kept initially)
+      // 恢复的会话情况：会话内存有内容但我们不知道边界 将 lastSummarizedIn
+      // dex 设置为最后一条消息，以便 startIndex 变为 messages.length（最初不保留任何消息）
       lastSummarizedIndex = messages.length - 1
       logEvent('tengu_sm_compact_resumed_session', {})
     }
 
-    // Calculate the starting index for messages to keep
-    // This starts from lastSummarizedIndex, expands to meet minimums,
-    // and adjusts to not split tool_use/tool_result pairs
+    // 计算要保留的消息的起始索引 从 lastSum
+    // marizedIndex 开始，扩展以满足最小值，并调整以不
+    // 拆分 tool_use/tool_result 对
     const startIndex = calculateMessagesToKeepIndex(
       messages,
       lastSummarizedIndex,
     )
-    // Filter out old compact boundary messages from messagesToKeep.
-    // After REPL pruning, old boundaries re-yielded from messagesToKeep would
-    // trigger an unwanted second prune (isCompactBoundaryMessage returns true),
-    // discarding the new boundary and summary.
+    // 从 messagesToKeep 中过滤掉旧的压缩边界消息。在
+    // REPL 修剪之后，从 messagesToKeep 重新产生的旧边界
+    // 会触发不必要的第二次修剪（isCompactBoundaryMessage
+    // 返回 true），丢弃新的边界和摘要。
     const messagesToKeep = messages
       .slice(startIndex)
       .filter(m => !isCompactBoundaryMessage(m))
 
-    // Run session start hooks to restore CLAUDE.md and other context
+    // 运行会话启动钩子以恢复 CLAUDE.md 和其他上下文
     const hookResults = await processSessionStartHooks('compact', {
       model: getMainLoopModel(),
     })
 
-    // Get transcript path for the summary message
+    // 获取摘要消息的转录路径
     const transcriptPath = getTranscriptPath()
 
     const compactionResult = createCompactionResultFromSessionMemory(
@@ -601,7 +573,7 @@ export async function trySessionMemoryCompaction(
 
     const postCompactTokenCount = estimateMessageTokens(postCompactMessages)
 
-    // Only check threshold if one was provided (for autocompact)
+    // 仅在提供了阈值时才检查阈值（用于自动压缩）
     if (
       autoCompactThreshold !== undefined &&
       postCompactTokenCount >= autoCompactThreshold
@@ -619,11 +591,11 @@ export async function trySessionMemoryCompaction(
       truePostCompactTokenCount: postCompactTokenCount,
     }
   } catch (error) {
-    // Use logEvent instead of logError since errors here are expected
-    // (e.g., file not found, path issues) and shouldn't go to error logs
+    // 使用 logEvent 而不是 logError，因为此处
+    // 的错误是预期的（例如，文件未找到、路径问题），不应进入错误日志
     logEvent('tengu_sm_compact_error', {})
     if (process.env.USER_TYPE === 'ant') {
-      logForDebugging(`Session memory compaction error: ${errorMessage(error)}`)
+      logForDebugging(`会话内存压缩错误：${errorMessage(error)}`)
     }
     return null
   }

@@ -53,17 +53,17 @@ export function isNonCustomOpusModel(model: ModelName): boolean {
 }
 
 /**
- * Helper to get the model from /model (including via /config), the --model flag, environment variable,
- * or the saved settings. The returned value can be a model alias if that's what the user specified.
- * Undefined if the user didn't configure anything, in which case we fall back to
- * the default (null).
- *
- * Priority order within this function:
- * 1. Model override during session (from /model command) - highest priority
- * 2. Model override at startup (from --model flag)
- * 3. ANTHROPIC_MODEL environment variable
- * 4. Settings (from user's saved settings)
- */
+* 用于从 /model（包括通过 /config）、--model 标志、环境变量或已保存的设置中获取模型的辅助函数。
+* 如果用户指定了模型别名，则返回该别名。
+* 如果用户未进行任何配置，则返回 undefined，此时我们将回退到
+* 默认值 (null)。
+*
+* 此函数的优先级顺序：
+* 1. 会话期间的模型覆盖（来自 /model 命令）- 最高优先级
+* 2. 启动时的模型覆盖（来自 --model 标志）
+* 3. ANTHROPIC_MODEL 环境变量
+* 4. 设置（来自用户已保存的设置）
+*/
 export function getUserSpecifiedModelSetting(): ModelSetting | undefined {
   let specifiedModel: ModelSetting | undefined
 
@@ -120,10 +120,10 @@ export function getDefaultOpusModel(): ModelName {
   if (process.env.ANTHROPIC_DEFAULT_OPUS_MODEL) {
     return process.env.ANTHROPIC_DEFAULT_OPUS_MODEL
   }
-  // 3P providers (Bedrock, Vertex, Foundry) all publish Opus 4.7 in sync
-  // with firstParty as of 2026-04-17 (AWS Bedrock, Google Vertex AI, and
-  // Microsoft Foundry announcements and model catalogs all confirm). The
-  // branch is kept as a structural hook in case a future launch lags on 3P.
+  // 截至 2026 年 4 月 17 日，所有第三方提供商（Bedrock、Vertex 和 Foundry）
+  // 均已发布与第一方同步的 Opus 4.7 版本（AWS Bedrock、Google Vertex AI 
+  // 和 Microsoft Foundry 的公告和模型目录均已确认）。保留此分支作为结构性参考，
+  // 以防未来版本发布时第三方提供商的版本出现延迟。
   if (provider !== 'firstParty') {
     return getModelStrings().opus47
   }
@@ -148,7 +148,7 @@ export function getDefaultSonnetModel(): ModelName {
   if (process.env.ANTHROPIC_DEFAULT_SONNET_MODEL) {
     return process.env.ANTHROPIC_DEFAULT_SONNET_MODEL
   }
-  // Default to Sonnet 4.5 for 3P since they may not have 4.6 yet
+  // 3P 默认使用 Sonnet 4.5，因为他们可能还没有 4.6 版本。
   if (provider !== 'firstParty') {
     return getModelStrings().sonnet45
   }

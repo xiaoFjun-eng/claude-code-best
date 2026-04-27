@@ -212,32 +212,27 @@ export function getAssistantMessageContentLength(
   }
   return contentLength
 }
-
 /**
- * Get the current context window size in tokens.
- *
- * This is the CANONICAL function for measuring context size when checking
- * thresholds (autocompact, session memory init, etc.). Uses the last API
- * response's token count (input + output + cache) plus estimates for any
- * messages added since.
- *
- * Always use this instead of:
- * - Cumulative token counting (which double-counts as context grows)
- * - messageTokenCountFromLastAPIResponse (which only counts output_tokens)
- * - tokenCountFromLastAPIResponse (which doesn't estimate new messages)
- *
- * Implementation note on parallel tool calls: when the model makes multiple
- * tool calls in one response, the streaming code emits a SEPARATE assistant
- * record per content block (all sharing the same message.id and usage), and
- * the query loop interleaves each tool_result immediately after its tool_use.
- * So the messages array looks like:
- *   [..., assistant(id=A), user(result), assistant(id=A), user(result), ...]
- * If we stop at the LAST assistant record, we only estimate the one tool_result
- * after it and miss all the earlier interleaved tool_results — which will ALL
- * be in the next API request. To avoid undercounting, after finding a usage-
- * bearing record we walk back to the FIRST sibling with the same message.id
- * so every interleaved tool_result is included in the rough estimate.
- */
+* 获取当前上下文窗口大小（以 token 为单位）。
+*
+* 这是检查阈值（自动压缩、会话内存初始化等）时测量上下文大小的标准函数。它使用上次 API 响应的 token 计数（输入 + 输出 + 缓存），加上此后添加的任何消息的估计值。
+*
+* 始终使用此函数，而不是：
+* - 累积 token 计数（上下文增长时会重复计数）
+* - messageTokenCountFromLastAPIResponse（仅统计 output_tokens）
+* - tokenCountFromLastAPIResponse（不估计新消息）
+*
+* 关于并行工具调用的实现说明：当模型在一个响应中进行多次工具调用时，
+* 流式代码会为每个内容块发出一个单独的助手记录（所有记录共享相同的 message.id 和使用情况），并且
+* 查询循环会在每个 tool_use 之后立即交错执行 tool_result。
+* 因此，消息数组如下所示：
+* [..., assistant(id=A), user(result), assistant(id=A), user(result), ...]
+* 如果我们只处理到最后一个 assistant 记录，我们只能估算出它之后的一条 tool_result 记录
+* 而会错过之前所有交错的 tool_result 记录——这些记录都将在
+* 下一次 API 请求中出现。为了避免计数不足，在找到一条使用记录后，
+* 我们回溯到第一个具有相同 message.id 的同级记录
+* 这样，每个交错的 tool_result 记录都会被包含在粗略估算中。
+*/
 export function tokenCountWithEstimation(messages: readonly Message[]): number {
   let i = messages.length - 1
   while (i >= 0) {

@@ -19,17 +19,12 @@ export type PinnedCacheEdits = {
 const TRIGGER_THRESHOLD = 10
 const KEEP_RECENT = 5
 
-/**
- * Returns true when the CLAUDE_CACHED_MICROCOMPACT env var is set to '1'
- * or the feature is explicitly enabled.
- */
+/** 当 CLAUDE_CACHED_MICROCOMPACT 环境变量设置为 '1' 或该功能被显式启用时，返回 true。 */
 export function isCachedMicrocompactEnabled(): boolean {
   return process.env.CLAUDE_CACHED_MICROCOMPACT === '1'
 }
 
-/**
- * Returns true for Claude 4.x models that support cache_edits.
- */
+/** 对于支持 cache_edits 的 Claude 4.x 模型，返回 true。 */
 export function isModelSupportedForCacheEditing(model: string): boolean {
   return /claude-[a-z]+-4[-\d]/.test(model)
 }
@@ -79,24 +74,17 @@ export function registerToolMessage(
   }
 }
 
-/**
- * Returns the tool IDs that should be deleted (oldest first) to bring
- * the count below the threshold, excluding already-deleted tools and
- * the most recently seen ones.
- */
+/** 返回应被删除的工具 ID（按从旧到新的顺序），以使数量低于阈值，排除已删除的工具和最近出现的工具。 */
 export function getToolResultsToDelete(state: CachedMCState): string[] {
   const { triggerThreshold, keepRecent } = getCachedMCConfig()
   const active = state.toolOrder.filter(id => !state.deletedRefs.has(id))
   if (active.length <= triggerThreshold) return []
-  // Keep the last keepRecent tools
+  // 保留最近 keepRecent 个工具
   const toDelete = active.slice(0, active.length - keepRecent)
   return toDelete
 }
 
-/**
- * Creates a cache_edits block that deletes the given tool result IDs.
- * Returns null if toolIds is empty.
- */
+/** 创建一个 cache_edits 块，用于删除给定的工具结果 ID。如果 toolIds 为空，则返回 null。 */
 export function createCacheEditsBlock(
   state: CachedMCState,
   toolIds: string[],

@@ -3278,11 +3278,10 @@ export function REPL({
         abortController,
         mainLoopModelParam,
       );
-      // （通过 computeTools/mergeClients）。使用这些，而不是闭包捕获的
-      // `tools`/`mcpClients` — useManageMCPConnections 可能已
-      // 捕获的 `tools`/`mcpClients` — useManageMCPConnections 可能已
-      // 在捕获此闭包的渲染与当前时刻之间刷新了新的 MCP 状态
-      // 通过 processInitialMessage 处理的第 1 轮是主要受益者
+      //getToolUseContext 会从 store.getState()（通过 computeTools/mergeClients）
+      // 读取最新的 tools/mcpClients。请使用这些，而不是闭包捕获的 
+      // `tools`/`mcpClients`——useManageMCPConnections 可能在捕获此闭包的渲染和现在之间刷新了新的 MCP 状态。
+      // 通过 processInitialMessage 的第一轮调用是主要受益者。
       const { tools: freshTools, mcpClients: freshMcpClients } = toolUseContext.options;
 
       // 将技能的工作量覆盖范围限定于本轮上下文内
@@ -3298,9 +3297,9 @@ export function REPL({
 
       queryCheckpoint('query_context_loading_start');
       const [, , defaultSystemPrompt, baseUserContext, systemContext] = await Promise.all([
-        // IMPORTANT: do this after setMessages() above, to avoid UI jank
+        // 重要提示：请在上面的 setMessages() 函数之后执行此操作，以避免 UI 卡顿。
         undefined,
-        // Gated on TRANSCRIPT_CLASSIFIER so GrowthBook kill switch runs wherever auto mode is built in
+        // 根据 TRANSCRIPT_CLASSIFIER 进行门控，因此 GrowthBook 终止开关会在内置自动模式的任何地方运行。
         feature('TRANSCRIPT_CLASSIFIER')
           ? checkAndDisableAutoModeIfNeeded(toolPermissionContext, setAppState, store.getState().fastMode)
           : undefined,

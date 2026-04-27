@@ -779,18 +779,14 @@ export async function getAttachments(
             ),
           ),
         ),
-        // 第 0 回合的技能发现（用户输入作为信号）。回合间的发现通过 query
-        // .ts 中的 startSkillDiscoveryPrefetch
-        // 运行，受写轴检测门控——参见 skillSearch/prefetch.t
-        // s。此处的 feature() 让 DCE 可以从外部构建中删除 'skill_
-        // discovery' 字符串（及其调用的函数）。
-        //
-        // skipSkillDiscovery 门控排除了 SKILL.
-        // md 扩展路径（getMessagesForPromptSlashCom
-        // mand）。当技能被调用时，其 SKILL.md 内容作为 `input`
-        // 传递到这里以提取 @-提及——但该内容并非用户意图，不得触发发现。没有此门
-        // 控，一个 110KB 的 SKILL.md 会在每次技能调用时触发约
-        // 3.3 秒的分块 AKI 查询（会话 13a9afae）。
+        // 在第 0 回合进行技能发现（用户输入作为信号）。
+        // 回合间技能发现通过 query.ts 中的 startSkillDiscoveryPrefetch 函数运行，
+        // 并基于 write-pivot 检测进行门控——参见 skillSearch/prefetch.ts。
+        // 此处的 feature() 函数允许 DCE 从外部构建中移除 'skill_discovery' 字符串（及其调用的函数）。
+        // skipSkillDiscovery 函数会阻止 SKILL.md 展开路径（getMessagesForPromptSlashCommand）的执行。
+        // 当技能被调用时，其 SKILL.md 内容会作为“input”传递到此处以提取 @ 提及——但该内容并非用户意图，
+        // 因此不应触发技能发现。如果没有此门控，一个 110KB 的 SKILL.md 
+        // 文件会在每次技能调用时触发约 3.3 秒的分块 AKI 查询（会话 13a9afae）。
         ...(feature('EXPERIMENTAL_SKILL_SEARCH') &&
         skillSearchModules &&
         !options?.skipSkillDiscovery

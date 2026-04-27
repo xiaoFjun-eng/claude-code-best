@@ -380,7 +380,21 @@ export async function getSkillIndex(cwd: string): Promise<SkillIndexEntry[]> {
   )
   return entries
 }
-
+/**
+ * tokenize + stemming（英语）以及对中文做 CJK bigram（两字片段）
+对 skill 的不同字段做加权 TF（name 权重最高、whenToUse 次之、description 再次、allowedTools 很低）
+计算 IDF（基于 index 里 DF）
+cosine similarity
+一些启发式：
+CJK bigram 命中太少会把 score 清零（除非有 ascii token 命中）
+query 包含 skill name（normalized）时强行把 score 抬到至少 0.75
+只返回 score >= SKILL_SEARCH_DISPLAY_MIN_SCORE（默认 0.10）
+默认取 top 5
+ * @param query 
+ * @param index 
+ * @param limit 
+ * @returns 
+ */
 export function searchSkills(
   query: string,
   index: SkillIndexEntry[],

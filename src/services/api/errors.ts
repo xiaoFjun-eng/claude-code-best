@@ -133,20 +133,14 @@ export function isMediaSizeErrorMessage(msg: AssistantMessage): boolean {
   )
 }
 export const CREDIT_BALANCE_TOO_LOW_ERROR_MESSAGE = '积分余额过低'
-export const INVALID_API_KEY_ERROR_MESSAGE = 'Not logged in · Please run /login'
-export const INVALID_API_KEY_ERROR_MESSAGE_EXTERNAL =
-  'Invalid API key · Fix external API key'
-export const ORG_DISABLED_ERROR_MESSAGE_ENV_KEY_WITH_OAUTH =
-  'Your ANTHROPIC_API_KEY belongs to a disabled organization · Unset the environment variable to use your subscription instead'
-export const ORG_DISABLED_ERROR_MESSAGE_ENV_KEY =
-  'Your ANTHROPIC_API_KEY belongs to a disabled organization · Update or unset the environment variable'
-export const TOKEN_REVOKED_ERROR_MESSAGE =
-  'OAuth token revoked · Please run /login'
-export const CCR_AUTH_ERROR_MESSAGE =
-  'Authentication error · This may be a temporary network issue, please try again'
-export const REPEATED_529_ERROR_MESSAGE = 'Repeated 529 Overloaded errors'
-export const CUSTOM_OFF_SWITCH_MESSAGE =
-  'Opus is experiencing high load, please use /model to switch to Sonnet'
+export const INVALID_API_KEY_ERROR_MESSAGE = '未登录 · 请运行 /login'
+export const INVALID_API_KEY_ERROR_MESSAGE_EXTERNAL = 'API 密钥无效 · 请修复外部 API 密钥'
+export const ORG_DISABLED_ERROR_MESSAGE_ENV_KEY_WITH_OAUTH = '您的 ANTHROPIC_API_KEY 属于已禁用的组织 · 请取消设置该环境变量，以改用您的订阅'
+export const ORG_DISABLED_ERROR_MESSAGE_ENV_KEY = '您的 ANTHROPIC_API_KEY 属于已禁用的组织 · 请更新或取消设置该环境变量'
+export const TOKEN_REVOKED_ERROR_MESSAGE = 'OAuth 令牌已吊销 · 请运行 /login'
+export const CCR_AUTH_ERROR_MESSAGE = '身份验证错误 · 这可能是临时网络问题，请重试'
+export const REPEATED_529_ERROR_MESSAGE = '重复出现 529 服务过载错误'
+export const CUSTOM_OFF_SWITCH_MESSAGE = 'Opus 当前负载过高，请使用 /model 切换到 Sonnet'
 export const API_TIMEOUT_ERROR_MESSAGE = '请求超时'
 export function getPdfTooLargeErrorMessage(): string {
   const limits = `最多 ${API_PDF_MAX_PAGES} 页，${formatFileSize(PDF_TARGET_RAW_SIZE)}`

@@ -20,7 +20,7 @@ export type QueryConfig = {
     // Statsig——CACHED_MAY_BE_STALE 已经允许数据过时
     // ，因此每次 query() 调用快照一次仍在现有契约范围内。
     streamingToolExecution: boolean
-    emitToolUseSummaries: boolean
+    emitToolUseSummaries: boolean //是否在工具使用时，触发工具使用摘要。
     isAnt: boolean
     fastModeEnabled: boolean
   }

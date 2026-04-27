@@ -33,9 +33,9 @@ export function extractQueryFromMessages(
 
   if (input) parts.push(input)
 
-  // Walk backward. In inter-turn prefetch the most recent 'user' message is
-  // typically a tool_result (no text block), so we must keep walking until we
-  // find a real user utterance with string content or a text block.
+  // 向后遍历。在轮次间预取时，最近的'用户'消息通常是 to
+  // ol_result（没有文本块），因此我们必须继续向后遍历
+  // ，直到找到一条包含字符串内容或文本块的真正用户发言。
   for (let i = messages.length - 1; i >= 0; i--) {
     const msg = messages[i] as Record<string, unknown>
     if (msg.type !== 'user') continue
@@ -48,8 +48,8 @@ export function extractQueryFromMessages(
       let foundText = false
       for (const block of content) {
         const entry = block as Record<string, unknown>
-        // Skip tool_result and other non-text blocks — they carry no discovery
-        // signal and would return undefined here regardless.
+        // 跳过 tool_result 和其他非文本块——它们不携带任何发现
+        // 信号，无论如何都会在此处返回 undefined。
         if (entry.type && entry.type !== 'text') continue
         const text = entry.text
         if (typeof text === 'string' && text.trim()) {
@@ -154,7 +154,7 @@ async function loadSkillContent(
         content: parseFrontmatter(raw).content.slice(0, AUTO_LOAD_MAX_CHARS),
       }
     } catch {
-      // Try next candidate.
+      // 尝试下一个候选。
     }
   }
   return null
@@ -170,7 +170,7 @@ async function markAutoLoadedSkill(
     const { addInvokedSkill } = await import('../../bootstrap/state.js')
     addInvokedSkill(name, path, content, context.agentId ?? null)
   } catch {
-    // Best effort only.
+    // 仅尽力而为。
   }
 }
 
@@ -215,7 +215,7 @@ async function maybeRecordSkillGap(
       activePath: gap.active?.skillPath,
     }
   } catch (error) {
-    logForDebugging(`[skill-search] skill gap learning error: ${error}`)
+    logForDebugging(`[skill-search] 技能差距学习错误：${error}`)
     return undefined
   }
 }
@@ -253,7 +253,7 @@ export async function startSkillDiscoveryPrefetch(
     }
 
     logForDebugging(
-      `[skill-search] prefetch found ${newResults.length} skills in ${signal.durationMs}ms`,
+      `[skill-search] 预取在 ${signal.durationMs}ms 内找到 ${newResults.length} 个技能`,
     )
 
     return [
@@ -263,7 +263,7 @@ export async function startSkillDiscoveryPrefetch(
       ),
     ]
   } catch (error) {
-    logForDebugging(`[skill-search] prefetch error: ${error}`)
+    logForDebugging(`[skill-search] 预取错误：${error}`)
     return []
   }
 }
@@ -292,10 +292,10 @@ export async function getTurnZeroSkillDiscovery(
     const cwd =
       ((context as Record<string, unknown>).cwd as string) ?? process.cwd()
     const index = await getSkillIndex(cwd)
-    // Intent normalization (feature-flagged, ASCII-only fast path, graceful
-    // fallback to original). Turn-zero is the one blocking entry — acceptable
-    // to add a Haiku call here since a bad match here pollutes the LLM's
-    // context for the entire session.
+    // 意图归一化（特性标记控制，仅 ASCII 快速路径，优
+    // 雅回退至原始值）。第零轮是唯一的阻塞入口——在此处调用
+    // Haiku 是可接受的，因为此处的错误匹配会污染整个
+    // 会话中 LLM 的上下文。
     const searchQuery = await normalizeQueryIntent(input)
     const results = searchSkills(searchQuery, index)
     const enriched = await enrichResultsForAutoLoad(results, context)
@@ -317,12 +317,12 @@ export async function getTurnZeroSkillDiscovery(
     }
 
     logForDebugging(
-      `[skill-search] turn-zero found ${results.length} skills in ${signal.durationMs}ms`,
+      `[skill-search] 第零轮在 ${signal.durationMs}ms 内找到 ${results.length} 个技能`,
     )
 
     return buildDiscoveryAttachment(enriched, signal, gap)
   } catch (error) {
-    logForDebugging(`[skill-search] turn-zero error: ${error}`)
+    logForDebugging(`[skill-search] 第零轮错误：${error}`)
     return null
   }
 }

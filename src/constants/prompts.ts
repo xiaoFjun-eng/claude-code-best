@@ -63,7 +63,7 @@ import { isUndercover } from '../utils/undercover.js'
 import { getAntModelOverrideConfig } from '../utils/model/antModels.js'
 import { isMcpInstructionsDeltaEnabled } from '../utils/mcpInstructionsDelta.js'
 
-// Dead code elimination: conditional imports for feature-gated modules
+// 消除死代码：针对特性门控模块的条件导入
 /* eslint-disable @typescript-eslint/no-require-imports */
 const getCachedMCConfigForFRC = feature('CACHED_MICROCOMPACT')
   ? (
@@ -468,7 +468,14 @@ function getSessionSpecificGuidanceSection(
     getFeatureValue_CACHED_MAY_BE_STALE('tengu_hive_evidence', false)&&
         // Poor mode: skip verification agent to save tokens
         !isPoorModeActive()
-      ? `约定：若本轮发生非平凡实现，在向用户报告完成前必须进行独立的对抗式验证——无论实现者是你本人、你起的 fork 还是子智能体。向用户汇报的是你；你负责把关。非平凡指：修改 3 个及以上文件、后端/API 变更或基础设施变更。请用 ${AGENT_TOOL_NAME}，subagent_type="${VERIFICATION_AGENT_TYPE}"。你自己的检查、免责说明或 fork 的自检都不能替代——仅验证者可下结论；你不得自行判定 PARTIAL。传入原始用户请求、所有被改文件（无论谁改的）、方案，以及适用的计划文件路径。若有顾虑可标出，但不要分享测试结果或声称「已工作」。FAIL：修复后带着验证结果与你的修复再次拉起验证者，重复至 PASS。PASS：抽查——按其报告重跑 2–3 条命令，确认每个 PASS 都有带输出的 Command run 块且与你的重跑一致。若某 PASS 缺命令块或不一致，带着细节再交验证者。PARTIAL（来自验证者）：说明哪些通过、哪些无法验证。`
+      ? `约定：若本轮发生非平凡实现，在向用户报告完成前必须进行独立的对抗式验证——无论实现者是你本人、你起的 fork 还是子智能体。'
+      +'向用户汇报的是你；你负责把关。非平凡指：修改 3 个及以上文件、后端/API 变更或基础设施变更。'
+      +'请用 ${AGENT_TOOL_NAME}，subagent_type="${VERIFICATION_AGENT_TYPE}"。'
+      +'你自己的检查、免责说明或 fork 的自检都不能替代——仅验证者可下结论；你不得自行判定 PARTIAL。'
+      +'传入原始用户请求、所有被改文件（无论谁改的）、方案，以及适用的计划文件路径。若有顾虑可标出，'
+      +'但不要分享测试结果或声称「已工作」。FAIL：修复后带着验证结果与你的修复再次拉起验证者，'
+      +'重复至 PASS。PASS：抽查——按其报告重跑 2–3 条命令，确认每个 PASS 都有带输出的 Command run 块且与你的重跑一致。'
+      +'若某 PASS 缺命令块或不一致，带着细节再交验证者。PARTIAL（来自验证者）：说明哪些通过、哪些无法验证。`
       : null,
   ].filter(item => item !== null)
 
@@ -542,9 +549,7 @@ export async function getSystemPrompt(
   ) {
     logForDebugging(`[系统提示] path=simple-proactive`)
     return [
-      `\n你是自主运行的智能体。请使用可用工具完成有价值的工作。
-
-${CYBER_RISK_INSTRUCTION}`,
+      `\n你是自主运行的智能体。请使用可用工具完成有价值的工作。\n\n${CYBER_RISK_INSTRUCTION}`,
       getSystemRemindersSection(),
       await loadMemoryPrompt(),
       envInfo,
@@ -588,7 +593,7 @@ ${CYBER_RISK_INSTRUCTION}`,
           : getMcpInstructionsSection(mcpClients),
       'MCP servers connect/disconnect between turns',
     ),
-    systemPromptSection('scratchpad', () => getScratchpadInstructions()),
+    systemPromptSection('scratchpad', () => getScratchpadInstructions()),//草稿目录和文件。
     systemPromptSection('frc', () => getFunctionResultClearingSection(model)),
     systemPromptSection(
       'summarize_tool_results',

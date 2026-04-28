@@ -8,43 +8,29 @@ import {
 } from './LSPServerManager.js'
 import { registerLSPNotificationHandlers } from './passiveFeedback.js'
 
-/**
- * Initialization state of the LSP server manager
- */
+/** LSP服务器管理器的初始化状态 */
 type InitializationState = 'not-started' | 'pending' | 'success' | 'failed'
 
-/**
- * Global singleton instance of the LSP server manager.
- * Initialized during Claude Code startup.
- */
+/** LSP服务器管理器的全局单例实例。
+在Claude Code启动期间初始化。 */
 let lspManagerInstance: LSPServerManager | undefined
 
-/**
- * Current initialization state
- */
+/** 当前初始化状态 */
 let initializationState: InitializationState = 'not-started'
 
-/**
- * Error from last initialization attempt, if any
- */
+/** 上次初始化尝试的错误（如果有） */
 let initializationError: Error | undefined
 
-/**
- * Generation counter to prevent stale initialization promises from updating state
- */
+/** 生成计数器，防止过期的初始化Promise更新状态 */
 let initializationGeneration = 0
 
-/**
- * Promise that resolves when initialization completes (success or failure)
- */
+/** 初始化完成（成功或失败）时resolve的Promise */
 let initializationPromise: Promise<void> | undefined
 
-/**
- * Test-only sync reset. shutdownLspServerManager() is async and tears down
- * real connections; this only clears the module-scope singleton state so
- * reinitializeLspServerManager() early-returns on 'not-started' in downstream
- * tests on the same shard.
- */
+/** 仅用于测试的同步重置。shutdownLspServerManager()是异步的，会关闭
+真实连接；此函数仅清除模块作用域的单例状态，以便
+reinitializeLspServerManager()在下游同一分片上的测试中
+因状态为'not-started'而提前返回。 */
 export function _resetLspManagerForTesting(): void {
   initializationState = 'not-started'
   initializationError = undefined
@@ -52,27 +38,22 @@ export function _resetLspManagerForTesting(): void {
   initializationGeneration++
 }
 
-/**
- * Get the singleton LSP server manager instance.
- * Returns undefined if not yet initialized, initialization failed, or still pending.
- *
- * Callers should check for undefined and handle gracefully, as initialization happens
- * asynchronously during Claude Code startup. Use getInitializationStatus() to
- * distinguish between pending, failed, and not-started states.
- */
+/** 获取单例的LSP服务器管理器实例。
+如果尚未初始化、初始化失败或仍在进行中，则返回undefined。
+
+调用方应检查undefined并优雅处理，因为初始化在Claude Code启动期间
+异步进行。使用getInitializationStatus()来区分pending、failed和not-started状态。 */
 export function getLspServerManager(): LSPServerManager | undefined {
-  // Don't return a broken instance if initialization failed
+  // 如果初始化失败，不返回损坏的实例
   if (initializationState === 'failed') {
     return undefined
   }
   return lspManagerInstance
 }
 
-/**
- * Get the current initialization status of the LSP server manager.
- *
- * @returns Status object with current state and error (if failed)
- */
+/** 获取LSP服务器管理器的当前初始化状态。
+
+@returns 包含当前状态和错误（如果失败）的状态对象 */
 export function getInitializationStatus():
   | { status: 'not-started' }
   | { status: 'pending' }
@@ -81,7 +62,7 @@ export function getInitializationStatus():
   if (initializationState === 'failed') {
     return {
       status: 'failed',
-      error: initializationError || new Error('Initialization failed'),
+      error: initializationError || new Error('初始化失败'),
     }
   }
   if (initializationState === 'not-started') {
@@ -93,10 +74,8 @@ export function getInitializationStatus():
   return { status: 'success' }
 }
 
-/**
- * Check whether at least one language server is connected and healthy.
- * Backs LSPTool.isEnabled().
- */
+/** 检查是否至少有一个语言服务器已连接且健康。
+支持LSPTool.isEnabled()。 */
 export function isLspConnected(): boolean {
   if (initializationState === 'failed') return false
   const manager = getLspServerManager()
@@ -109,142 +88,135 @@ export function isLspConnected(): boolean {
   return false
 }
 
-/**
- * Wait for LSP server manager initialization to complete.
- *
- * Returns immediately if initialization has already completed (success or failure).
- * If initialization is pending, waits for it to complete.
- * If initialization hasn't started, returns immediately.
- *
- * @returns Promise that resolves when initialization is complete
- */
+/** 等待LSP服务器管理器初始化完成。
+
+如果初始化已完成（成功或失败），则立即返回。
+如果初始化正在进行中，则等待其完成。
+如果初始化尚未开始，则立即返回。
+
+@returns 初始化完成时resolve的Promise */
 export async function waitForInitialization(): Promise<void> {
-  // If already initialized or failed, return immediately
+  // 如果已初始化或已失败，立即返回
   if (initializationState === 'success' || initializationState === 'failed') {
     return
   }
 
-  // If pending and we have a promise, wait for it
+  // 如果正在进行中且有Promise，则等待它
   if (initializationState === 'pending' && initializationPromise) {
     await initializationPromise
   }
 
-  // If not started, return immediately (nothing to wait for)
+  // 如果尚未开始，立即返回（无需等待）
 }
 
-/**
- * Initialize the LSP server manager singleton.
- *
- * This function is called during Claude Code startup. It synchronously creates
- * the manager instance, then starts async initialization (loading LSP configs)
- * in the background without blocking the startup process.
- *
- * Safe to call multiple times - will only initialize once (idempotent).
- * However, if initialization previously failed, calling again will retry.
- */
+/** 初始化LSP服务器管理器单例。
+
+此函数在Claude Code启动期间调用。它会同步创建管理器实例，
+然后在后台启动异步初始化（加载LSP配置），而不阻塞启动过程。
+
+可安全多次调用——只会初始化一次（幂等）。
+但如果之前初始化失败，再次调用将重试。 */
 export function initializeLspServerManager(): void {
-  // --bare / SIMPLE: no LSP. LSP is for editor integration (diagnostics,
-  // hover, go-to-def in the REPL). Scripted -p calls have no use for it.
+  // --bare / SIMPLE：无LSP。LSP用于编辑器集成（
+  // 诊断、悬停、在REPL中跳转到定义）。脚本化的-p调用不需要它。
   if (isBareMode()) {
     return
   }
-  logForDebugging('[LSP MANAGER] initializeLspServerManager() called')
+  logForDebugging('[LSP管理器] 调用了initializeLspServerManager()')
 
-  // Skip if already initialized or currently initializing
+  // 如果已初始化或正在初始化，则跳过
   if (lspManagerInstance !== undefined && initializationState !== 'failed') {
     logForDebugging(
-      '[LSP MANAGER] Already initialized or initializing, skipping',
+      '[LSP管理器] 已初始化或正在初始化，跳过',
     )
     return
   }
 
-  // Reset state for retry if previous initialization failed
+  // 如果之前初始化失败，重置状态以进行重试
   if (initializationState === 'failed') {
     lspManagerInstance = undefined
     initializationError = undefined
   }
 
-  // Create the manager instance and mark as pending
+  // 创建管理器实例并标记为pending
   lspManagerInstance = createLSPServerManager()
   initializationState = 'pending'
-  logForDebugging('[LSP MANAGER] Created manager instance, state=pending')
+  logForDebugging('[LSP管理器] 已创建管理器实例，状态=pending')
 
-  // Increment generation to invalidate any pending initializations
+  // 递增生成计数器以使任何待处理的初始化失效
   const currentGeneration = ++initializationGeneration
   logForDebugging(
-    `[LSP MANAGER] Starting async initialization (generation ${currentGeneration})`,
+    `[LSP管理器] 开始异步初始化（生成${currentGeneration}）`,
   )
 
-  // Start initialization asynchronously without blocking
-  // Store the promise so callers can await it via waitForInitialization()
+  // 异步启动初始化而不阻塞。存储Promise，以便
+  // 调用方可以通过waitForInitialization()等待它
   initializationPromise = lspManagerInstance
     .initialize()
     .then(() => {
-      // Only update state if this is still the current initialization
+      // 仅当这仍然是当前初始化时才更新状态
       if (currentGeneration === initializationGeneration) {
         initializationState = 'success'
-        logForDebugging('LSP server manager initialized successfully')
+        logForDebugging('LSP服务器管理器初始化成功')
 
-        // Register passive notification handlers for diagnostics
+        // 注册诊断的被动通知处理器
         if (lspManagerInstance) {
           registerLSPNotificationHandlers(lspManagerInstance)
         }
       }
     })
     .catch((error: unknown) => {
-      // Only update state if this is still the current initialization
+      // 仅当这仍然是当前初始化时才更新状态
       if (currentGeneration === initializationGeneration) {
         initializationState = 'failed'
         initializationError = error as Error
-        // Clear the instance since it's not usable
+        // 清除实例，因为它不可用
         lspManagerInstance = undefined
 
         logError(error as Error)
         logForDebugging(
-          `Failed to initialize LSP server manager: ${errorMessage(error)}`,
+          `初始化LSP服务器管理器失败：${errorMessage(error)}`,
         )
       }
     })
 }
 
-/**
- * Force re-initialization of the LSP server manager, even after a prior
- * successful init. Called from refreshActivePlugins() after plugin caches
- * are cleared, so newly-loaded plugin LSP servers are picked up.
- *
- * Fixes https://github.com/anthropics/claude-code/issues/15521:
- * loadAllPlugins() is memoized and can be called very early in startup
- * (via getCommands prefetch in setup.ts) before marketplaces are reconciled,
- * caching an empty plugin list. initializeLspServerManager() then reads that
- * stale memoized result and initializes with 0 servers. Unlike commands/agents/
- * hooks/MCP, LSP was never re-initialized on plugin refresh.
- *
- * Safe to call when no LSP plugins changed: initialize() is just config
- * parsing (servers are lazy-started on first use). Also safe during pending
- * init: the generation counter invalidates the in-flight promise.
- */
+/** 强制重新初始化LSP服务器管理器，即使之前已成功初始化。
+在插件缓存清除后从refreshActivePlugins()调用，以便新加载的插件LSP服务器
+被拾取。
+
+修复https://github.com/anthropics/claude-code/issues/15521：
+loadAllPlugins()是带记忆的，可能在启动早期（通过setup.ts中的
+getCommands预取）在市场协调之前被调用，从而缓存了空的插件列表。
+然后initializeLspServerManager()读取那个过时的记忆化结果，
+并用0个服务器进行初始化。与commands/agents/hooks/MCP不同，
+LSP在插件刷新时从未被重新初始化。
+
+当没有LSP插件更改时调用是安全的：initialize()只是配置解析
+（服务器在首次使用时懒启动）。在pending初始化期间也是安全的：
+生成计数器会使正在进行的Promise失效。 */
 export function reinitializeLspServerManager(): void {
   if (initializationState === 'not-started') {
-    // initializeLspServerManager() was never called (e.g. headless subcommand
-    // path). Don't start it now.
+    // initializeLspServerManager()从未被调用（例如无头子
+    // 命令路径）。现在不要启动它。
     return
   }
 
-  logForDebugging('[LSP MANAGER] reinitializeLspServerManager() called')
+  logForDebugging('[LSP管理器] 调用了reinitializeLspServerManager()')
 
-  // Best-effort shutdown of any running servers on the old instance so
-  // /reload-plugins doesn't leak child processes. Fire-and-forget: the
-  // primary use case (issue #15521) has 0 servers so this is usually a no-op.
+  // 尽力关闭旧实例上任何正在运行的服务器，以便/reloa
+  // d-plugins不会泄漏子进程。即发即弃：主要用例（
+  // issue #15521）有0个服务器，因此这通常是无操作。
   if (lspManagerInstance) {
     void lspManagerInstance.shutdown().catch(err => {
       logForDebugging(
-        `[LSP MANAGER] old instance shutdown during reinit failed: ${errorMessage(err)}`,
+        `[LSP管理器] 重新初始化期间旧实例关闭失败：${errorMessage(err)}`,
       )
     })
   }
 
-  // Force the idempotence check in initializeLspServerManager() to fall
-  // through. Generation counter handles invalidating any in-flight init.
+  // 强制initializeLspServerManager()
+  // 中的幂等检查通过。生成计数器处理使任何正在进行的初始化失效。
   lspManagerInstance = undefined
   initializationState = 'not-started'
   initializationError = undefined
@@ -252,18 +224,16 @@ export function reinitializeLspServerManager(): void {
   initializeLspServerManager()
 }
 
-/**
- * Shutdown the LSP server manager and clean up resources.
- *
- * This should be called during Claude Code shutdown. Stops all running LSP servers
- * and clears internal state. Safe to call when not initialized (no-op).
- *
- * NOTE: Errors during shutdown are logged for monitoring but NOT propagated to the caller.
- * State is always cleared even if shutdown fails, to prevent resource accumulation.
- * This is acceptable during application exit when recovery is not possible.
- *
- * @returns Promise that resolves when shutdown completes (errors are swallowed)
- */
+/** 关闭LSP服务器管理器并清理资源。
+
+应在Claude Code关闭期间调用。停止所有正在运行的LSP服务器
+并清除内部状态。未初始化时调用是安全的（无操作）。
+
+注意：关闭期间的错误会被记录用于监控，但不会传播给调用方。
+即使关闭失败，状态也始终会被清除，以防止资源累积。
+这在应用程序退出且无法恢复时是可以接受的。
+
+@returns 关闭完成时resolve的Promise（错误被吞掉） */
 export async function shutdownLspServerManager(): Promise<void> {
   if (lspManagerInstance === undefined) {
     return
@@ -271,19 +241,19 @@ export async function shutdownLspServerManager(): Promise<void> {
 
   try {
     await lspManagerInstance.shutdown()
-    logForDebugging('LSP server manager shut down successfully')
+    logForDebugging('LSP服务器管理器关闭成功')
   } catch (error: unknown) {
     logError(error as Error)
     logForDebugging(
-      `Failed to shutdown LSP server manager: ${errorMessage(error)}`,
+      `关闭LSP服务器管理器失败：${errorMessage(error)}`,
     )
   } finally {
-    // Always clear state even if shutdown failed
+    // 即使关闭失败也始终清除状态
     lspManagerInstance = undefined
     initializationState = 'not-started'
     initializationError = undefined
     initializationPromise = undefined
-    // Increment generation to invalidate any pending initializations
+    // 递增生成计数器以使任何待处理的初始化失效
     initializationGeneration++
   }
 }

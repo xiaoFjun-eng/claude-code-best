@@ -16,24 +16,24 @@ export type McpInstructionsDelta = {
 }
 
 /**
- * Client-authored instruction block to announce when a server connects,
- * in addition to (or instead of) the server's own `InitializeResult.instructions`.
- * Lets first-party servers (e.g., claude-in-chrome) carry client-side
- * context the server itself doesn't know about.
- */
+* 客户端编写的指令块，用于在服务器连接时发出通知，
+* 作为服务器自身 `InitializeResult.instructions` 指令的补充（或替代）。
+* 允许第一方服务器（例如 Chrome 中的 claude）携带客户端的
+* 上下文信息，而这些上下文信息是服务器自身所不知道的。
+*/
 export type ClientSideInstruction = {
   serverName: string
   block: string
 }
 
 /**
- * True → announce MCP server instructions via persisted delta attachments.
- * False → prompts.ts keeps its DANGEROUS_uncachedSystemPromptSection
- * (rebuilt every turn; cache-busts on late connect).
- *
- * Env override for local testing: CLAUDE_CODE_MCP_INSTR_DELTA=true/false
- * wins over both ant bypass and the GrowthBook gate.
- */
+* True → 通过持久化的增量附件发布 MCP 服务器指令。
+* False → prompts.ts 保留其 DANGEROUS_uncachedSystemPromptSection
+* （每回合重建；延迟连接时清除缓存）。
+*
+* 用于本地测试的环境变量覆盖：CLAUDE_CODE_MCP_INSTR_DELTA=true/false
+* 优于 ant 绕过和 GrowthBook 门控。
+*/
 export function isMcpInstructionsDeltaEnabled(): boolean {
   if (isEnvTruthy(process.env.CLAUDE_CODE_MCP_INSTR_DELTA)) return true
   if (isEnvDefinedFalsy(process.env.CLAUDE_CODE_MCP_INSTR_DELTA)) return false

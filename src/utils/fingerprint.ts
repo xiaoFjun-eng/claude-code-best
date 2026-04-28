@@ -1,18 +1,14 @@
 import { createHash } from 'crypto'
 import type { AssistantMessage, UserMessage } from '../types/message.js'
 
-/**
- * Hardcoded salt from backend validation.
- * Must match exactly for fingerprint validation to pass.
- */
+/** 来自后端验证的硬编码盐值。
+必须完全匹配，指纹验证才能通过。 */
 export const FINGERPRINT_SALT = '59cf53e54c78'
 
-/**
- * Extracts text content from the first user message.
- *
- * @param messages - Array of internal message types
- * @returns First text content, or empty string if not found
- */
+/** 从第一条用户消息中提取文本内容。
+
+@param messages - 内部消息类型数组
+@returns 第一个文本内容，如果未找到则返回空字符串 */
 export function extractFirstMessageText(
   messages: (UserMessage | AssistantMessage)[],
 ): string {
@@ -37,37 +33,32 @@ export function extractFirstMessageText(
   return ''
 }
 
-/**
- * Computes 3-character fingerprint for Claude Code attribution.
- * Algorithm: SHA256(SALT + msg[4] + msg[7] + msg[20] + version)[:3]
- * IMPORTANT: Do not change this method without careful coordination with
- * 1P and 3P (Bedrock, Vertex, Azure) APIs.
- *
- * @param messageText - First user message text content
- * @param version - Version string (from MACRO.VERSION)
- * @returns 3-character hex fingerprint
- */
+/** 计算用于 Claude Code 归属的 3 字符指纹。
+算法：SHA256(SALT + msg[4] + msg[7] + msg[20] + version)[:3]
+重要提示：未经与 1P 和 3P（Bedrock、Vertex、Azure）API 仔细协调，请勿更改此方法。
+
+@param messageText - 第一条用户消息的文本内容
+@param version - 版本字符串（来自 MACRO.VERSION）
+@returns 3 字符十六进制指纹 */
 export function computeFingerprint(
   messageText: string,
   version: string,
 ): string {
-  // Extract chars at indices [4, 7, 20], use "0" if index not found
+  // 提取索引 [4, 7, 20] 处的字符，若索引不存在则使用 "0"
   const indices = [4, 7, 20]
   const chars = indices.map(i => messageText[i] || '0').join('')
 
   const fingerprintInput = `${FINGERPRINT_SALT}${chars}${version}`
 
-  // SHA256 hash, return first 3 hex chars
+  // SHA256 哈希，返回前 3 个十六进制字符
   const hash = createHash('sha256').update(fingerprintInput).digest('hex')
   return hash.slice(0, 3)
 }
 
-/**
- * Computes fingerprint from the first user message.
- *
- * @param messages - Array of normalized messages
- * @returns 3-character hex fingerprint
- */
+/** 从第一条用户消息计算指纹。
+
+@param messages - 标准化消息数组
+@returns 3 字符十六进制指纹 */
 export function computeFingerprintFromMessages(
   messages: (UserMessage | AssistantMessage)[],
 ): string {

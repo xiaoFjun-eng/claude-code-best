@@ -7,15 +7,15 @@
 import { normalizeNameForMCP } from './normalization.js'
 
 /*
- * Extracts MCP server information from a tool name string
- * @param toolString The string to parse. Expected format: "mcp__serverName__toolName"
- * @returns An object containing server name and optional tool name, or null if not a valid MCP rule
- *
- * Known limitation: If a server name contains "__", parsing will be incorrect.
- * For example, "mcp__my__server__tool" would parse as server="my" and tool="server__tool"
- * instead of server="my__server" and tool="tool". This is rare in practice since server
- * names typically don't contain double underscores.
- */
+* 从工具名称字符串中提取 MCP 服务器信息
+* @param toolString 要解析的字符串。预期格式：“mcp__serverName__toolName”
+* @returns 包含服务器名称和可选工具名称的对象，如果不是有效的 MCP 规则，则返回 null
+*
+* 已知限制：如果服务器名称包含“__”，则解析将不正确。
+* 例如，“mcp__my__server__tool”将解析为 server="my" 和 tool="server__tool"
+* 而不是 server="my__server" 和 tool="tool"。这种情况在实践中很少见，因为服务器
+* 名称通常不包含双下划线。
+*/
 export function mcpInfoFromString(toolString: string): {
   serverName: string
   toolName: string | undefined
@@ -25,7 +25,7 @@ export function mcpInfoFromString(toolString: string): {
   if (mcpPart !== 'mcp' || !serverName) {
     return null
   }
-  // Join all parts after server name to preserve double underscores in tool names
+  // 将服务器名称后的所有部分连接起来，以保留工具名称中的双下划线。
   const toolName =
     toolNameParts.length > 0 ? toolNameParts.join('__') : undefined
   return { serverName, toolName }

@@ -4,7 +4,7 @@ import { isSkillLearningEnabled } from '../../services/skillLearning/featureChec
 const skillLearning = {
   type: 'local-jsx',
   name: 'skill-learning',
-  description: 'Manage skill learning (observe, analyze, evolve)',
+  description: '技能学习管理（观察、分析、改进）',
   argumentHint:
     '[start|stop|about|status|ingest|evolve|export|import|prune|promote|projects]',
   isEnabled: () => isSkillLearningEnabled(),

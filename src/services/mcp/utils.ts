@@ -224,11 +224,11 @@ export function excludeStalePluginClients(
 }
 
 /**
- * Checks if a tool name belongs to a specific MCP server
- * @param toolName The tool name to check
- * @param serverName The server name to match against
- * @returns True if the tool belongs to the specified server
- */
+* 检查工具名称是否属于指定的 MCP 服务器
+* @param toolName 要检查的工具名称
+* @param serverName 要匹配的服务器名称
+* @returns 如果工具属于指定的服务器，则返回 True
+*/
 export function isToolFromMcpServer(
   toolName: string,
   serverName: string,

@@ -1683,10 +1683,10 @@ function appendMessageTagToUserMessage(message: UserMessage): UserMessage {
 }
 
 /**
- * Strips tool_reference blocks from tool_result content in a user message.
- * tool_reference blocks are only valid when the tool search beta is enabled.
- * When tool search is disabled, we need to remove these blocks to avoid API errors.
- */
+* 从用户消息中的 tool_result 内容中移除 tool_reference 块。
+* tool_reference 块仅在启用工具搜索测试版时有效。
+* 当工具搜索功能禁用时，我们需要移除这些块以避免 API 错误。
+*/
 export function stripToolReferenceBlocksFromUserMessage(
   message: UserMessage,
 ): UserMessage {
@@ -5077,17 +5077,16 @@ function ensureNonEmptyAssistantContent(
 }
 
 /**
- * Filter orphaned thinking-only assistant messages.
- *
- * During streaming, each content block is yielded as a separate message with the same
- * message.id. When messages are loaded for resume, interleaved user messages or attachments
- * can prevent proper merging by message.id, leaving orphaned assistant messages that contain
- * only thinking blocks. These cause "thinking blocks cannot be modified" API errors.
- *
- * A thinking-only message is "orphaned" if there is NO other assistant message with the
- * same message.id that contains non-thinking content (text, tool_use, etc). If such a
- * message exists, the thinking block will be merged with it in normalizeMessagesForAPI().
- */
+* 过滤孤立的仅包含思考内容的助手消息。
+*
+* 在流式传输过程中，每个内容块都会作为一条单独的消息生成，并具有相同的
+* message.id。当消息加载以恢复播放时，交错的用户消息或附件
+* 可能会阻止按 message.id 正确合并，从而导致出现仅包含思考内容的孤立助手消息。
+* 这些消息会导致“思考内容无法修改”的 API 错误。
+*
+* 如果不存在其他具有相同 message.id 且包含非思考内容（文本、工具使用等）的助手消息，则该仅包含思考内容的消息被视为“孤立”消息。
+* 如果存在这样的消息，则在 normalizeMessagesForAPI() 中会将该思考内容与该消息合并。
+*/
 export function filterOrphanedThinkingOnlyMessages(
   messages: (UserMessage | AssistantMessage)[],
 ): (UserMessage | AssistantMessage)[]
@@ -5216,20 +5215,19 @@ export function createToolUseSummaryMessage(
 }
 
 /**
- * Defensive validation: ensure tool_use/tool_result pairing is correct.
- *
- * Handles both directions:
- * - Forward: inserts synthetic error tool_result blocks for tool_use blocks missing results
- * - Reverse: strips orphaned tool_result blocks referencing non-existent tool_use blocks
- *
- * Logs when this activates to help identify the root cause.
- *
- * Strict mode: when getStrictToolResultPairing() is true (HFI opts in at
- * startup), any mismatch throws instead of repairing. For training-data
- * collection, a model response conditioned on synthetic placeholders is
- * tainted — fail the trajectory rather than waste labeler time on a turn
- * that will be rejected at submission anyway.
- */
+* 防御性验证：确保 tool_use/tool_result 配对正确。
+*
+* 处理双向验证：
+* - 正向验证：为缺少结果的 tool_use 块插入合成错误 tool_result 块
+* - 反向验证：移除引用不存在的 tool_use 块的孤立 tool_result 块
+*
+* 记录激活情况，以帮助识别根本原因。
+*
+* 严格模式：当 getStrictToolResultPairing() 为 true 时（HFI 在启动时选择启用）
+* ，任何不匹配都会抛出异常而不是进行修复。对于训练数据
+* 集合，基于合成占位符的模型响应
+* 会被污染——与其浪费标注者时间在一个无论如何都会在提交时被拒绝的转弯上，不如直接判定轨迹失败。
+*/
 export function ensureToolResultPairing(
   messages: (UserMessage | AssistantMessage)[],
 ): (UserMessage | AssistantMessage)[] {

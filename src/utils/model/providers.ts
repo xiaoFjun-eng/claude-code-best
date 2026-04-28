@@ -15,7 +15,7 @@ export function getAPIProvider(): APIProvider {
   const modelType = getInitialSettings().modelType
   if (modelType === 'openai') return 'openai'
   if (modelType === 'gemini') return 'gemini'
-  if (modelType === 'grok') return 'grok'
+  if (modelType === 'grok') return 'grok' //Xai平台
 
   if (isEnvTruthy(process.env.CLAUDE_CODE_USE_BEDROCK)) return 'bedrock' //亚马逊平台
   if (isEnvTruthy(process.env.CLAUDE_CODE_USE_VERTEX)) return 'vertex' //Google平台

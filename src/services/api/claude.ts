@@ -1854,6 +1854,7 @@ async function* queryModel(
 
     let e
     do {
+      //手动读取模型的响应，直到模型响应结束。
       e = await generator.next()
 
       // yield API 错误消息（流具有 'controller' 属性，错误消息没有）
@@ -1861,6 +1862,7 @@ async function* queryModel(
         yield e.value
       }
     } while (!e.done)
+    //将模型响应转换为流。
     stream = e.value as Stream<BetaRawMessageStreamEvent>
 
     // 重置状态

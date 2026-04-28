@@ -152,31 +152,27 @@ const getDeferredToolTokenCount = memoize(
 )
 
 /**
- * Tool search mode. Determines how deferrable tools (MCP + shouldDefer) are
- * surfaced:
- *   - 'tst': Tool Search Tool — deferred tools discovered via ToolSearchTool (always enabled)
- *   - 'tst-auto': auto — tools deferred only when they exceed threshold
- *   - 'standard': tool search disabled — all tools exposed inline
+ * 工具搜索模式。决定可延迟工具（MCP + shouldDefer）的呈现方式：
+ *   - 'tst'：工具搜索工具模式 —— 通过 ToolSearchTool 发现延迟工具（始终启用）
+ *   - 'tst-auto'：自动模式 —— 仅在工具超过阈值时才延迟
+ *   - 'standard'：工具搜索禁用 —— 所有工具内联暴露
  */
 export type ToolSearchMode = 'tst' | 'tst-auto' | 'standard'
 
 /**
- * Determines the tool search mode from ENABLE_TOOL_SEARCH.
+ * 根据 ENABLE_TOOL_SEARCH 确定工具搜索模式。
  *
- *   ENABLE_TOOL_SEARCH    Mode
+ *   ENABLE_TOOL_SEARCH    模式
  *   auto / auto:1-99      tst-auto
  *   true / auto:0         tst
  *   false / auto:100      standard
- *   (unset)               tst (default: always defer MCP and shouldDefer tools)
+ *   (未设置)               tst（默认：始终延迟 MCP 和 shouldDefer 工具）
  */
 export function getToolSearchMode(): ToolSearchMode {
-  // CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS is a kill switch for beta API
-  // features. Tool search emits defer_loading on tool definitions and
-  // tool_reference content blocks — both require the API to accept a beta
-  // header. When the kill switch is set, force 'standard' so no beta shapes
-  // reach the wire, even if ENABLE_TOOL_SEARCH is also set. This is the
-  // explicit escape hatch for proxy gateways that the heuristic in
-  // isToolSearchEnabledOptimistic doesn't cover.
+  // CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS 是 beta API 功能的总开关。
+  // 工具搜索会在工具定义上输出 defer_loading 以及 tool_reference 内容块 —— 这两者都需要 API 接受 beta 标头。
+  // 当设置总开关时，强制使用 'standard' 模式，这样即使设置了 ENABLE_TOOL_SEARCH，也不会发送任何 beta 形状的数据。
+  // 这是针对代理网关的显式逃生舱口，isToolSearchEnabledOptimistic 中的启发式规则无法覆盖此类网关。
   // github.com/anthropics/claude-code/issues/20031
   if (isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS)) {
     return 'standard'
@@ -184,17 +180,17 @@ export function getToolSearchMode(): ToolSearchMode {
 
   const value = process.env.ENABLE_TOOL_SEARCH
 
-  // Handle auto:N syntax - check edge cases first
+  // 处理 auto:N 语法 - 先检查边界情况
   const autoPercent = value ? parseAutoPercentage(value) : null
-  if (autoPercent === 0) return 'tst' // auto:0 = always enabled
+  if (autoPercent === 0) return 'tst' // auto:0 = 始终启用
   if (autoPercent === 100) return 'standard'
   if (isAutoToolSearchMode(value)) {
-    return 'tst-auto' // auto or auto:1-99
+    return 'tst-auto' // auto 或 auto:1-99
   }
 
   if (isEnvTruthy(value)) return 'tst'
   if (isEnvDefinedFalsy(process.env.ENABLE_TOOL_SEARCH)) return 'standard'
-  return 'tst' // default: always defer MCP and shouldDefer tools
+  return 'tst' // 默认：始终延迟 MCP 和 shouldDefer 工具
 }
 
 /**
@@ -365,23 +361,23 @@ async function calculateDeferredToolDescriptionChars(
 }
 
 /**
- * Check if tool search (MCP tool deferral with tool_reference) is enabled for a specific request.
- *
- * This is the definitive check that includes:
- * - MCP mode (Tst, TstAuto, McpCli, Standard)
- * - Model compatibility (haiku doesn't support tool_reference)
- * - ToolSearchTool availability (must be in tools list)
- * - Threshold check for TstAuto mode
- *
- * Use this when making actual API calls where all context is available.
- *
- * @param model The model to check for tool_reference support
- * @param tools Array of available tools (including MCP tools)
- * @param getToolPermissionContext Function to get tool permission context
- * @param agents Array of agent definitions
- * @param source Optional identifier for the caller (for debugging)
- * @returns true if tool search should be enabled for this request
- */
+* 检查特定请求是否启用了工具搜索（使用 tool_reference 进行 MCP 工具延迟）。
+*
+* 这是最终检查，包括：
+* - MCP 模式（Tst、TstAuto、McpCli、Standard）
+* - 模型兼容性（haiku 不支持 tool_reference）
+* - ToolSearchTool 的可用性（必须在工具列表中）
+* - TstAuto 模式的阈值检查
+*
+* 在进行实际 API 调用时使用此方法，因为此时所有上下文都可用。
+*
+* @param model 要检查是否支持 tool_reference 的模型
+* @param tools 可用工具数组（包括 MCP 工具）
+* @param getToolPermissionContext 获取工具权限上下文的函数
+* @param agents 代理定义数组
+* @param source 调用者的可选标识符（用于调试）
+* @returns 如果应为此请求启用工具搜索，则返回 true
+*/
 export async function isToolSearchEnabled(
   model: string,
   tools: Tools,
@@ -391,7 +387,7 @@ export async function isToolSearchEnabled(
 ): Promise<boolean> {
   const mcpToolCount = count(tools, t => t.isMcp)
 
-  // Helper to log the mode decision event
+  // 记录模式决策事件的辅助函数
   function logModeDecision(
     enabled: boolean,
     mode: ToolSearchMode,
@@ -403,9 +399,8 @@ export async function isToolSearchEnabled(
       mode: mode as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       reason:
         reason as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      // Log the actual model being checked, not the session's main model.
-      // This is important for debugging subagent tool search decisions where
-      // the subagent model (e.g., haiku) differs from the session model (e.g., opus).
+      // 记录正在检查的实际模型，而非会话的主模型。
+      // 这对于调试子 agent 工具搜索决策很重要，因为子 agent 模型（例如 haiku）可能与会话模型（例如 opus）不同。
       checkedModel:
         model as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       mcpToolCount,
@@ -415,20 +410,20 @@ export async function isToolSearchEnabled(
     })
   }
 
-  // Check if model supports tool_reference
+  // 检查模型是否支持 tool_reference
   if (!modelSupportsToolReference(model)) {
     logForDebugging(
-      `Tool search disabled for model '${model}': model does not support tool_reference blocks. ` +
-        `This feature is only available on Claude Sonnet 4+, Opus 4+, and newer models.`,
+      `模型 '${model}' 禁用工具搜索：该模型不支持 tool_reference 块。` +
+        `此功能仅适用于 Claude Sonnet 4+、Opus 4+ 及更新的模型。`,
     )
     logModeDecision(false, 'standard', 'model_unsupported')
     return false
   }
 
-  // Check if ToolSearchTool is available (respects disallowedTools)
+  // 检查 ToolSearchTool 是否可用（遵循 disallowedTools）
   if (!isToolSearchToolAvailable(tools)) {
     logForDebugging(
-      `Tool search disabled: ToolSearchTool is not available (may have been disallowed via disallowedTools).`,
+      `工具搜索已禁用：ToolSearchTool 不可用（可能已通过 disallowedTools 禁止）。`,
     )
     logModeDecision(false, 'standard', 'mcp_search_unavailable')
     return false
@@ -451,16 +446,16 @@ export async function isToolSearchEnabled(
 
       if (enabled) {
         logForDebugging(
-          `Auto tool search enabled: ${debugDescription}` +
-            (source ? ` [source: ${source}]` : ''),
+          `自动工具搜索已启用：${debugDescription}` +
+            (source ? ` [来源: ${source}]` : ''),
         )
         logModeDecision(true, mode, 'auto_above_threshold', metrics)
         return true
       }
 
       logForDebugging(
-        `Auto tool search disabled: ${debugDescription}` +
-          (source ? ` [source: ${source}]` : ''),
+        `自动工具搜索已禁用：${debugDescription}` +
+          (source ? ` [来源: ${source}]` : ''),
       )
       logModeDecision(false, mode, 'auto_below_threshold', metrics)
       return false
@@ -622,10 +617,9 @@ export type DeferredToolsDeltaScanContext = {
 }
 
 /**
- * True → announce deferred tools via persisted delta attachments.
- * False → claude.ts keeps its per-call <available-deferred-tools>
- * header prepend (the attachment does not fire).
- */
+* True → 通过持久化的增量附件发布延迟工具。
+* False → claude.ts 保留其每次调用时的 <available-deferred-tools> 标头前缀（附件不会触发）。
+*/
 export function isDeferredToolsDeltaEnabled(): boolean {
   return (
     process.env.USER_TYPE === 'ant' ||
@@ -706,8 +700,8 @@ export function getDeferredToolsDelta(
 }
 
 /**
- * Check whether deferred tools exceed the auto-threshold for enabling TST.
- * Tries exact token count first; falls back to character-based heuristic.
+ * 检查延迟工具是否超过启用 TST 的自动阈值。
+ * 优先尝试精确的 token 计数，若不可用则回退到基于字符的启发式规则。
  */
 async function checkAutoThreshold(
   tools: Tools,
@@ -719,7 +713,7 @@ async function checkAutoThreshold(
   debugDescription: string
   metrics: Record<string, number>
 }> {
-  // Try exact token count first (cached, one API call per toolset change)
+  // 优先尝试精确 token 计数（已缓存，每次工具集变更仅调用一次 API）
   const deferredToolTokens = await getDeferredToolTokenCount(
     tools,
     getToolPermissionContext,
